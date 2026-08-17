@@ -70,9 +70,17 @@ type Node struct {
 // engine MUST NOT accumulate binary floating-point error across the graph."
 func (n *Node) Total() *big.Rat { return new(big.Rat).Set(n.total) }
 
-// TotalInt returns the total as an integer, reporting whether it was exact.
+// TotalInt returns the total as an int64, reporting whether that conversion
+// was exact. It is inexact both when the total is fractional and when it is
+// integral but outside int64 range — big.Rat.IsInt only reports a denominator
+// of 1, and big.Int.Int64 is undefined out of range, so checking IsInt alone
+// would return a wrapped (possibly negative) value flagged as exact.
+//
+// Governing: SPEC-0001 REQ "Exact Arithmetic and Rounding Discipline",
+// REQ "Error Handling Standards" — a silently wrong count is the failure this
+// bool exists to prevent.
 func (n *Node) TotalInt() (int64, bool) {
-	if !n.total.IsInt() {
+	if !n.total.IsInt() || !n.total.Num().IsInt64() {
 		return 0, false
 	}
 	return n.total.Num().Int64(), true

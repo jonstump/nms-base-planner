@@ -494,3 +494,126 @@ func TestRationalArithmeticIsExact(t *testing.T) {
 		t.Errorf("rational sum = %s, want 1", r.RatString())
 	}
 }
+
+func loadCakeFixture(t *testing.T) *Tier1 {
+	t.Helper()
+	f, err := os.Open("testdata/hexaberry-cake.tier1.json")
+	if err != nil {
+		t.Fatalf("opening cake fixture: %v", err)
+	}
+	defer f.Close()
+	a1, err := LoadTier1(f)
+	if err != nil {
+		t.Fatalf("loading cake fixture: %v", err)
+	}
+	if a1.GameVersion != fixtureGameVersion {
+		t.Fatalf("cake fixture game version = %q, want %q — the Tier 1 data changed", a1.GameVersion, fixtureGameVersion)
+	}
+	return a1
+}
+
+// The Stasis Device tree is entirely industrial, so it cannot reach the cook
+// method at all. This exercises it on the CAKE target the base-planner handoff
+// specifies, through a multi-level chain so propagation is covered too, not
+// just expansion.
+//
+// Governing: SPEC-0001 REQ "Method Resolution" —
+// Scenario "Cook method expands a nutrient processor recipe".
+func TestCookMethodExpandsNutrientProcessorRecipe(t *testing.T) {
+	g, err := Resolve(loadCakeFixture(t), PlanInput{Target: "cake", Quantity: 1})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	cake, ok := g.Node("cake")
+	if !ok {
+		t.Fatal("cake node missing from graph")
+	}
+	if cake.Method != MethodCook {
+		t.Errorf("cake method = %q, want %q", cake.Method, MethodCook)
+	}
+	if cake.Terminal {
+		t.Error("cake is terminal; a cook node with a recipe must expand")
+	}
+
+	// THEN the node gains child edges for that recipe's inputs.
+	gotEdges := map[string]int64{}
+	for _, e := range cake.Children {
+		gotEdges[e.To] = e.PerUnit
+	}
+	wantEdges := map[string]int64{"batter": 1, "butter": 1}
+	if len(gotEdges) != len(wantEdges) {
+		t.Errorf("cake has %d child edges, want %d", len(gotEdges), len(wantEdges))
+	}
+	for to, per := range wantEdges {
+		if gotEdges[to] != per {
+			t.Errorf("cake -> %s per-unit = %d, want %d", to, gotEdges[to], per)
+		}
+	}
+
+	// AND its quantities propagate exactly as for craft and refine.
+	// flour = 1 batter x 2; wheat = 2 flour x 5; milk = 1 butter x 4.
+	for id, want := range map[string]int64{
+		"batter": 1, "butter": 1, "flour": 2, "egg": 3, "milk": 4, "wheat": 10,
+	} {
+		if got := totalOf(t, g, id); got != want {
+			t.Errorf("%s total = %d, want %d", id, got, want)
+		}
+	}
+
+	// Terminals only: wheat, milk, egg.
+	var leaves []string
+	for _, n := range g.Leaves() {
+		leaves = append(leaves, n.ItemID)
+	}
+	if len(leaves) != 3 {
+		t.Errorf("leaves = %v, want exactly wheat, milk, egg", leaves)
+	}
+}
+
+// Cook chains taint downward the same as craft and refine do.
+//
+// Governing: SPEC-0001 REQ "Provenance Propagation".
+func TestCookProvenanceTaint(t *testing.T) {
+	g, err := Resolve(loadCakeFixture(t), PlanInput{Target: "cake", Quantity: 1})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, id := range []string{"cake", "batter", "butter", "flour", "wheat", "milk", "egg"} {
+		n, ok := g.Node(id)
+		if !ok {
+			t.Fatalf("node %q missing", id)
+		}
+		if n.Verified {
+			t.Errorf("%s is verified; the unverified cake node must taint everything below it", id)
+		}
+	}
+}
+
+// A total outside int64 range is integral but not representable, so TotalInt
+// must report it as inexact rather than returning a wrapped value.
+//
+// Governing: SPEC-0001 REQ "Exact Arithmetic and Rounding Discipline".
+func TestTotalIntRejectsOutOfRange(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		rat  *big.Rat
+		want bool
+	}{
+		{"in range", new(big.Rat).SetInt64(500), true},
+		{"max int64", new(big.Rat).SetInt(new(big.Int).SetUint64(1<<63 - 1)), true},
+		{"one past max int64", new(big.Rat).SetInt(new(big.Int).Lsh(big.NewInt(1), 63)), false},
+		{"fractional", big.NewRat(1, 2), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			n := &Node{total: tc.rat}
+			got, exact := n.TotalInt()
+			if exact != tc.want {
+				t.Errorf("TotalInt() exact = %v, want %v (returned %d for %s)", exact, tc.want, got, tc.rat.RatString())
+			}
+			if !exact && got != 0 {
+				t.Errorf("TotalInt() returned %d alongside exact=false; want 0", got)
+			}
+		})
+	}
+}

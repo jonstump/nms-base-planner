@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "game_version": "community-2026-08",
+  "extracted": false,
+  "source": "docs/design/base-planner/handoff.md (v2 CAKE target: RANCH rows + KITCHEN Nutrient Processor steps)",
+  "note": "Placeholder standing in for a real extracted artifact (ADR-0001 Tier 1). Exists to exercise the cook method, which the Stasis Device fixture cannot reach because that tree is entirely industrial. Quantities are illustrative and are not claimed to match the game; what is asserted against this fixture is expansion and propagation behaviour, never real recipe values. The cake plan carries the unverified chip in the design, so the cake node is marked unverified here.",
+
+  "items": [
+    { "id": "wheat", "name": "Wheat",          "raw_obtainable": true, "default_method": "raw" },
+    { "id": "milk",  "name": "Wild Milk",      "raw_obtainable": true, "default_method": "raw" },
+    { "id": "egg",   "name": "Proto-Egg",      "raw_obtainable": true, "default_method": "raw" },
+
+    { "id": "flour", "name": "Flour",          "raw_obtainable": false, "default_method": "cook" },
+    { "id": "butter","name": "Butter",         "raw_obtainable": false, "default_method": "cook" },
+    { "id": "batter","name": "Batter",         "raw_obtainable": false, "default_method": "cook" },
+    { "id": "cake",  "name": "Hexaberry Cake", "raw_obtainable": false, "default_method": "cook", "verified": false }
+  ],
+
+  "recipes": [
+    { "output": "flour",  "method": "cook", "inputs": [{ "item": "wheat", "quantity": 5 }] },
+    { "output": "butter", "method": "cook", "inputs": [{ "item": "milk",  "quantity": 4 }] },
+    { "output": "batter", "method": "cook", "inputs": [{ "item": "flour", "quantity": 2 }, { "item": "egg", "quantity": 3 }] },
+    { "output": "cake",   "method": "cook", "inputs": [{ "item": "batter", "quantity": 1 }, { "item": "butter", "quantity": 1 }] }
+  ]
+}
