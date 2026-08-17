@@ -65,7 +65,7 @@ Rounding up is not an arithmetic preference but a physical fact: you cannot buil
 
 ### Tier 2 constants injected, never hardcoded
 
-**Choice**: All economy constants — yields, dome capacity, extractor rates per class, generator outputs, class multipliers, draws, depot thresholds, battery ratios — arrive as a parameter.
+**Choice**: All economy constants — crop yields, dome capacity, extractor rates per class, generator outputs, class multipliers, draws, depot thresholds and capacities, battery ratios, fauna yield per collection cycle, cycle durations, and steps per nutrient processor — arrive as a parameter.
 
 **Rationale**: ADR-0001 marks these as provisional and hand-curated; the game rebalances. The base-planner handoff already treats them as tweakable: *"`emOutput` (kPs, default 110) — swap in real game data without touching code."* Injection also makes every producer and power scenario testable with small synthetic constant sets rather than the full production dataset.
 
@@ -120,7 +120,7 @@ graph TD
 - **Rational arithmetic is slower than float** → Irrelevant at this scale, and correctness is worth far more than nanoseconds here.
 - **Tier 2 injection means every caller must supply constants** → Mitigated by shipping a canonical constants loader alongside the artifact, so callers pass a parsed dataset rather than assembling one.
 - **Taint propagation may over-flag** → Accepted deliberately. If most figures end up flagged, that is a signal that Tier 2 needs verification work, not that the rule is wrong.
-- **The 34-node acceptance test could ossify** → It asserts against community-sourced data that may change with game updates. Keep the fixture pinned to a stated game version so a failure reads as "data changed" rather than "engine broke".
+- **The 34-node acceptance test could ossify** → It asserts against community-sourced data that may change with game updates. The spec's Dependency Graph Resolution requirement makes the version pin normative: a fixture asserting exact counts must name the game version it was captured against, so a failure reads as "data changed" rather than "engine broke".
 
 ## Migration Plan
 

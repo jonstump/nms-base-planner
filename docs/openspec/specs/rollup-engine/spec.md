@@ -24,10 +24,17 @@ The engine MUST resolve a target item and quantity into a directed acyclic graph
 
 The graph MUST be derived from the Tier 1 artifact. The engine MUST NOT contain hardcoded recipe data.
 
+Fixtures asserting exact node counts or exact leaf totals MUST name the game version of the Tier 1 artifact they were captured against, so that a failure is attributable to changed game data rather than to a regression in the engine.
+
 #### Scenario: Resolving the Stasis Device tree
 
-- **WHEN** the target is Stasis Device at quantity 1 with default methods
+- **WHEN** the target is Stasis Device at quantity 1 with default methods, against a Tier 1 artifact stamped with the fixture's recorded game version
 - **THEN** the engine returns a graph of exactly 34 distinct nodes spanning the Quantum Processor, Cryogenic Chamber, and Iridesite branches
+
+#### Scenario: Fixture game version is asserted
+
+- **WHEN** a pinned fixture is evaluated against a Tier 1 artifact whose game version differs from the one the fixture records
+- **THEN** the failure identifies the version mismatch rather than reporting only a node-count or total mismatch
 
 #### Scenario: Terminal nodes are not expanded
 
@@ -59,6 +66,11 @@ The engine MUST report which methods are legal for a given node so the view can 
 
 - **WHEN** any input requests the method `buy`
 - **THEN** the engine returns an error indicating the method is not part of the vocabulary
+
+#### Scenario: Cook method expands a nutrient processor recipe
+
+- **WHEN** a node resolves to method `cook` and the Tier 1 artifact holds a nutrient processor recipe for it
+- **THEN** the node gains child edges for that recipe's inputs, and its quantities propagate exactly as for `craft` and `refine`
 
 ### Requirement: Quantity Propagation and Aggregation
 
@@ -94,7 +106,7 @@ The engine MUST detect cycles during graph resolution and MUST return an error n
 
 All item quantities MUST be represented as exact integers. Multipliers that are not integers (such as extractor and generator class multipliers) MUST be applied as exact rational arithmetic. The engine MUST NOT accumulate binary floating-point error across the graph.
 
-Rounding MUST occur only at stated physical boundaries, and MUST round up, because partial physical units cannot be built. The boundaries are: plants per crop, biodomes per crop, extractors per resource, supply depots per resource, generators per base, and batteries per base.
+Rounding MUST occur only at stated physical boundaries, and MUST round up, because partial physical units cannot be built. The boundaries are: plants per crop, biodomes per crop, extractors per resource, supply depots per resource, fauna per fauna product, nutrient processors per base, generators per base, and batteries per base.
 
 #### Scenario: Plants round up
 
@@ -134,7 +146,13 @@ The engine MUST accept an assignment of leaf items to bases and MUST group leaf 
 
 For each base, the engine MUST convert assigned leaf totals into producer requirements by producer type: `farm`, `extractor`, `ranch`, and `kitchen`. Producer counts MUST derive from Tier 2 constants supplied at call time and MUST NOT be hardcoded.
 
-Farm rows MUST report plant count and biodome count. Extractor rows MUST report extractor count sized so the required quantity is produced within a configured fill duration at the site's configured class, together with the resulting fill time, and MUST report supply depots when the required quantity exceeds the configured depot threshold.
+Farm rows MUST report plant count and biodome count.
+
+Extractor rows MUST report extractor count sized so the required quantity is produced within a configured fill duration at the site's configured class, together with the resulting fill time. Where the required quantity exceeds the configured depot threshold, the row MUST additionally report a supply depot count of `ceil(required quantity / depot capacity)`, where both the threshold and the capacity are Tier 2 constants. Below the threshold the row MUST report no depots.
+
+Ranch rows MUST report the fauna count required to yield the required quantity within one configured collection cycle, together with the resulting cycle time. Where any fauna product assigned to a base requires feeding, the base MUST report a pellet feeder. Feeders MUST be reported once per base rather than once per row, because one feeder serves every fed fauna product at that base.
+
+Kitchen rows MUST report each processing step's input-to-output ratio and its process duration, and MUST distinguish intermediate steps from the step that produces the plan target. Nutrient processor count MUST be reported once per base as `ceil(step count / steps per processor)` from a Tier 2 constant, and MUST NOT be the sum of per-row processor counts.
 
 Extractor class MUST be configured per site, not per row.
 
@@ -154,6 +172,36 @@ Items whose demand is satisfied by a byproduct of another producer at the same b
 
 - **WHEN** the extractor class at a base changes from B to S
 - **THEN** every extractor row at that base recomputes its count and fill time, and no other base is affected
+
+#### Scenario: Supply depots sized above the threshold
+
+- **WHEN** a base is assigned a resource requiring 2500 units, at a depot threshold of 1000 units and a depot capacity of 1000 units
+- **THEN** the engine reports 3 supply depots for that row
+
+#### Scenario: No depots below the threshold
+
+- **WHEN** a base is assigned a resource requiring 800 units at a depot threshold of 1000 units
+- **THEN** the engine reports no supply depots for that row
+
+#### Scenario: Ranch rollup
+
+- **WHEN** a base is assigned a fauna product requiring 100 units at a yield of 12 units per creature per collection cycle
+- **THEN** the engine reports 9 fauna for that product, together with the cycle time
+
+#### Scenario: Feeder is reported once per base
+
+- **WHEN** a base is assigned two distinct fauna products that both require feeding
+- **THEN** the engine reports 1 pellet feeder for that base, not one per row
+
+#### Scenario: Kitchen rollup sizes processors per base
+
+- **WHEN** a base carries 4 nutrient processor steps at a Tier 2 rate of 2 steps per processor
+- **THEN** the engine reports 2 nutrient processors once for that base, not a processor count on each of the 4 rows
+
+#### Scenario: Final kitchen step is distinguished
+
+- **WHEN** a base's kitchen steps include the one producing the plan target
+- **THEN** that step is marked as the final step and the remaining steps are marked intermediate
 
 #### Scenario: Byproduct satisfies demand
 
