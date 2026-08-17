@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&amp;family=Silkscreen:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script src="image-slot.js"></script>
+<style>
+body{margin:0;background:#282828;background-image:repeating-linear-gradient(0deg,rgba(251,241,199,.018) 0 1px,transparent 1px 3px)}
+a{color:#8ec07c;text-decoration:none}a:hover{color:#b8db9c;text-decoration:underline}
+button{font-family:inherit}
+input::placeholder{color:#7c6f64}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:24px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+  <div data-screen-label="Planner header" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font:700 14px 'Silkscreen',monospace;letter-spacing:.02em;color:#fbf1c7">{{ targetName }} <span style="color:#a89984;font-size:14px">×{{ targetQty }}</span></div>
+        <sc-if value="{{ unverified }}" hint-placeholder-val="{{ false }}"><span title="community recipe data, not verified in-game" style="padding:2px 7px;border:1px dashed #504945;border-radius:0;font:500 9.5px 'JetBrains Mono',monospace;color:#a89984">unverified</span></sc-if>
+      </div>
+      <div style="font:500 11.5px 'JetBrains Mono',monospace;color:#8ec07c;font-variant-numeric:tabular-nums">{{ basesCount }} BASES · {{ totGen }} kPs GEN · READY ~{{ totReady }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
+      <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">TARGET</span>
+      <div style="display:flex;flex-shrink:0;border:1px solid #504945;border-radius:0;overflow:hidden">
+        <sc-for list="{{ targetOpts }}" as="o" hint-placeholder-count="2">
+          <button onClick="{{ o.set }}" style="height:26px;padding:0 10px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.06em;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+        </sc-for>
+      </div>
+    </div>
+    <span style="flex:1"></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button style="height:34px;padding:0 14px;background:#fe8019;border:1px solid #af3a03;border-radius:0;box-shadow:3px 3px 0 rgba(0,0,0,.35);color:#1d2021;font:600 13px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="background:#ffa347">Recompute</button>
+      <button style="height:34px;padding:0 14px;background:#3c3836;border:1px solid #504945;border-radius:0;box-shadow:3px 3px 0 rgba(0,0,0,.35);color:#ebdbb2;font:500 13px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">Share</button>
+      <a href="../tree-canvas/Tree Canvas.dc.html" style="font:500 13px 'Space Grotesk',sans-serif;margin-left:4px">view tree →</a>
+      <a href="../bases-map/Bases Map.dc.html" style="font:500 13px 'Space Grotesk',sans-serif;margin-left:4px">view atlas →</a>
+    </div>
+  </div>
+
+  <div data-screen-label="Harvest run route bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#32302f;border:1px solid #3c3836;border-radius:0;padding:10px 14px">
+    <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">HARVEST RUN</span>
+    <sc-for list="{{ route }}" as="l" hint-placeholder-count="3">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;background:#3c3836;border-left:3px solid {{ l.color }};border-radius:0">
+          <span style="font:600 11px 'JetBrains Mono',monospace;color:#a89984">{{ l.n }}</span>
+          <span style="font:500 12px 'Space Grotesk',sans-serif;color:#fbf1c7">{{ l.name }}</span>
+        </span>
+        <sc-if value="{{ l.hasMethod }}" hint-placeholder-val="{{ true }}">
+          <span style="font:500 10px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#7c6f64">─ {{ l.method }} →</span>
+        </sc-if>
+      </div>
+    </sc-for>
+    <span style="flex:1"></span>
+    <span style="font:italic 12px 'Space Grotesk',sans-serif;color:#a89984">reorder</span>
+  </div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+    <sc-for list="{{ bases }}" as="b" hint-placeholder-count="3">
+      <div data-screen-label="Base card" onClick="{{ b.select }}" tabIndex="0" style="width:340px;box-sizing:border-box;background:{{ b.color }};padding:3px;border-radius:0;clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),4px calc(100% - 8px),0 calc(100% - 8px));position:relative;display:flex;flex-direction:column;cursor:pointer" style-focus="outline:2px solid #8ec07c;outline-offset:2px">
+        <sc-if value="{{ b.selRing }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:3px;border:2px solid #8ec07c;pointer-events:none;z-index:2"></div></sc-if>
+        <div style="background:#32302f;display:flex;flex-direction:column;flex:1;clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,calc(100% - 3px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 3px) calc(100% - 6px),calc(100% - 3px) calc(100% - 3px),calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),3px calc(100% - 6px),0 calc(100% - 6px))">
+        <div style="display:flex;align-items:center;gap:10px;padding:13px 16px 11px">
+          <span style="width:10px;height:10px;background:{{ b.color }};border-radius:1px"></span>
+          <span style="font:400 10px 'Silkscreen',monospace;letter-spacing:.02em;color:#fbf1c7">{{ b.name }}</span>
+          <span style="flex:1"></span>
+          <span style="font:600 11px 'JetBrains Mono',monospace;color:#8ec07c;font-variant-numeric:tabular-nums">{{ b.progressLabel }}</span>
+        </div>
+        <div style="height:6px;background:#1d2021"><div style="width:{{ b.progressPct }};height:100%;background:repeating-linear-gradient(90deg,#8ec07c 0 5px,rgba(0,0,0,0) 5px 7px)"></div></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:8px 16px;border-bottom:1px solid #3a3634;background:{{ b.tint }}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;background:#45403d;border:1px solid #504945;border-radius:0;font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#ebdbb2">{{ b.biome }}</span>
+            <span style="font:10.5px 'JetBrains Mono',monospace;color:#a89984">{{ b.hazard }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap">
+            <span style="font:500 10px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#a89984;white-space:nowrap">SENT {{ b.sent }} · {{ b.econ }} · CLASS {{ b.star }}</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin-left:auto">
+              <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">PORTAL</span>
+              <span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#ebdbb2">{{ b.portal }}</span>
+              <button onClick="{{ b.copy }}" style="height:20px;padding:0 7px;background:#3c3836;border:1px solid #504945;border-radius:0;color:#a89984;font:500 10px 'JetBrains Mono',monospace;cursor:pointer" style-hover="filter:brightness(1.12)">copy</button>
+            </span>
+          </div>
+        </div>
+        <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+
+          <sc-for list="{{ b.sections }}" as="sec" hint-placeholder-count="1">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:6px 8px;min-height:22px;flex-wrap:wrap">
+                <button onClick="{{ sec.toggle }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64;white-space:nowrap" style-hover="color:#a89984">{{ sec.caret }} {{ sec.label }}</button>
+                <span style="font:10.5px 'JetBrains Mono',monospace;color:#7c6f64;font-variant-numeric:tabular-nums;white-space:nowrap">{{ sec.summaryShow }}</span>
+                <span style="flex:1"></span>
+                <sc-if value="{{ sec.hasPicker }}" hint-placeholder-val="{{ false }}">
+                  <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64;flex-shrink:0">CLASS</span>
+                  <div style="display:flex;flex-shrink:0;border:1px solid #504945;border-radius:0;overflow:hidden">
+                    <sc-for list="{{ sec.picker }}" as="o" hint-placeholder-count="4">
+                      <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ sec.open }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ sec.rows }}" as="r" hint-placeholder-count="4">
+                  <div style="background:#3c3836;border-radius:0;padding:9px 11px;display:flex;flex-direction:column;gap:4px">
+                    <div style="display:flex;justify-content:space-between;font:500 13px 'Space Grotesk',sans-serif;color:#fbf1c7"><span>{{ r.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">{{ r.qty }}</span></div>
+                    <div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums"><span style="color:#ebdbb2">{{ r.main }}</span></div>
+                    <sc-if value="{{ r.hasTime }}" hint-placeholder-val="{{ true }}"><div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">{{ r.time }}</div></sc-if>
+                    <sc-if value="{{ r.showBar }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:5px;background:#1d2021"><div style="width:{{ r.stockPct }};height:100%;background:{{ r.stockColor }}"></div></div><span style="font:10px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">{{ r.stockLabel }}</span></div>
+                    </sc-if>
+                    <sc-if value="{{ r.hasNote }}" hint-placeholder-val="{{ false }}"><div style="font:11.5px 'JetBrains Mono',monospace;color:#8ec07c">{{ r.note }}</div></sc-if>
+                  </div>
+                </sc-for>
+              </sc-if>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;min-height:22px;flex-wrap:wrap">
+              <button onClick="{{ b.powToggle }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64;white-space:nowrap" style-hover="color:#a89984">{{ b.powCaret }} POWER</button>
+              <span style="font:10.5px 'JetBrains Mono',monospace;color:#7c6f64;font-variant-numeric:tabular-nums;white-space:nowrap">{{ b.powSummaryShow }}</span>
+              <span style="flex:1"></span>
+              <div style="display:flex;flex-shrink:0;border:1px solid #504945;border-radius:0;overflow:hidden">
+                <sc-for list="{{ b.powOpts }}" as="o" hint-placeholder-count="2">
+                  <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ b.isEm }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-shrink:0;border:1px solid #504945;border-radius:0;overflow:hidden">
+                  <sc-for list="{{ b.emOpts }}" as="o" hint-placeholder-count="4">
+                    <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ b.powOpen }}" hint-placeholder-val="{{ true }}">
+              <div style="background:#3c3836;border-radius:0;padding:9px 11px;display:flex;flex-direction:column;gap:7px">
+                <div style="display:grid;grid-template-columns:32px 1fr 64px;gap:8px;align-items:center;font:10.5px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">
+                  <span style="color:#a89984">GEN</span><div style="height:7px;background:#1d2021"><div style="width:{{ b.genPct }};height:100%;background:repeating-linear-gradient(90deg,#8ec07c 0 5px,rgba(0,0,0,0) 5px 7px)"></div></div><span style="color:#ebdbb2;text-align:right">{{ b.gen }} kPs</span>
+                  <span style="color:#a89984">DRAW</span><div style="height:7px;background:#1d2021;display:flex"><div style="width:{{ b.safePct }};height:100%;background:repeating-linear-gradient(90deg,#a89984 0 5px,rgba(0,0,0,0) 5px 7px)"></div><div style="width:{{ b.overPct }};height:100%;background:repeating-linear-gradient(90deg,#fb4934 0 5px,rgba(0,0,0,0) 5px 7px)"></div></div><span style="color:{{ b.drawColor }};text-align:right">{{ b.draw }} kPs</span>
+                </div>
+                <sc-if value="{{ b.deficit }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px"><span style="font:11.5px 'Space Grotesk',sans-serif;color:#fb4934">⚠ deficit {{ b.def }} kPs</span><span style="flex:1"></span><button onClick="{{ b.fix }}" style="height:26px;padding:0 10px;background:#3c3836;border:1px solid #665c54;border-radius:0;color:#ebdbb2;font:500 11.5px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">{{ b.fixLabel }}</button></div>
+                </sc-if>
+                <sc-if value="{{ b.okState }}" hint-placeholder-val="{{ true }}">
+                  <div style="font:11.5px 'Space Grotesk',sans-serif;color:#8ec07c">✓ headroom +{{ b.head }} kPs · {{ b.genDesc }}</div>
+                </sc-if>
+                <sc-if value="{{ b.showGrid }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:6px;padding-top:2px;flex-wrap:wrap">
+                    <span style="padding:3px 7px;border:1px solid #504945;border-radius:0;font:500 9.5px 'JetBrains Mono',monospace;color:#ebdbb2;white-space:nowrap">{{ b.gridGen }}</span>
+                    <div style="flex:1;min-width:8px;height:1px;background:#504945"></div>
+                    <span style="padding:3px 7px;border:1px solid #504945;border-radius:0;font:600 9.5px 'JetBrains Mono',monospace;color:#a89984">BUS</span>
+                    <div style="flex:1;min-width:8px;height:1px;background:#504945"></div>
+                    <sc-for list="{{ b.loads }}" as="ld" hint-placeholder-count="2">
+                      <span style="padding:3px 7px;border:1px dashed #504945;border-radius:0;font:500 9.5px 'JetBrains Mono',monospace;color:#a89984;white-space:nowrap">{{ ld }}</span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;min-height:22px">
+              <button onClick="{{ b.buildToggle }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64" style-hover="color:#a89984">{{ b.buildCaret }} BUILD TODO</button>
+              <span style="font:10.5px 'JetBrains Mono',monospace;color:#7c6f64;font-variant-numeric:tabular-nums">{{ b.buildSummaryShow }}</span>
+            </div>
+            <sc-if value="{{ b.buildOpen }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ b.items }}" as="it" hint-placeholder-count="3">
+                <button onClick="{{ it.toggle }}" style="display:flex;align-items:center;gap:9px;background:#3c3836;border:none;border-radius:0;padding:8px 11px;cursor:pointer;text-align:left" style-hover="filter:brightness(1.12)">
+                  <span style="font:600 13px 'JetBrains Mono',monospace;color:{{ it.color }}">{{ it.box }}</span>
+                  <span style="font:500 12.5px 'Space Grotesk',sans-serif;color:{{ it.color }};text-decoration:{{ it.deco }}">{{ it.label }}</span>
+                </button>
+              </sc-for>
+              <div style="font:11px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums;padding:2px 1px 0">◷ harvest cycle {{ b.harvestPct }} elapsed</div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;min-height:22px">
+              <button onClick="{{ b.photoToggle }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64" style-hover="color:#a89984">{{ b.photoCaret }} SCREENSHOT</button>
+            </div>
+            <sc-if value="{{ b.photoOpen }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ b.stop }}" style="width:100%;height:140px">
+                <image-slot id="{{ b.photoId }}" shape="rect" placeholder="Drop a screenshot of this base"></image-slot>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;min-height:22px">
+              <button onClick="{{ b.notesToggle }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64" style-hover="color:#a89984">{{ b.notesCaret }} NOTES</button>
+              <span style="font:10.5px 'JetBrains Mono',monospace;color:#7c6f64">{{ b.notesSummaryShow }}</span>
+            </div>
+            <sc-if value="{{ b.notesOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:6px">
+                <sc-for list="{{ b.tags }}" as="tg" hint-placeholder-count="3">
+                  <button onClick="{{ tg.toggle }}" style="height:22px;padding:0 8px;background:{{ tg.bg }};border:1px solid {{ tg.bd }};border-radius:0;color:{{ tg.fg }};font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;cursor:pointer">{{ tg.label }}</button>
+                </sc-for>
+              </div>
+              <input onClick="{{ b.stop }}" onChange="{{ b.onNote }}" defaultValue="{{ b.note }}" placeholder="Add a note…" style="height:30px;padding:0 10px;background:#45403d;border:1px solid #504945;border-radius:0;color:#ebdbb2;font:12.5px 'Space Grotesk',sans-serif;outline:none;width:100%;box-sizing:border-box">
+            </sc-if>
+          </div>
+
+          <div style="border-top:1px solid #3c3836;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+            <span style="font:11.5px 'JetBrains Mono',monospace;color:#a89984">{{ b.doneCount }} of {{ b.itemCount }} built</span>
+            <span style="font:600 12px 'JetBrains Mono',monospace;color:#fbf1c7;font-variant-numeric:tabular-nums">ready ~{{ b.ready }}</span>
+          </div>
+        </div>
+        </div>
+      </div>
+    </sc-for>
+
+    <div data-screen-label="Unassigned bin" style="width:340px;border:3px dashed #504945;border-radius:0;clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),4px calc(100% - 8px),0 calc(100% - 8px));padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font:400 10px 'Silkscreen',monospace;letter-spacing:.02em;color:#a89984">UNASSIGNED</span>
+        <span style="font:600 11px 'JetBrains Mono',monospace;color:#7c6f64">(0)</span>
+      </div>
+      <div style="font:13px 'Space Grotesk',sans-serif;color:#a89984;line-height:1.5">Every leaf on the tree is assigned. Resources you clear from a base collect here with a <span style="color:#d79921">⚠</span> until reassigned on the <a href="../tree-canvas/Tree Canvas.dc.html">tree</a>.</div>
+    </div>
+  </div>
+  <div aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">{{ announce }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:1050},&quot;deviceQty&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:1,&quot;max&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;emOutput&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:110,&quot;min&quot;:50,&quot;max&quot;:300,&quot;unit&quot;:&quot;kPs&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;solarOutput&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:50,&quot;min&quot;:20,&quot;max&quot;:150,&quot;unit&quot;:&quot;kPs&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;}}">
+class Component extends DCLogic {
+  state = {
+    sel: null, announce: '', target: 'STASIS',
+    ui: {
+      f: { add: 0, cls: 'B', em: 'B', pow: 'EM', open: { prod: false, power: true, build: true, photo: false, notes: false }, done: {}, tags: {}, note: '' },
+      r: { add: 0, cls: 'B', em: 'B', pow: 'EM', open: { prod: true, kitchen: true, power: true, build: true, photo: false, notes: false }, done: {}, tags: {}, note: '' },
+      v: { add: 0, cls: 'B', em: 'B', pow: 'EM', open: { prod: false, power: true, build: true, photo: false, notes: false }, done: { domes: true }, tags: {}, note: '' },
+      g: { add: 0, cls: 'B', em: 'B', pow: 'EM', open: { prod: false, power: true, build: true, photo: false, notes: false }, done: {}, tags: { restock: true }, note: 'depot 2 half full — top up before stasis run' },
+      c: { add: 0, cls: 'B', em: 'B', pow: 'SOLAR', open: { prod: false, power: true, build: true, photo: false, notes: false }, done: { ext: true }, tags: {}, note: '' }
+    }
+  };
+  up = (id, patch, msg) => this.setState(st => {
+    const next = { ui: { ...st.ui, [id]: { ...st.ui[id], ...patch } } };
+    if (msg) next.announce = msg;
+    return next;
+  });
+  renderVals() {
+    const p = this.props, s = this.state;
+    const q = Math.max(1, Math.min(10, p.deviceQty ?? 1));
+    const mult = { C: .5, B: 1, A: 1.5, S: 2 };
+    const emBase = Math.max(10, p.emOutput ?? 110), solarBase = Math.max(10, p.solarOutput ?? 50);
+    const fmt = min => { min = Math.round(min); const h = Math.floor(min / 60), m = min % 60; return h ? h + 'h ' + m + 'm' : m + 'm'; };
+    const pc = (v, sc) => Math.round(v / sc * 100) + '%';
+    const frac = { 'Frost Crystal': .35, 'Gamma Root': .8, 'Solanium': .2, 'Star Bulb': 1, 'Cactus Flesh': .5, 'Faecium': 0, 'Sulphurine': .4, 'Nitrogen': .1, 'Radon': 0, 'Paraffinium': 1, 'Ionised Cobalt': .6, 'Phosphorus': .25, 'Dioxite': 0, 'Heptaploid Wheat': .25, 'Hexaberry': .6, 'Sweetroot': 1, 'Wild Milk': .3, 'Proto-Egg': .5, 'Refined Flour': 0, 'Butter': 0, 'Cake Batter': 0, 'Hexaberry Cake': 0 };
+    const row = (name, need, main, time) => {
+      const st = Math.min(need, Math.round(need * (frac[name] ?? 0)));
+      return { name, qty: '×' + need, main, time, hasTime: !!time, showBar: true, hasNote: false, note: '',
+        stockPct: pc(st, need), stockLabel: st + ' / ' + need + ' stocked', stockColor: st >= need ? '#8ec07c' : '#a89984' };
+    };
+    const power = (units, emCls, type, draw) => {
+      const solar = type === 'SOLAR';
+      const out = solar ? solarBase : Math.round(emBase * mult[emCls]);
+      const unitName = solar ? 'Solar Panel' : 'EM generator', gen = units * out;
+      const bat = solar ? Math.ceil(units / 2) : 0;
+      const sc = Math.max(gen, draw) * 1.18, def = Math.max(0, draw - gen), n = Math.ceil(def / out) || 0;
+      return { gen, out, draw, def, n, solar, bat, unitName, genPct: pc(gen, sc), safePct: pc(Math.min(gen, draw), sc), overPct: pc(def, sc),
+        drawColor: def ? '#fb4934' : '#ebdbb2', fixLabel: '+ ' + n + ' × ' + unitName + ' (+' + n * out + ')',
+        desc: units + ' × ' + unitName + (solar ? ' + ' + bat + ' × Battery (night)' : ' ' + emCls) + ' (' + out + ' kPs ea)' };
+    };
+    const seg = (cur, k, i, set) => ({ k, bl: i ? '1px solid #504945' : 'none',
+      bg: k === cur ? 'rgba(142,192,124,.16)' : '#3c3836', fg: k === cur ? '#b8db9c' : '#7c6f64',
+      sh: k === cur ? 'inset 0 -2px 0 #8ec07c' : 'none', set });
+    const clsPicker = (id, what) => ['C', 'B', 'A', 'S'].map((k, i) => seg(s.ui[id].cls, k, i, e => { e.stopPropagation(); this.up(id, { cls: k }, what + ' class set to ' + k + '. Totals updated.'); }));
+    const emPicker = id => ['C', 'B', 'A', 'S'].map((k, i) => seg(s.ui[id].em, k, i, e => { e.stopPropagation(); this.up(id, { em: k }, 'EM generator class set to ' + k + '. Totals updated.'); }));
+    const powPicker = id => ['EM', 'SOLAR'].map((k, i) => seg(s.ui[id].pow, k, i, e => { e.stopPropagation(); this.up(id, { pow: k }, 'Power type set to ' + (k === 'EM' ? 'electromagnetic' : 'solar') + '. Totals updated.'); }));
+    const TAGS = [['restock', '⚠ RESTOCK'], ['rebuild', '↻ REBUILD'], ['visit', '◈ VISIT']];
+    const assemble = (def, u, sections, P, units, itemsDef, readyM, hf) => {
+      const id = def.id;
+      const togOpen = key => e => { e.stopPropagation(); this.up(id, { open: { ...u.open, [key]: !u.open[key] } }); };
+      const items = itemsDef.map(it => ({ label: it.label,
+        box: u.done[it.k] ? '■' : '□', color: u.done[it.k] ? '#7c6f64' : '#ebdbb2', deco: u.done[it.k] ? 'line-through' : 'none',
+        toggle: e => { e.stopPropagation(); this.up(id, { done: { ...u.done, [it.k]: !u.done[it.k] } }, it.label + (u.done[it.k] ? ' unchecked.' : ' marked built.')); } }));
+      if (P.def > 0) items.push({ label: '+ ' + P.n + ' × ' + P.unitName + ' — deficit ' + P.def + ' kPs', box: '□', color: '#fb4934', deco: 'none', toggle: e => e.stopPropagation() });
+      const doneCount = itemsDef.filter(it => u.done[it.k]).length;
+      const progress = Math.round((doneCount + hf) / (itemsDef.length + (P.def > 0 ? 1 : 0) + 1) * 100);
+      const tagCount = TAGS.filter(([k]) => u.tags[k]).length;
+      return {
+        id, name: def.name, color: def.color, tint: def.tint, biome: def.biGlyph + ' ' + def.biLabel, hazard: def.hazard,
+        sent: def.sent, econ: def.econ, star: def.star, portal: def.portal,
+        copy: e => { e.stopPropagation(); try { navigator.clipboard.writeText(def.portal); } catch (err) {} this.setState({ announce: 'Portal address for ' + def.short + ' copied.' }); },
+        select: e => this.setState(st => ({ sel: st.sel === id ? null : id })), selRing: s.sel === id,
+        stop: e => e.stopPropagation(),
+        progressPct: progress + '%', progressLabel: progress + '%',
+        sections: sections.map(sec => { const k = sec.k || 'prod'; return { ...sec, open: !!u.open[k], caret: u.open[k] ? '▾' : '▸', summaryShow: u.open[k] ? '' : sec.summary, toggle: togOpen(k) }; }),
+        powOpen: u.open.power, powCaret: u.open.power ? '▾' : '▸', powToggle: togOpen('power'),
+        powSummaryShow: u.open.power ? '' : P.gen + ' kPs · ' + (P.def > 0 ? 'deficit ' + P.def : 'headroom +' + (P.gen - P.draw)),
+        powOpts: powPicker(id), emOpts: emPicker(id), isEm: !P.solar,
+        gen: P.gen, draw: P.draw, genPct: P.genPct, safePct: P.safePct, overPct: P.overPct, drawColor: P.drawColor,
+        deficit: P.def > 0, okState: P.def === 0, def: P.def, head: P.gen - P.draw, fixLabel: P.fixLabel, genDesc: P.desc,
+        fix: e => { e.stopPropagation(); this.up(id, { add: u.add + P.n }, P.n + ' × ' + P.unitName + ' added to ' + def.short + '. Deficit resolved.'); },
+        showGrid: s.sel === id, gridGen: units + ' × ' + (P.solar ? 'SOLAR' : 'EM ' + u.em), loads: def.loads,
+        buildOpen: u.open.build, buildCaret: u.open.build ? '▾' : '▸', buildToggle: togOpen('build'),
+        buildSummaryShow: u.open.build ? '' : doneCount + '/' + items.length + ' built',
+        items, harvestPct: Math.round(hf * 100) + '%', doneCount, itemCount: items.length, ready: fmt(readyM),
+        photoOpen: u.open.photo, photoCaret: u.open.photo ? '▾' : '▸', photoToggle: togOpen('photo'), photoId: 'base-photo-' + id,
+        notesOpen: u.open.notes, notesCaret: u.open.notes ? '▾' : '▸', notesToggle: togOpen('notes'),
+        notesSummaryShow: u.open.notes ? '' : (tagCount || u.note ? (tagCount ? tagCount + ' tag' + (tagCount > 1 ? 's' : '') : '') + (u.note ? (tagCount ? ' · ' : '') + '1 note' : '') : 'empty'),
+        tags: TAGS.map(([k, label]) => ({ label,
+          bg: u.tags[k] ? 'rgba(142,192,124,.16)' : '#3c3836', bd: u.tags[k] ? '#689d6a' : '#504945', fg: u.tags[k] ? '#b8db9c' : '#a89984',
+          toggle: e => { e.stopPropagation(); this.up(id, { tags: { ...u.tags, [k]: !u.tags[k] } }); } })),
+        note: u.note, onNote: e => this.up(id, { note: e.target.value })
+      };
+    };
+    // --- Verdant Moon (farm)
+    const uv = s.ui.v;
+    const crops = [['Frost Crystal', 300, 4, 120], ['Gamma Root', 400, 4, 60], ['Solanium', 200, 3, 240], ['Star Bulb', 200, 4, 30], ['Cactus Flesh', 100, 3, 60], ['Faecium', 50, 3, 120]];
+    let vDomes = 0, vReadyM = 0;
+    const vRows = crops.map(([n, b, y, h]) => {
+      const need = b * q, plants = Math.ceil(need / y), domes = Math.ceil(plants / 16);
+      vDomes += domes; vReadyM = Math.max(vReadyM, h);
+      return row(n, need, plants + ' plants · ' + domes + ' biodome' + (domes > 1 ? 's' : '') + ' (16/dome)', 'harvest ' + fmt(h));
+    });
+    const vUnits = 4 + uv.add, vP = power(vUnits, uv.em, uv.pow, vDomes * 20 + 40);
+    const vDef = { id: 'v', name: 'BASE D — VERDANT MOON', short: 'Verdant Moon', color: '#93b4d1', tint: 'rgba(142,192,124,.06)', biGlyph: '✿', biLabel: 'LUSH', hazard: 'mild · no storms', sent: 'LOW', econ: 'TRADING ★★', star: 'G2', portal: '20E5F9556C30', loads: [vDomes + ' × dome (' + vDomes * 20 + ')', 'misc (40)'] };
+    const vBase = assemble(vDef, uv, [{ label: 'FARM', hasPicker: false, picker: [], rows: vRows, summary: crops.length + ' crops · ' + vDomes + ' biodomes' }], vP, vUnits,
+      [{ k: 'domes', label: vDomes + ' × Biodome' }, { k: 'gen', label: vUnits + ' × ' + (vP.solar ? 'Solar Panel + ' + vP.bat + ' × Battery' : 'EM generator ' + uv.em) }], vReadyM, .4);
+    // --- Gasworks (gas)
+    const ug = s.ui.g;
+    const gases = [['Sulphurine', 500], ['Nitrogen', 500], ['Radon', 500]];
+    const gRate = 200 * mult[ug.cls];
+    let gExt = 0, gDep = 0, gReadyM = 0;
+    const gRows = gases.map(([n, b]) => {
+      const need = b * q, count = Math.max(1, Math.ceil(need / (gRate * 1.5))), fill = need / (gRate * count) * 60, dep = Math.ceil(need / 720);
+      gExt += count; gDep += dep; gReadyM = Math.max(gReadyM, fill);
+      return row(n, need, count + ' × Gas Extractor', 'fills in ' + fmt(fill) + ' · +' + dep + ' supply depot (720u)');
+    });
+    gRows.push({ name: 'Condensed Carbon', qty: '×' + 300 * q, main: '', time: '', hasTime: false, showBar: false, hasNote: true, note: '✓ byproduct of gas refines — nothing to build', stockPct: '0%', stockLabel: '', stockColor: '#a89984' });
+    const gUnits = 3 + ug.add, gP = power(gUnits, ug.em, ug.pow, gExt * 55 + gDep * 10 + 20);
+    const gDef = { id: 'g', name: 'BASE C — GASWORKS', short: 'Gasworks', color: '#e8543a', tint: 'rgba(215,153,33,.06)', biGlyph: '☣', biLabel: 'TOXIC', hazard: 'acid storms · hazard prot. req.', sent: 'HIGH', econ: 'MINING ★', star: 'K7', portal: '115EF8A10D34', loads: [gExt + ' × extr (' + gExt * 55 + ')', gDep + ' × depot (' + gDep * 10 + ')'] };
+    const gBase = assemble(gDef, ug, [{ label: 'GAS EXTRACTORS', hasPicker: true, picker: clsPicker('g', 'Extractor'), rows: gRows, summary: gExt + ' extractors · ' + gDep + ' depots' }], gP, gUnits,
+      [{ k: 'ext', label: gExt + ' × Gas Extractor ' + ug.cls }, { k: 'dep', label: gDep + ' × Supply Depot' }, { k: 'gen', label: gUnits + ' × ' + (gP.solar ? 'Solar Panel + ' + gP.bat + ' × Battery' : 'EM generator ' + ug.em) }], gReadyM, .65);
+    // --- Cobalt Flats (mineral)
+    const uc = s.ui.c;
+    const minerals = [['Paraffinium', 50], ['Ionised Cobalt', 50], ['Phosphorus', 50], ['Dioxite', 50]];
+    const cRate = 250 * mult[uc.cls];
+    let cExt = 0, cDep = 0, cReadyM = 0;
+    const cRows = minerals.map(([n, b]) => {
+      const need = b * q, count = Math.max(1, Math.ceil(need / (cRate * 1.5))), fill = need / (cRate * count) * 60, dep = need > 360 ? Math.ceil(need / 720) : 0;
+      cExt += count; cDep += dep; cReadyM = Math.max(cReadyM, fill);
+      return row(n, need, count + ' × Mineral Extractor', 'fills in ' + fmt(fill) + (dep ? ' · +' + dep + ' supply depot (720u)' : ''));
+    });
+    const cUnits = 3 + uc.add, cP = power(cUnits, uc.em, uc.pow, cExt * 55 + cDep * 10 + 20);
+    const cItems = [{ k: 'ext', label: cExt + ' × Mineral Extractor ' + uc.cls }];
+    if (cDep) cItems.push({ k: 'dep', label: cDep + ' × Supply Depot' });
+    cItems.push({ k: 'gen', label: cP.solar ? cUnits + ' × Solar Panel + ' + cP.bat + ' × Battery' : cUnits + ' × EM generator ' + uc.em });
+    const cDef = { id: 'c', name: 'BASE F — COBALT FLATS', short: 'Cobalt Flats', color: '#b3618a', tint: 'rgba(147,180,209,.06)', biGlyph: '❄', biLabel: 'FROZEN', hazard: 'blizzards at night · solar dips', sent: 'NONE', econ: 'TECH ★★★', star: 'F0', portal: '40FA92D18B06', loads: [cExt + ' × extr (' + cExt * 55 + ')', 'misc (20)'] };
+    const cBase = assemble(cDef, uc, [{ label: 'MINERAL EXTRACTORS', hasPicker: true, picker: clsPicker('c', 'Extractor'), rows: cRows, summary: cExt + ' extractors' }], cP, cUnits, cItems, cReadyM, 1);
+    // --- Cooking plan: Hexaberry Cake (community recipe, unverified)
+    const genItem = (units, P, cls) => ({ k: 'gen', label: P.solar ? units + ' × Solar Panel + ' + P.bat + ' × Battery' : units + ' × EM generator ' + cls });
+    const uf = s.ui.f;
+    const cakeCrops = [['Heptaploid Wheat', 200, 2, 60], ['Hexaberry', 100, 3, 30], ['Sweetroot', 50, 2, 60]];
+    let fDomes = 0, fReadyM = 0;
+    const fRows = cakeCrops.map(([n, b, y, h]) => {
+      const need = b * q, plants = Math.ceil(need / y), domes = Math.ceil(plants / 16);
+      fDomes += domes; fReadyM = Math.max(fReadyM, h);
+      return row(n, need, plants + ' plants · ' + domes + ' biodome' + (domes > 1 ? 's' : '') + ' (16/dome)', 'harvest ' + fmt(h));
+    });
+    const fUnits = 3 + uf.add, fP = power(fUnits, uf.em, uf.pow, fDomes * 20 + 40);
+    const fDef = { id: 'f', name: 'BASE D — VERDANT MOON', short: 'Verdant Moon', color: '#93b4d1', tint: 'rgba(142,192,124,.06)', biGlyph: '✿', biLabel: 'LUSH', hazard: 'mild · no storms', sent: 'LOW', econ: 'TRADING ★★', star: 'G2', portal: '20E5F9556C30', loads: [fDomes + ' × dome (' + fDomes * 20 + ')', 'misc (40)'] };
+    const fBase = assemble(fDef, uf, [{ label: 'FARM', hasPicker: false, picker: [], rows: fRows, summary: cakeCrops.length + ' crops · ' + fDomes + ' biodomes' }], fP, fUnits,
+      [{ k: 'domes', label: fDomes + ' × Biodome' }, genItem(fUnits, fP, uf.em)], fReadyM, .5);
+    const ur = s.ui.r;
+    const ranchRows = [
+      row('Wild Milk', 25 * q, '5 grazing fauna · 1 × pellet feeder', 'milk cycle 2h'),
+      row('Proto-Egg', 25 * q, '4 nesting fauna', 'collect 1h')
+    ];
+    const kitchenRows = [
+      row('Refined Flour', 50 * q, '◇ 1 × Nutrient Processor · 200 wheat → 50 flour', 'process ~5m'),
+      row('Butter', 25 * q, '◇ 25 milk → 25 butter', 'process ~5m'),
+      row('Cake Batter', 25 * q, '◇ flour + butter + proto-egg', 'process ~5m'),
+      row('Hexaberry Cake', 25 * q, '⚑ final bake · batter + hexaberry', 'process ~10m')
+    ];
+    const rUnits = 2 + ur.add, rP = power(rUnits, ur.em, ur.pow, 100);
+    const rDef = { id: 'r', name: 'BASE B — MEADOW RANCH', short: 'Meadow Ranch', color: '#e6d9c0', tint: 'rgba(230,217,192,.05)', biGlyph: '☼', biLabel: 'TEMPERATE', hazard: 'calm · fauna docile', sent: 'LOW', econ: 'TRADING ★', star: 'M2', portal: '30C1A4E2F715', loads: ['2 × processor (60)', 'feeder (20)', 'misc (20)'] };
+    const rBase = assemble(rDef, ur, [
+      { k: 'prod', label: 'RANCH', hasPicker: false, picker: [], rows: ranchRows, summary: '2 fauna products' },
+      { k: 'kitchen', label: 'KITCHEN', hasPicker: false, picker: [], rows: kitchenRows, summary: '4 processor steps' }
+    ], rP, rUnits, [{ k: 'proc', label: '2 × Nutrient Processor' }, { k: 'feed', label: '1 × Pellet Feeder' }, genItem(rUnits, rP, ur.em)], 120, .25);
+    const isCake = s.target === 'CAKE';
+    const targetOpts = ['STASIS', 'CAKE'].map((k, i) => seg(s.target, k, i, e => this.setState({ target: k, sel: null, announce: 'Plan target set to ' + (k === 'STASIS' ? 'Stasis Device' : 'Hexaberry Cake') + '.' })));
+    return {
+      qty: q, announce: s.announce, targetOpts, unverified: isCake,
+      targetName: isCake ? 'HEXABERRY CAKE' : 'STASIS DEVICE', targetQty: isCake ? 25 * q : q,
+      basesCount: isCake ? 2 : 3,
+      totGen: (isCake ? fP.gen + rP.gen : vP.gen + gP.gen + cP.gen).toLocaleString(),
+      totReady: fmt(isCake ? Math.max(fReadyM, 120) : Math.max(vReadyM, gReadyM, cReadyM)),
+      route: isCake ? [
+        { n: '1', name: 'Verdant Moon', color: '#93b4d1', hasMethod: true, method: '⌁ TELEPORTER' },
+        { n: '2', name: 'Meadow Ranch', color: '#e6d9c0', hasMethod: false, method: '' }
+      ] : [
+        { n: '1', name: 'Verdant Moon', color: '#93b4d1', hasMethod: true, method: '⌁ TELEPORTER' },
+        { n: '2', name: 'Gasworks', color: '#e8543a', hasMethod: true, method: '◇ PORTAL' },
+        { n: '3', name: 'Cobalt Flats', color: '#b3618a', hasMethod: false, method: '' }
+      ],
+      bases: isCake ? [fBase, rBase] : [vBase, gBase, cBase]
+    };
+  }
+}
+</script>
+</body>
+</html>

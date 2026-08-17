@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#282828;background-image:repeating-linear-gradient(0deg,rgba(251,241,199,.018) 0 1px,transparent 1px 3px)}
+a{color:#8ec07c;text-decoration:none}a:hover{color:#b8db9c;text-decoration:underline}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:24px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+  <div data-screen-label="Atlas header" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div style="font:700 15px 'Silkscreen',monospace;letter-spacing:.02em;color:#fbf1c7">BASE ATLAS</div>
+      <div style="font:500 11.5px 'JetBrains Mono',monospace;color:#8ec07c;font-variant-numeric:tabular-nums">5 BASES · 2 DISTRICTS · 2 HARVEST RUNS</div>
+    </div>
+    <span style="flex:1"></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">RUN</span>
+      <div style="display:flex;flex-shrink:0;border:1px solid #504945;overflow:hidden">
+        <sc-for list="{{ runOpts }}" as="o" hint-placeholder-count="2">
+          <button onClick="{{ o.set }}" style="height:26px;padding:0 10px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.06em;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+        </sc-for>
+      </div>
+      <a href="../base-planner/Base Planner v2.dc.html" style="font:500 13px 'Space Grotesk',sans-serif;margin-left:8px">view planner →</a>
+      <a href="../tree-canvas/Tree Canvas.dc.html" style="font:500 13px 'Space Grotesk',sans-serif;margin-left:4px">view tree →</a>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:16px;align-items:stretch;flex-wrap:wrap">
+    <div data-screen-label="Atlas map" style="position:relative;width:940px;height:560px;background:#1d2021;border:1px solid #3c3836;overflow:hidden;flex-shrink:0;background-image:linear-gradient(rgba(251,241,199,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(251,241,199,.035) 1px,transparent 1px);background-size:32px 32px">
+      <sc-if value="{{ showDistricts }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;left:40px;top:56px;width:390px;height:330px;border:2px dashed #504945;background:rgba(142,192,124,.045)">
+          <span style="position:absolute;top:-2px;left:-2px;padding:4px 9px;background:#3c3836;font:400 8px 'Silkscreen',monospace;color:#a89984;letter-spacing:.06em">FARMLANDS</span>
+        </div>
+        <div style="position:absolute;left:490px;top:80px;width:400px;height:340px;border:2px dashed #504945;background:rgba(215,153,33,.04)">
+          <span style="position:absolute;top:-2px;left:-2px;padding:4px 9px;background:#3c3836;font:400 8px 'Silkscreen',monospace;color:#a89984;letter-spacing:.06em">STASIS DISTRICT</span>
+        </div>
+      </sc-if>
+      <sc-for list="{{ runSegs }}" as="sg" hint-placeholder-count="3">
+        <div style="position:absolute;left:{{ sg.l }};top:{{ sg.t }};width:{{ sg.w }};height:{{ sg.h }};background:{{ sg.bg }};opacity:.9"></div>
+      </sc-for>
+      <sc-for list="{{ runLabels }}" as="lb" hint-placeholder-count="2">
+        <span style="position:absolute;left:{{ lb.l }};top:{{ lb.t }};padding:3px 7px;background:#3c3836;border:1px solid #504945;font:500 9px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#a89984;white-space:nowrap">{{ lb.text }}</span>
+      </sc-for>
+      <sc-for list="{{ mapBases }}" as="b" hint-placeholder-count="5">
+        <button data-screen-label="Base building" onClick="{{ b.select }}" style="position:absolute;left:{{ b.x }};top:{{ b.y }};width:76px;background:none;border:none;padding:4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;outline:{{ b.ring }}" style-focus="outline:2px solid #8ec07c">
+          <span style="display:flex;flex-direction:column;align-items:center">
+            <span style="width:3px;height:7px;background:#fbf1c7;opacity:.65;margin-left:14px"></span>
+            <span style="width:14px;height:4px;background:#d5c4a1"></span>
+            <span style="width:30px;height:5px;background:{{ b.color }};filter:brightness(.9)"></span>
+            <span style="width:44px;height:6px;background:{{ b.color }};filter:brightness(.7);position:relative;display:block">
+              <span style="position:absolute;left:10px;top:1px;width:2px;height:4px;background:#1d2021;opacity:.4"></span>
+              <span style="position:absolute;left:21px;top:1px;width:2px;height:4px;background:#1d2021;opacity:.4"></span>
+              <span style="position:absolute;left:32px;top:1px;width:2px;height:4px;background:#1d2021;opacity:.4"></span>
+            </span>
+            <span style="width:56px;height:4px;background:#d5c4a1"></span>
+            <span style="width:56px;height:16px;background:#bdae93;position:relative;display:block">
+              <span style="position:absolute;inset:2px 3px;background:repeating-linear-gradient(90deg,#45403d 0 6px,rgba(0,0,0,0) 6px 10px)"></span>
+            </span>
+            <span style="width:48px;height:4px;background:#7c6f64"></span>
+          </span>
+          <span style="font:500 9px 'JetBrains Mono',monospace;letter-spacing:.04em;color:#ebdbb2;background:rgba(29,32,33,.92);padding:2px 5px;white-space:nowrap">{{ b.glyph }} {{ b.short }}</span>
+        </button>
+      </sc-for>
+      <sc-for list="{{ runStops }}" as="st" hint-placeholder-count="3">
+        <span style="position:absolute;left:{{ st.l }};top:{{ st.t }};width:16px;height:16px;background:{{ st.bg }};color:#1d2021;font:700 8px 'Silkscreen',monospace;display:flex;align-items:center;justify-content:center">{{ st.n }}</span>
+      </sc-for>
+    </div>
+
+    <div data-screen-label="Atlas side panel" style="flex:1;min-width:260px;max-width:340px;background:#32302f;border:1px solid #3c3836;padding:16px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
+      <sc-if value="{{ selIsBase }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span style="width:10px;height:10px;background:{{ pColor }}"></span>
+          <span style="font:400 10px 'Silkscreen',monospace;color:#fbf1c7">{{ pName }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font:12px 'JetBrains Mono',monospace;color:#a89984">
+          <div><span style="color:#7c6f64">BIOME&#160;&#160;&#160;</span><span style="color:#ebdbb2">{{ pBiome }}</span> · {{ pHazard }}</div>
+          <div><span style="color:#7c6f64">POWER&#160;&#160;&#160;</span><span style="color:#ebdbb2">{{ pGen }}</span></div>
+          <div><span style="color:#7c6f64">TODO&#160;&#160;&#160;&#160;</span><span style="color:#ebdbb2">{{ pTodo }}</span></div>
+          <div><span style="color:#7c6f64">DISTRICT </span><span style="color:#ebdbb2">{{ pDistrict }}</span></div>
+          <div><span style="color:#7c6f64">RUNS&#160;&#160;&#160;&#160;</span><span style="color:#ebdbb2">{{ pRuns }}</span></div>
+          <div style="display:flex;align-items:center;gap:7px"><span style="color:#7c6f64">PORTAL&#160;&#160;</span><span style="color:#ebdbb2">{{ pPortal }}</span>
+            <sc-if value="{{ pHasPortal }}" hint-placeholder-val="{{ true }}"><button onClick="{{ pCopy }}" style="height:20px;padding:0 7px;background:#3c3836;border:1px solid #504945;color:#a89984;font:500 10px 'JetBrains Mono',monospace;cursor:pointer" style-hover="filter:brightness(1.12)">copy</button></sc-if>
+          </div>
+        </div>
+        <div style="border-top:1px solid #3c3836;padding-top:10px"><a href="../base-planner/Base Planner v2.dc.html" style="font:500 12.5px 'Space Grotesk',sans-serif">open in planner →</a></div>
+      </sc-if>
+      <sc-if value="{{ selIsRun }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span style="width:10px;height:10px;background:{{ rColor }}"></span>
+          <span style="font:400 10px 'Silkscreen',monospace;color:#fbf1c7">{{ rName }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ rStops }}" as="st" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;align-items:center;gap:8px;background:#3c3836;padding:7px 10px">
+                <span style="font:700 8px 'Silkscreen',monospace;color:#1d2021;background:{{ st.chip }};width:14px;height:14px;display:flex;align-items:center;justify-content:center">{{ st.n }}</span>
+                <span style="font:500 12px 'Space Grotesk',sans-serif;color:#fbf1c7">{{ st.name }}</span>
+                <span style="flex:1"></span>
+                <span style="font:11px 'JetBrains Mono',monospace;color:#a89984">{{ st.what }}</span>
+              </div>
+              <sc-if value="{{ st.hasMethod }}" hint-placeholder-val="{{ true }}"><div style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#7c6f64;padding-left:11px">│ {{ st.method }}</div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">Σ {{ rGen }} kPs GEN · READY ~{{ rReady }}</div>
+        <div style="border-top:1px solid #3c3836;padding-top:10px"><a href="../base-planner/Base Planner v2.dc.html" style="font:500 12.5px 'Space Grotesk',sans-serif">open in planner →</a></div>
+      </sc-if>
+      <div style="margin-top:auto;font:11px 'Space Grotesk',sans-serif;color:#7c6f64;line-height:1.5;border-top:1px solid #3c3836;padding-top:10px">Click a base for its dossier · switch RUN to trace a harvest route · districts group nearby bases.</div>
+    </div>
+  </div>
+  <div aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">{{ announce }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:700},&quot;showDistricts&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;}}">
+class Component extends DCLogic {
+  state = { sel: null, run: 'STASIS', announce: '' };
+  renderVals() {
+    const s = this.state, p = this.props;
+    const BASES = [
+      { id: 'vm', name: 'BASE D — VERDANT MOON', short: 'VERDANT MOON', glyph: '✿', color: '#93b4d1', x: 96, y: 140, biome: 'LUSH', hazard: 'mild · no storms', portal: '20E5F9556C30', gen: '440 kPs (EM)', todo: '1 of 2 built', district: 'FARMLANDS', runs: 'STASIS · CAKE' },
+      { id: 'mr', name: 'BASE B — MEADOW RANCH', short: 'MEADOW RANCH', glyph: '☼', color: '#e6d9c0', x: 268, y: 290, biome: 'TEMPERATE', hazard: 'calm · fauna docile', portal: '30C1A4E2F715', gen: '220 kPs (EM)', todo: '0 of 3 built', district: 'FARMLANDS', runs: 'CAKE' },
+      { id: 'gw', name: 'BASE C — GASWORKS', short: 'GASWORKS', glyph: '☣', color: '#e8543a', x: 566, y: 150, biome: 'TOXIC', hazard: 'acid storms · hazard prot. req.', portal: '115EF8A10D34', gen: '330 kPs (EM)', todo: '0 of 3 built', district: 'STASIS DISTRICT', runs: 'STASIS' },
+      { id: 'cf', name: 'BASE F — COBALT FLATS', short: 'COBALT FLATS', glyph: '❄', color: '#b3618a', x: 742, y: 320, biome: 'FROZEN', hazard: 'blizzards at night · solar dips', portal: '40FA92D18B06', gen: '150 kPs (SOLAR)', todo: '1 of 3 built', district: 'STASIS DISTRICT', runs: 'STASIS' },
+      { id: 'sr', name: 'OUTPOST — SIGNAL RIDGE', short: 'SIGNAL RIDGE', glyph: '▲', color: '#a08f78', x: 430, y: 440, biome: 'ROCKY', hazard: 'high winds', portal: '—', gen: '20 kPs (SOLAR)', todo: '—', district: 'ungrouped', runs: '—' }
+    ];
+    const seg = c => 'repeating-linear-gradient(90deg,' + c + ' 0 6px,rgba(0,0,0,0) 6px 10px)';
+    const segV = c => 'repeating-linear-gradient(0deg,' + c + ' 0 6px,rgba(0,0,0,0) 6px 10px)';
+    const RUNS = {
+      STASIS: { name: 'STASIS RUN', color: '#8ec07c', gen: '920', ready: '4h 0m',
+        segs: [{ l: 134, t: 178, w: 470, h: 4, v: 0 }, { l: 602, t: 190, w: 4, h: 168, v: 1 }, { l: 602, t: 356, w: 178, h: 4, v: 0 }],
+        labels: [{ l: 300, t: 158, text: '⌁ TELEPORTER' }, { l: 616, t: 262, text: '◇ PORTAL' }],
+        stops: [{ id: 'vm', n: '1', l: 126, t: 170, what: 'farm', method: '⌁ TELEPORTER' }, { id: 'gw', n: '2', l: 594, t: 182, what: 'gas', method: '◇ PORTAL' }, { id: 'cf', n: '3', l: 772, t: 348, what: 'minerals', method: '' }] },
+      CAKE: { name: 'CAKE RUN', color: '#d79921', gen: '660', ready: '2h 0m',
+        segs: [{ l: 132, t: 180, w: 4, h: 150, v: 1 }, { l: 132, t: 328, w: 174, h: 4, v: 0 }],
+        labels: [{ l: 148, t: 248, text: '⌁ TELEPORTER' }],
+        stops: [{ id: 'vm', n: '1', l: 126, t: 170, what: 'crops', method: '⌁ TELEPORTER' }, { id: 'mr', n: '2', l: 298, t: 312, what: 'ranch · kitchen', method: '' }] }
+    };
+    const run = RUNS[s.run];
+    const segStyle = c => ['C'].map(() => {});
+    const runOpts = ['STASIS', 'CAKE'].map((k, i) => ({ k: k + ' RUN', bl: i ? '1px solid #504945' : 'none',
+      bg: k === s.run ? 'rgba(142,192,124,.16)' : '#3c3836', fg: k === s.run ? '#b8db9c' : '#7c6f64',
+      sh: k === s.run ? 'inset 0 -2px 0 #8ec07c' : 'none',
+      set: () => this.setState({ run: k, sel: null, announce: RUNS[k].name + ' traced on the atlas.' }) }));
+    const b = BASES.find(x => x.id === s.sel);
+    return {
+      announce: s.announce, showDistricts: p.showDistricts ?? true, runOpts,
+      mapBases: BASES.map(x => ({ ...x, x: x.x + 'px', y: x.y + 'px',
+        ring: s.sel === x.id ? '2px solid #8ec07c' : 'none',
+        select: () => this.setState(st => ({ sel: st.sel === x.id ? null : x.id })) })),
+      runSegs: run.segs.map(g => ({ l: g.l + 'px', t: g.t + 'px', w: g.w + 'px', h: g.h + 'px', bg: g.v ? segV(run.color) : seg(run.color) })),
+      runLabels: run.labels.map(g => ({ l: g.l + 'px', t: g.t + 'px', text: g.text })),
+      runStops: run.stops.map(g => ({ n: g.n, l: g.l + 'px', t: g.t + 'px', bg: run.color })),
+      selIsBase: !!b, selIsRun: !b,
+      pName: b ? b.name : '', pColor: b ? b.color : '#504945', pBiome: b ? b.glyph + ' ' + b.biome : '', pHazard: b ? b.hazard : '',
+      pGen: b ? b.gen : '', pTodo: b ? b.todo : '', pDistrict: b ? b.district : '', pRuns: b ? b.runs : '',
+      pPortal: b ? b.portal : '', pHasPortal: !!b && b.portal !== '—',
+      pCopy: () => { try { navigator.clipboard.writeText(b.portal); } catch (e) {} this.setState({ announce: 'Portal address for ' + b.short + ' copied.' }); },
+      rName: run.name, rColor: run.color, rGen: run.gen, rReady: run.ready,
+      rStops: run.stops.map(g => { const bb = BASES.find(x => x.id === g.id); return { n: g.n, name: bb.short, what: g.what, chip: run.color, hasMethod: !!g.method, method: g.method }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

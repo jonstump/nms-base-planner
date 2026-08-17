@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&amp;family=Space+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#282828;background-image:repeating-linear-gradient(0deg,rgba(251,241,199,.018) 0 1px,transparent 1px 3px)}
+a{color:#8ec07c;text-decoration:none}a:hover{color:#b8db9c;text-decoration:underline}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:24px;display:flex;flex-direction:column;gap:18px;box-sizing:border-box">
+  <div data-screen-label="Base planner header" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font:700 20px 'Chakra Petch',sans-serif;letter-spacing:.05em;color:#fbf1c7">STASIS DEVICE <span style="color:#a89984;font-size:14px">×{{ qty }}</span></div>
+      <div style="font:500 11.5px 'JetBrains Mono',monospace;color:#8ec07c;font-variant-numeric:tabular-nums">3 BASES · {{ totGen }} kPs GEN · READY ~{{ totReady }}</div>
+    </div>
+    <span style="flex:1"></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button style="height:34px;padding:0 14px;background:#fe8019;border:1px solid #af3a03;border-radius:2px;color:#1d2021;font:600 13px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="background:#ffa347">Recompute</button>
+      <button style="height:34px;padding:0 14px;background:#3c3836;border:1px solid #504945;border-radius:2px;color:#ebdbb2;font:500 13px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">Share</button>
+      <a href="../tree-canvas/Tree Canvas.dc.html" style="font:500 13px 'Space Grotesk',sans-serif;margin-left:4px">view tree →</a>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+    <div data-screen-label="Verdant Moon card" onClick="{{ selV }}" tabIndex="0" style="width:340px;background:#32302f;border:3px solid #93b4d1;border-radius:4px;position:relative;display:flex;flex-direction:column;cursor:pointer" style-focus="outline:2px solid #8ec07c;outline-offset:2px">
+      <sc-if value="{{ vSel }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:3px;border:2px solid #8ec07c;pointer-events:none;z-index:2"></div></sc-if>
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #3c3836">
+        <span style="width:10px;height:10px;background:#93b4d1;border-radius:1px"></span>
+        <span style="font:600 15px 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#fbf1c7">BASE D — VERDANT MOON</span>
+        <span style="flex:1"></span>
+        <span style="font:italic 12px 'Space Grotesk',sans-serif;color:#a89984">rename</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid #3a3634">
+        <span style="display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;background:#45403d;border:1px solid #504945;border-radius:2px;font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#ebdbb2">✿ LUSH</span>
+        <span style="font:10.5px 'JetBrains Mono',monospace;color:#a89984">mild · no storms</span>
+        <span style="flex:1"></span>
+        <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">PORTAL</span>
+        <span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#ebdbb2">20E5F9556C30</span>
+        <button onClick="{{ copyV }}" style="height:20px;padding:0 7px;background:#3c3836;border:1px solid #504945;border-radius:2px;color:#a89984;font:500 10px 'JetBrains Mono',monospace;cursor:pointer" style-hover="filter:brightness(1.12)">copy</button>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">FARM</div>
+          <sc-for list="{{ vRows }}" as="r" hint-placeholder-count="6">
+            <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:3px">
+              <div style="display:flex;justify-content:space-between;font:500 13px 'Space Grotesk',sans-serif;color:#fbf1c7"><span>{{ r.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">{{ r.qty }}</span></div>
+              <div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums"><span style="color:#ebdbb2">{{ r.main }}</span></div>
+              <sc-if value="{{ showTimes }}" hint-placeholder-val="{{ true }}"><div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">{{ r.time }}</div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">POWER</span><span style="flex:1"></span>
+            <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+              <sc-for list="{{ vPowOpts }}" as="o" hint-placeholder-count="2">
+                <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ vIsEm }}" hint-placeholder-val="{{ true }}">
+              <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">CLASS</span>
+              <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+                <sc-for list="{{ vEmOpts }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:grid;grid-template-columns:32px 1fr 64px;gap:8px;align-items:center;font:10.5px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">
+              <span style="color:#a89984">GEN</span><div style="height:7px;background:#1d2021"><div style="width:{{ vGenPct }};height:100%;background:#8ec07c"></div></div><span style="color:#ebdbb2;text-align:right">{{ vGen }} kPs</span>
+              <span style="color:#a89984">DRAW</span><div style="height:7px;background:#1d2021;display:flex"><div style="width:{{ vSafePct }};height:100%;background:#a89984"></div><div style="width:{{ vOverPct }};height:100%;background:#fb4934"></div></div><span style="color:{{ vDrawColor }};text-align:right">{{ vDraw }} kPs</span>
+            </div>
+            <sc-if value="{{ vDeficit }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font:11.5px 'Space Grotesk',sans-serif;color:#fb4934">⚠ deficit {{ vDef }} kPs</span><span style="flex:1"></span><button onClick="{{ fixV }}" style="height:26px;padding:0 10px;background:#3c3836;border:1px solid #665c54;border-radius:2px;color:#ebdbb2;font:500 11.5px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">{{ vFixLabel }}</button></div>
+            </sc-if>
+            <sc-if value="{{ vOk }}" hint-placeholder-val="{{ false }}">
+              <div style="font:11.5px 'Space Grotesk',sans-serif;color:#8ec07c">✓ headroom +{{ vHead }} kPs · {{ vGenDesc }}</div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="border-top:1px solid #3c3836;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span style="font:11.5px 'JetBrains Mono',monospace;color:#a89984">BUILD: {{ vBuild }}<sc-if value="{{ vDeficit }}" hint-placeholder-val="{{ false }}"><span style="color:#fb4934"> · +{{ vFixN }} {{ vFixUnit }}</span></sc-if></span>
+          <span style="font:600 12px 'JetBrains Mono',monospace;color:#fbf1c7;font-variant-numeric:tabular-nums">ready ~{{ vReady }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="Gasworks card" onClick="{{ selG }}" tabIndex="0" style="width:340px;background:#32302f;border:3px solid #e8543a;border-radius:4px;position:relative;display:flex;flex-direction:column;cursor:pointer" style-focus="outline:2px solid #8ec07c;outline-offset:2px">
+      <sc-if value="{{ gSel }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:3px;border:2px solid #8ec07c;pointer-events:none;z-index:2"></div></sc-if>
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #3c3836">
+        <span style="width:10px;height:10px;background:#e8543a;border-radius:1px"></span>
+        <span style="font:600 15px 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#fbf1c7">BASE C — GASWORKS</span>
+        <span style="flex:1"></span>
+        <span style="font:italic 12px 'Space Grotesk',sans-serif;color:#a89984">rename</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid #3a3634">
+        <span style="display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;background:#45403d;border:1px solid #504945;border-radius:2px;font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#ebdbb2">☣ TOXIC</span>
+        <span style="font:10.5px 'JetBrains Mono',monospace;color:#a89984">acid storms · hazard prot. req.</span>
+        <span style="flex:1"></span>
+        <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">PORTAL</span>
+        <span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#ebdbb2">115EF8A10D34</span>
+        <button onClick="{{ copyG }}" style="height:20px;padding:0 7px;background:#3c3836;border:1px solid #504945;border-radius:2px;color:#a89984;font:500 10px 'JetBrains Mono',monospace;cursor:pointer" style-hover="filter:brightness(1.12)">copy</button>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">GAS EXTRACTORS</span><span style="flex:1"></span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">CLASS</span>
+            <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+              <sc-for list="{{ gClassOpts }}" as="o" hint-placeholder-count="4">
+                <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <sc-for list="{{ gRows }}" as="r" hint-placeholder-count="3">
+            <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:3px">
+              <div style="display:flex;justify-content:space-between;font:500 13px 'Space Grotesk',sans-serif;color:#fbf1c7"><span>{{ r.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">{{ r.qty }}</span></div>
+              <div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums"><span style="color:#ebdbb2">{{ r.main }}</span></div>
+              <sc-if value="{{ showTimes }}" hint-placeholder-val="{{ true }}"><div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">{{ r.time }}</div></sc-if>
+            </div>
+          </sc-for>
+          <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between;font:500 13px 'Space Grotesk',sans-serif;color:#fbf1c7"><span>Condensed Carbon</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">{{ ccQty }}</span></div>
+            <div style="font:11.5px 'JetBrains Mono',monospace;color:#8ec07c">✓ byproduct of gas refines — nothing to build</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">POWER</span><span style="flex:1"></span>
+            <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+              <sc-for list="{{ gPowOpts }}" as="o" hint-placeholder-count="2">
+                <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ gIsEm }}" hint-placeholder-val="{{ true }}">
+              <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">CLASS</span>
+              <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+                <sc-for list="{{ gEmOpts }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:grid;grid-template-columns:32px 1fr 64px;gap:8px;align-items:center;font:10.5px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">
+              <span style="color:#a89984">GEN</span><div style="height:7px;background:#1d2021"><div style="width:{{ gGenPct }};height:100%;background:#8ec07c"></div></div><span style="color:#ebdbb2;text-align:right">{{ gGen }} kPs</span>
+              <span style="color:#a89984">DRAW</span><div style="height:7px;background:#1d2021;display:flex"><div style="width:{{ gSafePct }};height:100%;background:#a89984"></div><div style="width:{{ gOverPct }};height:100%;background:#fb4934"></div></div><span style="color:{{ gDrawColor }};text-align:right">{{ gDraw }} kPs</span>
+            </div>
+            <sc-if value="{{ gDeficit }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font:11.5px 'Space Grotesk',sans-serif;color:#fb4934">⚠ deficit {{ gDef }} kPs</span><span style="flex:1"></span><button onClick="{{ fixG }}" style="height:26px;padding:0 10px;background:#3c3836;border:1px solid #665c54;border-radius:2px;color:#ebdbb2;font:500 11.5px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">{{ gFixLabel }}</button></div>
+            </sc-if>
+            <sc-if value="{{ gOk }}" hint-placeholder-val="{{ false }}">
+              <div style="font:11.5px 'Space Grotesk',sans-serif;color:#8ec07c">✓ headroom +{{ gHead }} kPs · {{ gGenDesc }}</div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="border-top:1px solid #3c3836;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span style="font:11.5px 'JetBrains Mono',monospace;color:#a89984">BUILD: {{ gBuild }}<sc-if value="{{ gDeficit }}" hint-placeholder-val="{{ true }}"><span style="color:#fb4934"> · +{{ gFixN }} {{ gFixUnit }}</span></sc-if></span>
+          <span style="font:600 12px 'JetBrains Mono',monospace;color:#fbf1c7;font-variant-numeric:tabular-nums">ready ~{{ gReady }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="Cobalt Flats card" onClick="{{ selC }}" tabIndex="0" style="width:340px;background:#32302f;border:3px solid #b3618a;border-radius:4px;position:relative;display:flex;flex-direction:column;cursor:pointer" style-focus="outline:2px solid #8ec07c;outline-offset:2px">
+      <sc-if value="{{ cSel }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:3px;border:2px solid #8ec07c;pointer-events:none;z-index:2"></div></sc-if>
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #3c3836">
+        <span style="width:10px;height:10px;background:#b3618a;border-radius:1px"></span>
+        <span style="font:600 15px 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#fbf1c7">BASE F — COBALT FLATS</span>
+        <span style="flex:1"></span>
+        <span style="font:italic 12px 'Space Grotesk',sans-serif;color:#a89984">rename</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid #3a3634">
+        <span style="display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;background:#45403d;border:1px solid #504945;border-radius:2px;font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#ebdbb2">❄ FROZEN</span>
+        <span style="font:10.5px 'JetBrains Mono',monospace;color:#a89984">blizzards at night · solar dips</span>
+        <span style="flex:1"></span>
+        <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">PORTAL</span>
+        <span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#ebdbb2">40FA92D18B06</span>
+        <button onClick="{{ copyC }}" style="height:20px;padding:0 7px;background:#3c3836;border:1px solid #504945;border-radius:2px;color:#a89984;font:500 10px 'JetBrains Mono',monospace;cursor:pointer" style-hover="filter:brightness(1.12)">copy</button>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">MINERAL EXTRACTORS</span><span style="flex:1"></span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">CLASS</span>
+            <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+              <sc-for list="{{ cClassOpts }}" as="o" hint-placeholder-count="4">
+                <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <sc-for list="{{ cRows }}" as="r" hint-placeholder-count="4">
+            <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:3px">
+              <div style="display:flex;justify-content:space-between;font:500 13px 'Space Grotesk',sans-serif;color:#fbf1c7"><span>{{ r.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">{{ r.qty }}</span></div>
+              <div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums"><span style="color:#ebdbb2">{{ r.main }}</span></div>
+              <sc-if value="{{ showTimes }}" hint-placeholder-val="{{ true }}"><div style="font:11.5px 'JetBrains Mono',monospace;color:#a89984;font-variant-numeric:tabular-nums">{{ r.time }}</div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 10px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7c6f64">POWER</span><span style="flex:1"></span>
+            <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+              <sc-for list="{{ cPowOpts }}" as="o" hint-placeholder-count="2">
+                <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ cIsEm }}" hint-placeholder-val="{{ false }}">
+              <span style="font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#7c6f64">CLASS</span>
+              <div style="display:flex;border:1px solid #504945;border-radius:2px;overflow:hidden">
+                <sc-for list="{{ cEmOpts }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.set }}" style="height:22px;padding:0 8px;cursor:pointer;font:600 10.5px 'JetBrains Mono',monospace;border:none;border-left:{{ o.bl }};background:{{ o.bg }};color:{{ o.fg }};box-shadow:{{ o.sh }}">{{ o.k }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div style="background:#3c3836;border-radius:2px;padding:9px 11px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:grid;grid-template-columns:32px 1fr 64px;gap:8px;align-items:center;font:10.5px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">
+              <span style="color:#a89984">GEN</span><div style="height:7px;background:#1d2021"><div style="width:{{ cGenPct }};height:100%;background:#8ec07c"></div></div><span style="color:#ebdbb2;text-align:right">{{ cGen }} kPs</span>
+              <span style="color:#a89984">DRAW</span><div style="height:7px;background:#1d2021;display:flex"><div style="width:{{ cSafePct }};height:100%;background:#a89984"></div><div style="width:{{ cOverPct }};height:100%;background:#fb4934"></div></div><span style="color:{{ cDrawColor }};text-align:right">{{ cDraw }} kPs</span>
+            </div>
+            <sc-if value="{{ cDeficit }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font:11.5px 'Space Grotesk',sans-serif;color:#fb4934">⚠ deficit {{ cDef }} kPs</span><span style="flex:1"></span><button onClick="{{ fixC }}" style="height:26px;padding:0 10px;background:#3c3836;border:1px solid #665c54;border-radius:2px;color:#ebdbb2;font:500 11.5px 'Space Grotesk',sans-serif;cursor:pointer" style-hover="filter:brightness(1.12)">{{ cFixLabel }}</button></div>
+            </sc-if>
+            <sc-if value="{{ cOk }}" hint-placeholder-val="{{ true }}">
+              <div style="font:11.5px 'Space Grotesk',sans-serif;color:#8ec07c">✓ headroom +{{ cHead }} kPs · {{ cGenDesc }}</div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="border-top:1px solid #3c3836;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span style="font:11.5px 'JetBrains Mono',monospace;color:#a89984">BUILD: {{ cBuild }}<sc-if value="{{ cDeficit }}" hint-placeholder-val="{{ false }}"><span style="color:#fb4934"> · +{{ cFixN }} {{ cFixUnit }}</span></sc-if></span>
+          <span style="font:600 12px 'JetBrains Mono',monospace;color:#fbf1c7;font-variant-numeric:tabular-nums">ready ~{{ cReady }}</span>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ showBin }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Unassigned bin" style="width:340px;border:3px dashed #504945;border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font:600 15px 'Chakra Petch',sans-serif;letter-spacing:.04em;color:#a89984">UNASSIGNED</span>
+          <span style="font:600 11px 'JetBrains Mono',monospace;color:#7c6f64">(0)</span>
+        </div>
+        <div style="font:13px 'Space Grotesk',sans-serif;color:#a89984;line-height:1.5">Every leaf on the tree is assigned. Resources you clear from a base collect here with a <span style="color:#d79921">⚠</span> until reassigned on the <a href="../tree-canvas/Tree Canvas.dc.html">tree</a>.</div>
+      </div>
+    </sc-if>
+
+  </div>
+  <div aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">{{ announce }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1160,&quot;height&quot;:980},&quot;deviceQty&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:1,&quot;max&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;emOutput&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:110,&quot;min&quot;:50,&quot;max&quot;:300,&quot;unit&quot;:&quot;kPs&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;solarOutput&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:50,&quot;min&quot;:20,&quot;max&quot;:150,&quot;unit&quot;:&quot;kPs&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;showTimes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;},&quot;showUnassignedBin&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;}}">
+class Component extends DCLogic {
+  state = { sel: null, addV: 0, addG: 0, addC: 0, gClass: 'B', cClass: 'B', vEm: 'B', gEm: 'B', cEm: 'B', vPow: 'EM', gPow: 'EM', cPow: 'SOLAR', announce: '' };
+  renderVals() {
+    const p = this.props, s = this.state;
+    const q = Math.max(1, Math.min(10, p.deviceQty ?? 1));
+    const mult = { C: .5, B: 1, A: 1.5, S: 2 };
+    const fmt = min => { min = Math.round(min); const h = Math.floor(min / 60), m = min % 60; return h ? h + 'h ' + m + 'm' : m + 'm'; };
+    const pct = (v, sc) => Math.round(v / sc * 100) + '%';
+    const emBase = Math.max(10, p.emOutput ?? 110), solarBase = Math.max(10, p.solarOutput ?? 50);
+    const power = (units, emCls, type, draw) => {
+      const solar = type === 'SOLAR';
+      const out = solar ? solarBase : Math.round(emBase * mult[emCls]);
+      const unitName = solar ? 'Solar Panel' : 'EM generator', gen = units * out;
+      const bat = solar ? Math.ceil(units / 2) : 0;
+      const sc = Math.max(gen, draw) * 1.18, def = Math.max(0, draw - gen), n = Math.ceil(def / out) || 0;
+      return { gen, out, draw, def, n, solar, bat, genPct: pct(gen, sc), safePct: pct(Math.min(gen, draw), sc), overPct: pct(def, sc),
+        drawColor: def ? '#fb4934' : '#ebdbb2', fixLabel: '+ ' + n + ' × ' + unitName + ' (+' + n * out + ')',
+        fixUnit: (solar ? 'solar panel' : 'generator') + (n === 1 ? '' : 's'),
+        desc: units + ' × ' + unitName + (solar ? ' + ' + bat + ' × Battery (night)' : ' ' + emCls) + ' (' + out + ' kPs ea)',
+        build: solar ? units + ' solar panels · ' + bat + ' batteries' : units + ' generators' };
+    };
+    // Verdant Moon — crops [name, qty/device, yield/plant, harvest min]
+    const crops = [['Frost Crystal', 300, 4, 120], ['Gamma Root', 400, 4, 60], ['Solanium', 200, 3, 240], ['Star Bulb', 200, 4, 30], ['Cactus Flesh', 100, 3, 60], ['Faecium', 50, 3, 120]];
+    let vDomes = 0, vReadyM = 0;
+    const vRows = crops.map(([n, b, y, h]) => {
+      const qty = b * q, plants = Math.ceil(qty / y), domes = Math.ceil(plants / 16);
+      vDomes += domes; vReadyM = Math.max(vReadyM, h);
+      return { name: n, qty: '×' + qty, main: plants + ' plants · ' + domes + ' biodome' + (domes > 1 ? 's' : '') + ' (16/dome)', time: 'harvest ' + fmt(h) };
+    });
+    const vGenN = 4 + s.addV, vP = power(vGenN, s.vEm, s.vPow, vDomes * 20 + 40);
+    // Gasworks — gases [name, qty/device]; extractor base rate 200/h at B
+    const gases = [['Sulphurine', 500], ['Nitrogen', 500], ['Radon', 500]];
+    const gRate = 200 * mult[s.gClass];
+    let gExt = 0, gDep = 0, gReadyM = 0;
+    const gRows = gases.map(([n, b]) => {
+      const qty = b * q, count = Math.max(1, Math.ceil(qty / (gRate * 1.5))), fill = qty / (gRate * count) * 60, dep = Math.ceil(qty / 720);
+      gExt += count; gDep += dep; gReadyM = Math.max(gReadyM, fill);
+      return { name: n, qty: '×' + qty, main: count + ' × Gas Extractor', time: 'fills in ' + fmt(fill) + ' · +' + dep + ' supply depot (720u)' };
+    });
+    const gGenN = 3 + s.addG, gP = power(gGenN, s.gEm, s.gPow, gExt * 55 + gDep * 10 + 20);
+    // Cobalt Flats — minerals; extractor base rate 250/h at B
+    const minerals = [['Paraffinium', 50], ['Ionised Cobalt', 50], ['Phosphorus', 50], ['Dioxite', 50]];
+    const cRate = 250 * mult[s.cClass];
+    let cExt = 0, cDep = 0, cReadyM = 0;
+    const cRows = minerals.map(([n, b]) => {
+      const qty = b * q, count = Math.max(1, Math.ceil(qty / (cRate * 1.5))), fill = qty / (cRate * count) * 60, dep = qty > 360 ? Math.ceil(qty / 720) : 0;
+      cExt += count; cDep += dep; cReadyM = Math.max(cReadyM, fill);
+      return { name: n, qty: '×' + qty, main: count + ' × Mineral Extractor', time: 'fills in ' + fmt(fill) + (dep ? ' · +' + dep + ' supply depot (720u)' : '') };
+    });
+    const cGenN = 3 + s.addC, cP = power(cGenN, s.cEm, s.cPow, cExt * 55 + cDep * 10 + 20);
+    const picker = (key, cls, what) => ['C', 'B', 'A', 'S'].map((k, i) => ({
+      k, bl: i ? '1px solid #504945' : 'none',
+      bg: k === cls ? 'rgba(142,192,124,.16)' : '#3c3836', fg: k === cls ? '#b8db9c' : '#7c6f64',
+      sh: k === cls ? 'inset 0 -2px 0 #8ec07c' : 'none',
+      set: e => { e.stopPropagation(); this.setState({ [key]: k, announce: (what || 'Extractor') + ' class set to ' + k + '. Totals updated.' }); }
+    }));
+    const fix = (key, name, n, unit) => e => { e.stopPropagation(); this.setState(st => ({ [key]: st[key] + n, announce: n + ' ' + (unit || 'EM generator') + (n > 1 ? 's' : '') + ' added to ' + name + '. Deficit resolved.' })); };
+    const typePicker = (key) => ['EM', 'SOLAR'].map((k, i) => ({
+      k, bl: i ? '1px solid #504945' : 'none',
+      bg: k === s[key] ? 'rgba(142,192,124,.16)' : '#3c3836', fg: k === s[key] ? '#b8db9c' : '#7c6f64',
+      sh: k === s[key] ? 'inset 0 -2px 0 #8ec07c' : 'none',
+      set: e => { e.stopPropagation(); this.setState({ [key]: k, announce: 'Power type set to ' + (k === 'EM' ? 'electromagnetic' : 'solar') + '. Totals updated.' }); }
+    }));
+    const sel = id => e => this.setState(st => ({ sel: st.sel === id ? null : id }));
+    const copy = (code, name) => e => { e.stopPropagation(); try { navigator.clipboard.writeText(code); } catch (err) {} this.setState({ announce: 'Portal address for ' + name + ' copied.' }); };
+    const readyM = Math.max(vReadyM, gReadyM, cReadyM);
+    return {
+      qty: q, showTimes: p.showTimes ?? true, showBin: p.showUnassignedBin ?? true, announce: s.announce,
+      totGen: (vP.gen + gP.gen + cP.gen).toLocaleString(), totReady: fmt(readyM),
+      copyV: copy('20E5F9556C30', 'Verdant Moon'), copyG: copy('115EF8A10D34', 'Gasworks'), copyC: copy('40FA92D18B06', 'Cobalt Flats'),
+      selV: sel('v'), selG: sel('g'), selC: sel('c'), vSel: s.sel === 'v', gSel: s.sel === 'g', cSel: s.sel === 'c',
+      vRows, vGen: vP.gen, vDraw: vP.draw, vGenPct: vP.genPct, vSafePct: vP.safePct, vOverPct: vP.overPct, vDrawColor: vP.drawColor,
+      vDeficit: vP.def > 0, vOk: vP.def === 0, vDef: vP.def, vHead: vP.gen - vP.draw, vFixN: vP.n, vFixLabel: vP.fixLabel, vFixUnit: vP.fixUnit,
+      fixV: fix('addV', 'Verdant Moon', vP.n, vP.solar ? 'solar panel' : 'EM generator'), vGenDesc: vP.desc, vReady: fmt(vReadyM),
+      vEmOpts: picker('vEm', s.vEm, 'EM generator'), vPowOpts: typePicker('vPow'), vIsEm: !vP.solar,
+      vBuild: vDomes + ' biodomes · ' + vP.build,
+      gRows, gClassOpts: picker('gClass', s.gClass, 'Extractor'), ccQty: '×' + 300 * q,
+      gGen: gP.gen, gDraw: gP.draw, gGenPct: gP.genPct, gSafePct: gP.safePct, gOverPct: gP.overPct, gDrawColor: gP.drawColor,
+      gDeficit: gP.def > 0, gOk: gP.def === 0, gDef: gP.def, gHead: gP.gen - gP.draw, gFixN: gP.n, gFixLabel: gP.fixLabel, gFixUnit: gP.fixUnit,
+      fixG: fix('addG', 'Gasworks', gP.n, gP.solar ? 'solar panel' : 'EM generator'), gGenDesc: gP.desc, gReady: fmt(gReadyM),
+      gEmOpts: picker('gEm', s.gEm, 'EM generator'), gPowOpts: typePicker('gPow'), gIsEm: !gP.solar,
+      gBuild: gExt + ' extractors · ' + gDep + ' depots · ' + gP.build,
+      cRows, cClassOpts: picker('cClass', s.cClass, 'Extractor'),
+      cGen: cP.gen, cDraw: cP.draw, cGenPct: cP.genPct, cSafePct: cP.safePct, cOverPct: cP.overPct, cDrawColor: cP.drawColor,
+      cDeficit: cP.def > 0, cOk: cP.def === 0, cDef: cP.def, cHead: cP.gen - cP.draw, cFixN: cP.n, cFixLabel: cP.fixLabel, cFixUnit: cP.fixUnit,
+      fixC: fix('addC', 'Cobalt Flats', cP.n, cP.solar ? 'solar panel' : 'EM generator'), cGenDesc: cP.desc, cReady: fmt(cReadyM),
+      cEmOpts: picker('cEm', s.cEm, 'EM generator'), cPowOpts: typePicker('cPow'), cIsEm: !cP.solar,
+      cBuild: cExt + ' extractors' + (cDep ? ' · ' + cDep + ' depots' : '') + ' · ' + cP.build
+    };
+  }
+}
+</script>
+</body>
+</html>

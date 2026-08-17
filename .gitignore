@@ -1,0 +1,18 @@
+.sdd/
+
+# Local Claude Code settings — machine-specific, not shared.
+.claude/settings.local.json
+
+# Design handoff deliverables — contents are extracted into docs/design/.
+nms-design*.zip
+nmsbaseplannermocks.zip
+
+# No Man's Sky save files — personal game state, never commit (ADR-0002).
+# Includes decoded/decompressed dumps produced while working on the save parser.
+*.hg
+save*.hg
+mf_save*.hg
+**/HelloGames/**
+*.save.json
+*-decoded.json
+testdata/saves/
