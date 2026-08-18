@@ -1,0 +1,69 @@
+# Governing: ADR-0001 (two-tier NMS data ingestion) — ingestion is a
+# developer-local step and cannot run in CI, so every job here must pass on a
+# machine with no No Man's Sky install. Tests that need game files gate on an
+# environment variable and skip when it is unset; CI never sets it.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.26.6"
+
+# Each job is independent so a formatting failure and a test failure surface
+# separately rather than one masking the other.
+jobs:
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            echo
+            echo "Run: gofmt -w ."
+            exit 1
+          fi
+
+  vet:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: go vet
+        run: go vet ./...
+      - name: staticcheck
+        # Pinned to the 0.8.0 release candidate deliberately: it is the only
+        # published staticcheck built against go1.26, which go.mod requires.
+        # The 0.6.x line (built with go1.24) and 0.7.x (go1.25) both refuse to
+        # analyze this module. Move to v0.8.0 final once it ships.
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.0-rc.1 ./...
+
+  test:
+    name: Tests (race)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: go test -race
+        # NMS_PCBANKS is deliberately unset: tests requiring a real game
+        # install must skip, not fail. See SPEC-0003 REQ "Real-Archive
+        # Verification".
+        run: go test -race ./...
