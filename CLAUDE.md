@@ -59,3 +59,27 @@ These comments help future sessions (and `/sdd:check`) trace implementation back
 ### Session Coordination
 
 When orchestrating multiple SDD plugin skills in a single session (e.g., running `/sdd:work` on several issues), use `TeamCreate` to coordinate agents. Do not spawn ad-hoc background agents for work that requires coordination — `SendMessage` only works within a Team, and isolated agents cannot see sibling file claims or type creations.
+
+### SDD Configuration
+
+#### Tracker
+- **Type**: github
+- **Owner**: jonstump
+- **Repo**: nms-base-planner
+
+#### Branch Conventions
+- **Enabled**: true
+- **Prefix**: feat
+- **Epic Prefix**: epic
+- **Slug Max Length**: 50
+
+#### PR Conventions
+- **Enabled**: true
+- **Close Keyword**: Closes
+- **Ref Keyword**: Part of
+- **Include Spec Reference**: true
+
+#### Review
+- **Max Pairs**: 2
+- **Merge Strategy**: squash
+- **Auto Cleanup**: false
