@@ -9,13 +9,22 @@ import (
 	"testing"
 )
 
-// The fixture's recorded game version. Asserted so a failure reads as "data
-// changed" rather than "engine broke".
+// Each fixture's recorded game version, pinned per fixture rather than shared.
+// They hold the same value today because both are community-sourced
+// placeholders of the same vintage, but they move independently: the
+// extraction spike replaces the Stasis fixture with a real extracted artifact
+// at a real game version, and the cake fixture stays a placeholder. A shared
+// constant would make that re-extraction fail the cake tests too, reporting a
+// data change in a fixture nothing touched — the misattribution the pin exists
+// to prevent.
 //
 // Governing: SPEC-0001 REQ "Dependency Graph Resolution" — "Fixtures asserting
 // exact node counts or exact leaf totals MUST name the game version of the
 // Tier 1 artifact they were captured against".
-const fixtureGameVersion = "community-2026-08"
+const (
+	stasisFixtureGameVersion = "community-2026-08"
+	cakeFixtureGameVersion   = "community-2026-08"
+)
 
 func loadFixture(t *testing.T) *Tier1 {
 	t.Helper()
@@ -57,8 +66,8 @@ func totalOf(t *testing.T, g *ResolvedGraph, id string) int64 {
 // Scenario "Fixture game version is asserted".
 func TestFixtureGameVersionIsPinned(t *testing.T) {
 	a1 := loadFixture(t)
-	if a1.GameVersion != fixtureGameVersion {
-		t.Fatalf("fixture game version = %q, want %q — the Tier 1 data changed; re-verify the expected totals below before updating this constant", a1.GameVersion, fixtureGameVersion)
+	if a1.GameVersion != stasisFixtureGameVersion {
+		t.Fatalf("fixture game version = %q, want %q — the Tier 1 data changed; re-verify the expected totals below before updating this constant", a1.GameVersion, stasisFixtureGameVersion)
 	}
 	if a1.Extracted {
 		t.Error("fixture claims extracted:true, but it is community-sourced; the extraction spike has not run")
@@ -78,8 +87,8 @@ func TestResolveStasisDeviceTree(t *testing.T) {
 			t.Errorf("branch root %q missing", branch)
 		}
 	}
-	if g.GameVersion != fixtureGameVersion {
-		t.Errorf("graph game version = %q, want %q", g.GameVersion, fixtureGameVersion)
+	if g.GameVersion != stasisFixtureGameVersion {
+		t.Errorf("graph game version = %q, want %q", g.GameVersion, stasisFixtureGameVersion)
 	}
 	// Terminals first, target last — the tab order the canvas handoff wants.
 	if last := g.Nodes[len(g.Nodes)-1]; last.ItemID != "sd" {
@@ -506,8 +515,11 @@ func loadCakeFixture(t *testing.T) *Tier1 {
 	if err != nil {
 		t.Fatalf("loading cake fixture: %v", err)
 	}
-	if a1.GameVersion != fixtureGameVersion {
-		t.Fatalf("cake fixture game version = %q, want %q — the Tier 1 data changed", a1.GameVersion, fixtureGameVersion)
+	if a1.GameVersion != cakeFixtureGameVersion {
+		t.Fatalf("cake fixture game version = %q, want %q — the Tier 1 data changed", a1.GameVersion, cakeFixtureGameVersion)
+	}
+	if a1.Extracted {
+		t.Error("cake fixture claims extracted:true, but it is community-sourced; the extraction spike has not run")
 	}
 	return a1
 }
