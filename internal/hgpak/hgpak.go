@@ -279,13 +279,25 @@ func (a *Archive) readTables(entryCount, blockCount uint64) error {
 	// single most likely way to get this format wrong.
 	pos := int64(a.dataStart)
 	for i := range a.blockLen {
+		// Alignment padding at the end of the previous block can carry pos
+		// past the file; re-establish the invariant the bound below relies
+		// on rather than letting the subtraction wrap.
+		if pos > a.size {
+			return malformed("block start", i,
+				fmt.Sprintf("<= file size %d", a.size), pos)
+		}
 		n := binary.LittleEndian.Uint64(blockBuf[i*8:])
 		if n == 0 {
 			return malformed("block length", i, "> 0", 0)
 		}
-		if pos+int64(n) > a.size {
+		// Bound the length in unsigned space, against the bytes remaining.
+		// The natural "pos+int64(n) > a.size" form is defeated by any n >=
+		// 2^63: the conversion makes it negative, the comparison passes,
+		// and the make([]byte, n) in block() panics instead of returning
+		// ErrMalformed.
+		if remaining := uint64(a.size) - uint64(pos); n > remaining {
 			return malformed("block extent", i,
-				fmt.Sprintf("<= file size %d", a.size), pos+int64(n))
+				fmt.Sprintf("<= %d bytes remaining from offset %d", remaining, pos), n)
 		}
 		a.blockLen[i] = n
 		a.blockPos[i] = pos
@@ -373,10 +385,19 @@ func (a *Archive) ReadEntry(i int) ([]byte, error) {
 			fmt.Sprintf(">= dataStart %d", a.dataStart), e.Offset)
 	}
 	pos := a.StreamPos(e)
-	end := pos + e.Size
-	if end > a.streamLen {
+	if pos > a.streamLen {
+		return nil, malformed("entry offset", i,
+			fmt.Sprintf("<= stream length %d", a.streamLen), pos)
+	}
+	// Compare Size against the bytes remaining rather than testing
+	// pos+e.Size: that sum wraps for a size near 2^64, sailing through the
+	// bound and reaching an oversized make() that panics rather than
+	// returning ErrMalformed. Entry sizes are file-controlled and otherwise
+	// unbounded, exactly like the entry and block counts Open already
+	// guards.
+	if remaining := a.streamLen - pos; e.Size > remaining {
 		return nil, malformed("entry extent", i,
-			fmt.Sprintf("<= stream length %d", a.streamLen), end)
+			fmt.Sprintf("<= %d bytes remaining from stream position %d", remaining, pos), e.Size)
 	}
 
 	if a.storage == StorageStored {

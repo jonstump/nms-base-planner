@@ -641,3 +641,101 @@ func TestRawBlockIsStoredNotCompressed(t *testing.T) {
 		t.Errorf("manifest = %q, want %q", manifest, entries[0])
 	}
 }
+
+// SPEC-0003 REQ "Structural Layout" ("A truncated archive is refused") and
+// REQ "Error Handling Standards" (every error is *returned to the caller*).
+//
+// Entry sizes come straight off the entry table and are otherwise unbounded,
+// so the extent check must not be written as pos+e.Size: that sum wraps for
+// a size near 2^64 and lands back inside the stream, after which the
+// make([]byte, 0, e.Size) below it panics. A panic is not a returned error
+// and takes the whole sentinel vocabulary with it, so this asserts the
+// sentinel rather than merely asserting that the call did not crash.
+func TestOversizedEntryIsRefusedNotPanicked(t *testing.T) {
+	blob := fixtureBytes(t)
+	a, err := hgpak.Open(bytes.NewReader(blob), int64(len(blob)))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	e, err := a.Entry(1)
+	if err != nil {
+		t.Fatalf("Entry(1): %v", err)
+	}
+	pos := a.StreamPos(e)
+	a.Close()
+	if pos == 0 {
+		t.Fatal("entry 1 is at stream position 0; the wrap this guards needs a nonzero position")
+	}
+
+	// Choose Size so that pos+Size wraps to 16 — comfortably "inside" the
+	// stream by the naive check, and absurd by any honest one.
+	binary.LittleEndian.PutUint64(blob[0x30+32+24:], ^uint64(0)-pos+1+16)
+
+	a2, err := hgpak.Open(bytes.NewReader(blob), int64(len(blob)))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer a2.Close()
+
+	body, err := a2.ReadEntry(1)
+	if err == nil {
+		t.Fatalf("ReadEntry returned %d bytes for an entry whose size wraps the stream bound", len(body))
+	}
+	if !errors.Is(err, hgpak.ErrMalformed) {
+		t.Errorf("error is %v, want ErrMalformed", err)
+	}
+	if !strings.Contains(err.Error(), "entry extent") {
+		t.Errorf("error %q does not name the structural expectation violated", err)
+	}
+}
+
+// SPEC-0003 REQ "Error Handling Standards": a self-contradicting block table
+// is malformed structure and must carry ErrMalformed, whichever block holds
+// the bad length.
+//
+// A length >= 2^63 is negative as an int64, so a bound written as
+// "pos+int64(n) > a.size" passes it through. On the final block that reaches
+// make([]byte, n) and panics inside Open; on any earlier block it drives pos
+// negative and surfaces as a raw ReadAt error, which is worse than useless
+// to a caller — it blames the disk for a corrupt file. Both positions are
+// covered because they failed differently before the fix.
+func TestHugeBlockLengthIsRefusedWithSentinel(t *testing.T) {
+	base := fixtureBytes(t)
+	entryCount := binary.LittleEndian.Uint64(base[0x10:])
+	blockCount := binary.LittleEndian.Uint64(base[0x18:])
+	blockTable := 0x30 + int(entryCount)*entrySizeForTest
+	if blockCount < 2 {
+		t.Fatalf("fixture has %d blocks; this test needs the two-block layout", blockCount)
+	}
+
+	for _, tc := range []struct {
+		name  string
+		index int
+	}{
+		{"first block", 0},
+		{"final block", int(blockCount) - 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			blob := bytes.Clone(base)
+			binary.LittleEndian.PutUint64(blob[blockTable+tc.index*8:], 1<<63)
+
+			a, err := hgpak.Open(bytes.NewReader(blob), int64(len(blob)))
+			if err == nil {
+				a.Close()
+				t.Fatal("Open accepted a 2^63-byte block length")
+			}
+			if !errors.Is(err, hgpak.ErrMalformed) {
+				t.Errorf("error is %v, want ErrMalformed", err)
+			}
+			if !strings.Contains(err.Error(), "block extent") {
+				t.Errorf("error %q does not name the structural expectation violated", err)
+			}
+		})
+	}
+}
+
+// entrySizeForTest mirrors the package's unexported entrySize. The tests are
+// in package hgpak_test on purpose — they exercise the exported surface a
+// caller sees — so the record stride is restated here rather than exported
+// from the package just for tests.
+const entrySizeForTest = 32
