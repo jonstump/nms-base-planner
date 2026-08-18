@@ -135,9 +135,10 @@ graph TD
 
 Confirmed by parsing real archives end to end:
 
-* Header is little-endian: 8-byte `HGPAK\0\0\0` magic, then u64 version (2), entry count, block count, an unknown field (1), and a data-start offset.
+* Header is little-endian: 8-byte `HGPAK\0\0\0` magic, then u64 version (2), entry count, block count, a **storage flag**, and a data-start offset.
 * An entry table of 32-byte records — 16-byte MD5 + u64 offset + u64 size — followed by a block table of u64 compressed lengths.
-* Blocks are **zstd**, each decompressing to exactly 65,536 bytes, each starting 16-byte aligned. `NMSARC.globals.pak`: 87 blocks decompressing to 5,701,632 bytes = 87 x 64 KiB exactly.
+* The storage flag selects the layout. `1` is a zstd block stream (95 archives); `0` is **stored** — no block table, entry offsets are direct file offsets, and entry bytes including the manifest sit uncompressed (`NMSARC.audio.pak`, `NMSARC.audioBNK.pak`, whose WEM/BNK payloads are already compressed). An earlier revision of this ADR called this an unknown field, "1 in every archive observed" — true of the two archives parsed at the time, and false in general. Parsing all 97 is what corrected it.
+* Blocks are **zstd**, each decompressing to exactly 65,536 bytes, each starting 16-byte aligned. `NMSARC.globals.pak`: 87 blocks decompressing to 5,701,632 bytes = 87 x 64 KiB exactly. A block whose *compressed* length is exactly 65,536 is stored verbatim instead (`NMSARC.UI.pak` and the `TexBiomes*` family) — a length rule, not a magic sniff.
 * Entry offsets are into a **virtual image** of the file, so stream position is `entry.offset - dataStart`.
 * **Entry 0 is a manifest** of CRLF-separated lowercase paths, and each entry's 16-byte hash is the **MD5 of its lowercase path** (verified 400/400 on sampled names). Filenames are therefore fully recoverable from the archive alone; no external hash mapping is required.
 

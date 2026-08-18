@@ -65,13 +65,41 @@ All multi-byte integers in the header, entry table, and block table MUST be deco
 
 ### Requirement: Structural Layout
 
-The reader MUST parse the layout as: a 0x30-byte header; an entry table of `entryCount` 32-byte records beginning at 0x30, each a 16-byte hash followed by a u64 offset and a u64 size; then a block table of `blockCount` u64 compressed lengths; then the compressed blocks.
+The reader MUST parse a 0x30-byte header: the 8-byte magic, then u64 version, entry count, block count, a **storage flag** at `0x20`, and a data-start offset. In both layouts below, an entry table of `entryCount` 32-byte records begins at 0x30, each a 16-byte hash followed by a u64 offset and a u64 size.
 
-Each block MUST be decompressed with zstd and MUST yield exactly 65,536 bytes, except the final block, which MAY be shorter. A block that decompresses to a different length MUST be treated as a malformed archive.
+The storage flag selects the layout. The reader MUST reject any value other than the two below rather than guessing:
+
+| Flag | Layout |
+|---|---|
+| `1` | **Block stream.** The entry table is followed by a block table of `blockCount` u64 compressed lengths, then the blocks. 95 of the install's 97 archives. |
+| `0` | **Stored.** The entry table is followed directly by the data — no block table. `dataStart` is exactly `0x30 + entryCount * 32`, entry offsets are direct file offsets, and entry bytes including the manifest sit uncompressed. Observed in `NMSARC.audio.pak` and `NMSARC.audioBNK.pak`, whose WEM/BNK payloads are already compressed, so a second pass would buy nothing. |
+
+For a block-stream archive, each block MUST be decompressed with zstd and MUST yield exactly 65,536 bytes, except the final block, which MAY be shorter. A block that decompresses to a different length MUST be treated as a malformed archive.
+
+A block whose **compressed length is exactly 65,536** MUST be treated as stored verbatim and MUST NOT be passed to the decompressor. This is a length rule decided before any decompression is attempted, not a magic sniff and not a fallback: the packer stores a block when compressing it would not pay, and the stored length then equals the decompressed length by definition. A block of any other length that fails to decompress MUST remain a malformed archive — the reader MUST NOT fall back to raw bytes on decompression failure, which is the PSARC behaviour this format makes unnecessary. Observed in `NMSARC.UI.pak` and the `TexBiomes*` family.
 
 Blocks MUST be located by accumulating compressed lengths from the header's data-start offset, advancing to the next **16-byte boundary** after each block. Omitting the alignment step causes the second block to fail to decompress.
 
 Entry offsets MUST be interpreted as positions in a **virtual image of the file** whose first `dataStart` bytes are the header and tables. The position of an entry within the concatenated decompressed stream is therefore `entry.offset - dataStart`.
+
+Entry sizes, block lengths, and the table counts are all read from the file and are otherwise unbounded. The reader MUST bound each against the bytes actually remaining **before** allocating for it, and MUST NOT perform that check by computing a sum or a signed conversion that can overflow. A malformed archive MUST surface as a malformed-archive error naming the structure at fault; it MUST NOT panic.
+
+#### Scenario: Both storage layouts are read
+
+- **WHEN** an archive with storage flag `0` is opened
+- **THEN** its entries resolve by direct file offset with no block table parsed
+- **AND WHEN** the flag holds any value other than `0` or `1`
+- **THEN** the read fails naming the value found
+
+#### Scenario: A verbatim block is not decompressed
+
+- **WHEN** a block's compressed length is exactly 65,536
+- **THEN** its bytes are taken as-is, and no decompression is attempted on it
+
+#### Scenario: An oversized extent is refused, not fatal
+
+- **WHEN** an entry size or block length is large enough that adding it to a position would overflow
+- **THEN** the read fails as a malformed archive naming the entry or block, rather than panicking on an oversized allocation
 
 #### Scenario: Block alignment is honoured
 
