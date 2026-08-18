@@ -183,12 +183,12 @@ Extraction MUST produce byte-exact entry contents — the reader performs no tra
 
 The CLI MUST support filtering by path substring on both listing and extraction, since a single archive holds tens of thousands of entries.
 
-Extraction of `metadata/reality/tables/` from `NMSARC.Precache.pak` MUST yield files beginning with MBIN magic `cccccccc` that MBINCompiler decompiles without error. This is the acceptance test for the whole stage.
+Extraction of `metadata/reality/tables/` from `NMSARC.Precache.pak` MUST yield files beginning with MBIN magic `cccccccc` that MBINCompiler decompiles without error — current releases emit `.MXML`, not the `.EXML` extension older documentation describes. This is the acceptance test for the whole stage.
 
 #### Scenario: The tables extract and decompile
 
 - **WHEN** `metadata/reality/tables/` is extracted from `NMSARC.Precache.pak`
-- **THEN** all 54 tables are written, each begins with `cccccccc`, and MBINCompiler decompiles `nms_reality_gcproducttable.mbin` to EXML without error
+- **THEN** all 54 tables are written, each begins with `cccccccc`, and MBINCompiler decompiles `nms_reality_gcproducttable.mbin` to MXML without error
 
 #### Scenario: Filtering narrows a large archive
 
