@@ -52,6 +52,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -118,6 +120,21 @@ type Archive struct {
 	streamLen uint64
 
 	dec *zstd.Decoder
+
+	// blocksRead counts blocks materialized, so tests can prove that
+	// listing and single-entry reads touch only the blocks they must
+	// (SPEC-0003 REQ "Selective Extraction"). Atomic because reads are
+	// safe to make concurrently.
+	blocksRead atomic.Uint64
+
+	// The manifest is resolved at most once, on first use rather than at
+	// Open: REQ "Selective Extraction" requires opening an archive not to
+	// materialize its stream, and a 47,000-entry manifest is real work a
+	// caller who only wants Entry(3) should not pay for.
+	pathOnce sync.Once
+	pathErr  error
+	paths    []string
+	byPath   map[string]int
 }
 
 // StreamPos returns the entry's position within the concatenated
@@ -149,6 +166,17 @@ func (a *Archive) BlockCount() int { return len(a.blockLen) }
 
 // StreamLen returns the total decompressed length of the block stream.
 func (a *Archive) StreamLen() uint64 { return a.streamLen }
+
+// BlocksRead returns how many blocks have been materialized over this
+// Archive's lifetime — read from the file and either decompressed or taken
+// verbatim. It backs the SPEC-0003 REQ "Selective Extraction" guarantee that
+// listing costs only the manifest's blocks and reading one entry costs only
+// that entry's.
+//
+// Blocks are not cached, so re-reading an entry counts its blocks again.
+// Open itself reads the final block to settle StreamLen, so measure a
+// delta against the value just after Open rather than an absolute count.
+func (a *Archive) BlocksRead() uint64 { return a.blocksRead.Load() }
 
 // Entries returns a copy of the entry table.
 func (a *Archive) Entries() []Entry {
@@ -334,6 +362,7 @@ func (a *Archive) block(i int) ([]byte, error) {
 	if _, err := a.r.ReadAt(raw, a.blockPos[i]); err != nil {
 		return nil, fmt.Errorf("reading block %d at %d: %w", i, a.blockPos[i], err)
 	}
+	a.blocksRead.Add(1)
 	dec := a.dec
 	if dec == nil {
 		// readTables probes the final block before the shared decoder
