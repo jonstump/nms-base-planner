@@ -71,6 +71,8 @@ Four facts from parsing real archives shape this design:
 
 **Contrast with the superseded reader**: `internal/psarc` deliberately fell back to raw bytes when a block failed to inflate, because PSARC does not mark blocks as compressed. HGPAK's fixed decompressed size means a failed decompression is unambiguous evidence of a wrong assumption, so the same tolerance would be a bug here.
 
+HGPAK does store some blocks verbatim, but it identifies them by **length, not by sniffing**: a compressed length of exactly 65,536 means stored, because the packer skips compression when it would not pay and the stored length then equals the decompressed length by definition. That rule is decided before any decompression is attempted, so it does not reintroduce inflate-and-fall-back. A block of any other length that fails to decompress remains a hard `ErrMalformed`.
+
 ### zstd as the one external dependency
 
 **Choice**: Take a pure-Go zstd decoder as a module dependency. The project is currently stdlib-only.
@@ -83,7 +85,7 @@ Four facts from parsing real archives shape this design:
 
 - **A game update changes the container.** Likely eventually; version 2 is already the second. Mitigated by failing loudly on version and structure, so the next change presents as a named error rather than corrupt output.
 - **The excerpt fixture drifts from the shipping format.** A fixture built today keeps passing after the game changes. The opt-in full-archive test is the counterweight, and running it is part of re-extracting after a game update — which ADR-0001 already establishes as a manual step.
-- **The unknown header field at 0x20.** Observed as 1 in every archive examined. Parsed and ignored. If it ever differs, the version check will not catch it; worth asserting on and reporting as a curiosity rather than silently discarding.
+- **The header field at 0x20 — resolved; it is a storage flag.** This entry previously read "observed as 1 in every archive examined, parsed and ignored". That held for the two archives parsed when it was written and broke on the first run across all 97: it is `1` for a zstd block stream and `0` for stored archives (`NMSARC.audio.pak`, `NMSARC.audioBNK.pak`). The reader now validates it and rejects any third value. Kept in this list rather than deleted, because the mitigation this risk asked for — assert on the field instead of silently discarding it — is exactly what surfaced the answer.
 - **Only one game version has been examined.** Every structural claim in the spec comes from the 2026-06-05 build. The claims are stated as observations with the archives that produced them, so a future reader can tell measurement from assumption — which is exactly what the PSARC label failed to do.
 
 ## Migration Plan
@@ -96,5 +98,10 @@ Four facts from parsing real archives shape this design:
 ## Open Questions
 
 - Does a small block cache measurably help bulk extraction, or is the re-decompression cost noise against MBINCompiler subprocess time?
-- Is the 0x20 header field a flags word, an alignment hint, or a compression-method selector? It is 1 everywhere observed, so nothing distinguishes the hypotheses yet.
-- Do any archives in the install use a compression method other than zstd, or a block size other than 65,536? All 97 carry the HGPAK magic, but only two have been parsed in full — the opt-in test across all of them is what answers this, and it should run before the spec moves off `draft`.
+- Where does `blockCount` point for a stored archive? It is non-zero (1017 for `NMSARC.audioBNK.pak`) but no block table exists between the entry table and the data. Unchased: nothing in the ADR-0001 pipeline needs it.
+- Is a stored *final* block distinguishable from a compressed one? For the last block the compressed length equals the decompressed length either way, so the `== 65,536` rule cannot separate them. No archive in the install exhibits it, so it is unhandled rather than speculatively coded.
+
+**Answered by the full-archive run** (all 97 archives, story #9):
+
+- ~~Is the 0x20 header field a flags word, an alignment hint, or a compression-method selector?~~ A storage selector — see the resolved risk above.
+- ~~Do any archives use a compression method other than zstd, or a block size other than 65,536?~~ No. Block size is 65,536 everywhere and zstd is the only compression used. Two storage variants exist that the spec did not describe — stored archives and verbatim blocks — and both are identified structurally rather than by sniffing.
