@@ -114,12 +114,20 @@ func (a *Archive) resolveManifest() error {
 				fmt.Sprintf("%x (MD5 of %q)", want, strings.ToLower(p)),
 				fmt.Sprintf("%x", a.entries[idx].Hash))
 		}
-		if prev, dup := byPath[p]; dup {
+		// Key by the normalized form, because Lookup normalizes its query.
+		// Keying raw made any manifest path that was not already lowercase
+		// and slash-free unreachable by its own name, which contradicts
+		// SPEC-0003 REQ "Manifest and Path Resolution" ("MUST expose every
+		// entry by its path"). No shipping archive triggers it — all 184,823
+		// paths across the install are already normalized — but a crafted
+		// one does, and the asymmetry was silent.
+		key := normalizePath(p)
+		if prev, dup := byPath[key]; dup {
 			return malformed("manifest path", idx,
 				fmt.Sprintf("%q to name one entry", p),
 				fmt.Sprintf("entries %d and %d", prev, idx))
 		}
-		byPath[p] = idx
+		byPath[key] = idx
 	}
 
 	a.paths = paths

@@ -1,10 +1,11 @@
 // Command nmsextract unpacks No Man's Sky .pak archives.
 //
-// The .pak files under GAMEDATA/PCBANKS are PSARC archives. MBINCompiler
-// works on already-unpacked .MBIN files, so this covers the step before it.
+// The .pak files under GAMEDATA/PCBANKS are HGPAK archives — not PSARC,
+// despite what most community documentation still says. MBINCompiler works
+// on already-unpacked .MBIN files, so this covers the step before it.
 //
 // Governing: ADR-0001 (two-tier NMS data ingestion) — stage 1, "locate +
-// extract PAKs".
+// extract PAKs". SPEC-0003 REQ "Pipeline Fitness".
 //
 //	nmsextract list    <archive.pak> [substring]
 //	nmsextract extract <archive.pak> <outdir> [substring]
@@ -13,21 +14,44 @@
 // because a PCBANKS archive holds tens of thousands of entries and the
 // recipe tables are a handful of them:
 //
-//	nmsextract list NMSARC.515F1D3.pak TABLE
+//	nmsextract list    "$PCBANKS/NMSARC.Precache.pak" reality/tables
+//	nmsextract extract "$PCBANKS/NMSARC.Precache.pak" ./out metadata/reality/tables/
 package main
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/jonstump/nms-base-planner/internal/psarc"
+	"github.com/jonstump/nms-base-planner/internal/hgpak"
 )
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "nmsextract: %v\n", err)
+		// Structured logging so a failure carries its fields rather than a
+		// prose string a caller has to parse (SPEC-0003 REQ "Error Handling
+		// Standards").
+		log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+		attrs := []any{"err", err}
+		var se *hgpak.StructureError
+		if errors.As(err, &se) {
+			attrs = append(attrs, se.LogAttrs()...)
+		}
+		switch {
+		case errors.Is(err, hgpak.ErrNotHGPAK):
+			attrs = append(attrs, "cause", "not an HGPAK archive")
+		case errors.Is(err, hgpak.ErrUnsupportedVersion):
+			attrs = append(attrs, "cause", "unsupported container version")
+		case errors.Is(err, hgpak.ErrMalformed):
+			attrs = append(attrs, "cause", "malformed archive")
+		case errors.Is(err, hgpak.ErrEntryNotFound):
+			attrs = append(attrs, "cause", "entry not found")
+		case errors.Is(err, hgpak.ErrUnsafePath):
+			attrs = append(attrs, "cause", "unsafe extraction path")
+		}
+		log.Error("nmsextract failed", attrs...)
 		os.Exit(1)
 	}
 }
@@ -49,10 +73,11 @@ func run(args []string) error {
 		return err
 	}
 
-	a, err := psarc.Open(f, st.Size())
+	a, err := hgpak.Open(f, st.Size())
 	if err != nil {
 		return fmt.Errorf("opening %s: %w", filepath.Base(path), err)
 	}
+	defer a.Close()
 
 	switch cmd {
 	case "list":
@@ -85,65 +110,51 @@ The substring filters paths case-insensitively.
 `)
 }
 
-func list(a *psarc.Archive, filter string) error {
-	fmt.Printf("PSARC v%d.%d  %s  block %d  %d entries\n\n",
-		a.VersionMajor, a.VersionMinor, a.Compression, a.BlockSize, len(a.Names()))
+func storageLabel(a *hgpak.Archive) string {
+	if a.Stored() {
+		return "stored"
+	}
+	return "zstd blocks"
+}
+
+func list(a *hgpak.Archive, filter string) error {
+	paths, err := a.Paths()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("HGPAK v%d  %s  %d entries  %d blocks\n\n",
+		a.Version(), storageLabel(a), len(paths), a.BlockCount())
 
 	var shown int
-	var bytes int64
-	for _, e := range a.Entries() {
-		if !matches(e.Name, filter) {
+	var total uint64
+	for i, p := range paths {
+		if !hgpak.Matches(p, filter) {
 			continue
 		}
-		fmt.Printf("%12d  %s\n", e.UncompressedSize, e.Name)
+		// Manifest entry 0 is not a file, so entry i+1 owns path i.
+		e, err := a.Entry(i + 1)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%12d  %s\n", e.Size, p)
 		shown++
-		bytes += e.UncompressedSize
+		total += e.Size
 	}
-	fmt.Printf("\n%d entries, %d bytes uncompressed\n", shown, bytes)
+	fmt.Printf("\n%d entries, %d bytes uncompressed\n", shown, total)
 	if filter != "" {
 		fmt.Printf("(filtered by %q)\n", filter)
 	}
 	return nil
 }
 
-func extract(a *psarc.Archive, outDir, filter string) error {
-	var n int
-	var total int64
-	for _, e := range a.Entries() {
-		if !matches(e.Name, filter) {
-			continue
-		}
-
-		// Archive paths are untrusted input. Reject anything that escapes
-		// the output directory rather than writing through it.
-		dest := filepath.Join(outDir, filepath.FromSlash(e.Name))
-		rel, err := filepath.Rel(outDir, dest)
-		// Compare against ".." as a whole path element: a plain prefix test
-		// also rejects legitimate names that merely start with two dots.
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return fmt.Errorf("refusing path %q: escapes the output directory", e.Name)
-		}
-
-		data, err := a.ReadFile(e.Name)
-		if err != nil {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(dest, data, 0o644); err != nil {
-			return err
-		}
-		n++
-		total += int64(len(data))
+func extract(a *hgpak.Archive, outDir, filter string) error {
+	res, err := a.ExtractTo(outDir, filter)
+	if err != nil {
+		return err
 	}
-	fmt.Printf("extracted %d entries, %d bytes, to %s\n", n, total, outDir)
-	if n == 0 && filter != "" {
+	fmt.Printf("extracted %d entries, %d bytes, to %s\n", res.Files, res.Bytes, outDir)
+	if res.Files == 0 && filter != "" {
 		fmt.Printf("(nothing matched %q — try `list` first)\n", filter)
 	}
 	return nil
-}
-
-func matches(name, filter string) bool {
-	return filter == "" || strings.Contains(strings.ToLower(name), strings.ToLower(filter))
 }
