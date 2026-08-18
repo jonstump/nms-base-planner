@@ -33,7 +33,7 @@ Where does that data come from, in what form does it reach the app, and under wh
 
 Chosen option: **C, direct extraction with a two-tier data model**, because it is the only option that gets the recipe graph under a permissive footing while keeping the refresh cycle under our control — and because the constants that extraction cannot supply turn out to be a small curated set rather than a second pipeline.
 
-**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.EXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, and the base parts catalog. Regenerated per game version; never hand-edited.
+**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.MXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, and the base parts catalog. Regenerated per game version; never hand-edited.
 
 **Tier 2 — curated.** A hand-maintained YAML file of base-economy constants (generator outputs, power draws, extractor rates per class, biodome capacity, crop yields), each entry carrying a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
 
@@ -54,13 +54,22 @@ Extraction takes **structure and quantities only**. In-game `Description` text a
 
 ### Confirmation
 
-The pipeline is correct when it reproduces the Stasis Device tree from `docs/design/tree-canvas/handoff.md` exactly, from `prod80`:
+The pipeline is correct when it reproduces the Stasis Device tree from `docs/design/tree-canvas/handoff.md` exactly, rooted at product ID **`ULTRAPROD2`**:
 
-* 34 distinct nodes across the Quantum Processor, Cryogenic Chamber, and Iridesite branches
-* Each gas product costing 250 gas + 50 Condensed Carbon
+* 34 distinct nodes across the Quantum Processor (`MEGAPROD2`), Cryogenic Chamber (`MEGAPROD3`), and Iridesite (`ALLOY8`) branches
+* Each gas product costing 250 gas + 50 Condensed Carbon — `REACTION1` / `REACTION2` / `REACTION3`
 * At quantity ×1: 500 each of Sulphurine / Nitrogen / Radon, and 300 Condensed Carbon
 
-This has already been verified by hand against extracted data and is the acceptance test for the Go implementation.
+**Finding the ID requires a localisation hop, and this is the part that costs time.** Product IDs are opaque (`CASING`, `ULTRAPROD2`) and carry no display name; the `Name` and `NameLower` fields hold localisation *keys*, and the English strings live in `language/nms_loc*_english.mbin` inside `NMSARC.MetadataEtc.pak` — a different archive from the product table. Searching `GcProductTable` for "Stasis Device" therefore finds nothing. The chain is:
+
+```
+language/nms_update3_english.mbin  →  UI_ULTRAPROD_2_NAME_L = "Stasis Device"
+NMS_REALITY_GCPRODUCTTABLE.MBIN    →  NameLower = UI_ULTRAPROD_2_NAME_L  →  ID = ULTRAPROD2
+```
+
+Any normalizer that wants human-readable names must join against the localisation tables; the reality tables alone cannot produce them.
+
+All three bullets above were verified on 2026-08-17 against a real extraction — `NMSARC.Precache.pak` unpacked with `internal/hgpak`, decompiled with MBINCompiler 6.45.0.1 — and the traversal returns exactly 34 distinct nodes over 47 edges to 14 leaf resources. An earlier revision of this section named the root `prod80` and asserted the tree "has already been verified by hand against extracted data". No such ID exists in the game data, in the handoff this section cites, or in the design mocks, and no extraction was possible at the time the claim was written: the reader then in the tree could not open a single archive. The three quantitative bullets were nevertheless correct, so only the identifier was invented — see the HGPAK note below for the same failure mode on the container format.
 
 Tier 2 is confirmed differently: every entry must carry a `source` and `verified` date, and any entry lacking one must render with the `unverified` badge rather than silently presenting as fact.
 
@@ -111,7 +120,7 @@ Copy the ~1.5 MB of `Products` / `RawMaterials` / `Refinery` / `NutrientProcesso
 ```mermaid
 graph TD
     A["NMS install<br/>GAMEDATA/PCBANKS/*.pak<br/>(HGPAK container)"] -->|"Go: HGPAK reader<br/>(SPEC-0003)"| B[".MBIN files"]
-    B -->|"MBINCompiler subprocess<br/>(LGPL-3.0)"| C[".EXML files"]
+    B -->|"MBINCompiler subprocess<br/>(LGPL-3.0)"| C[".MXML files"]
     C -->|"Go: encoding/xml"| D["Normalizer<br/>(graph build, ID resolution, provenance)"]
     D --> E["Tier 1 artifact<br/>recipe graph + metadata<br/>version-stamped"]
     F["Tier 2 YAML<br/>economy constants<br/>source + verified per entry"] --> G
@@ -131,7 +140,7 @@ graph TD
 * **MBINCompiler ships first-class Linux binaries** — release `v6.45.0-pre1` publishes `MBINCompiler-linux`, `MBINCompiler-linux-dotnet6`, `libMBIN-linux.so`, and `libMBIN-linux-dotnet6.so`. It requires the .NET 8 runtime and does not need mono. Notably that release publishes **no macOS asset at all**, despite the README stating one accompanies every release — a further reason extraction belongs on Linux.
 * **Flow:** Linux PC extracts, normalizes, and commits the artifact; the Mac pulls and develops against it. The development machine never needs .NET, MBINCompiler, or the game installed.
 
-**The archive format is HGPAK, not PSARC — verified against the install.** An earlier revision of this ADR labelled the extraction edge of the diagram above `PSARC extract`. That label was never a decision, was never verified, and is wrong. All 97 archives under `GAMEDATA/PCBANKS` on the maintainer's install (game files dated 2026-06-05) carry the magic `HGPAK`; none carry `PSAR`. NMS shipped PSARC historically, which is why the assumption looked safe and why community documentation still describes it — but it does not hold for current builds.
+**The archive format is HGPAK, not PSARC — verified against the install.** An earlier revision of this ADR labelled the extraction edge of the diagram above `PSARC extract`. That label was never a decision, was never verified, and is wrong. All 97 archives under `GAMEDATA/PCBANKS` on the maintainer's install (NMS 5.97; pak files span 2026-05-04 to 2026-06-16, since the game patches incrementally and rewrites only changed archives) carry the magic `HGPAK`; none carry `PSAR`. NMS shipped PSARC historically, which is why the assumption looked safe and why community documentation still describes it — but it does not hold for current builds.
 
 Confirmed by parsing real archives end to end:
 
