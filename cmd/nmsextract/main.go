@@ -118,7 +118,9 @@ func extract(a *psarc.Archive, outDir, filter string) error {
 		// the output directory rather than writing through it.
 		dest := filepath.Join(outDir, filepath.FromSlash(e.Name))
 		rel, err := filepath.Rel(outDir, dest)
-		if err != nil || strings.HasPrefix(rel, "..") {
+		// Compare against ".." as a whole path element: a plain prefix test
+		// also rejects legitimate names that merely start with two dots.
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("refusing path %q: escapes the output directory", e.Name)
 		}
 

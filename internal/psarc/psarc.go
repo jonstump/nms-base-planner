@@ -59,6 +59,11 @@ const (
 	headerSize       = 32
 	compZlib         = "zlib"
 	flagTOCEncrypted = 1 << 0
+
+	// maxBlockSize bounds the per-entry read buffer. Real PSARC archives use
+	// 64 KiB; this is generous against that and keeps a corrupt header from
+	// asking for a 4 GiB allocation.
+	maxBlockSize = 1 << 24
 )
 
 // Entry is one file in the archive.
@@ -124,17 +129,21 @@ func Open(r io.ReaderAt, size int64) (*Archive, error) {
 	if entryCount == 0 {
 		return nil, fmt.Errorf("%w: archive declares zero entries, but entry 0 is always the manifest", ErrCorrupt)
 	}
-	if a.BlockSize == 0 {
-		return nil, fmt.Errorf("%w: block size is zero", ErrCorrupt)
+	if a.BlockSize == 0 || a.BlockSize > maxBlockSize {
+		return nil, fmt.Errorf("%w: block size %d, want 1..%d", ErrCorrupt, a.BlockSize, maxBlockSize)
 	}
 	if int64(tocLength) > size || int64(tocLength) < headerSize {
 		return nil, fmt.Errorf("%w: toc length %d against archive size %d", ErrCorrupt, tocLength, size)
 	}
 
-	tocBytes := int64(entryCount) * int64(entrySize)
-	if headerSize+tocBytes > int64(tocLength) {
+	// Computed in uint64, which cannot overflow: the product of two uint32
+	// maxima is (2^32-1)^2, below 2^64. In int64 that product wraps negative
+	// and slips past this guard, leaving entryCount to size the slice below.
+	tocBytes64 := uint64(entryCount) * uint64(entrySize)
+	if uint64(headerSize)+tocBytes64 > uint64(tocLength) {
 		return nil, fmt.Errorf("%w: %d entries of %d bytes exceed toc length %d", ErrCorrupt, entryCount, entrySize, tocLength)
 	}
+	tocBytes := int64(tocBytes64)
 
 	toc := make([]byte, tocLength-headerSize)
 	if _, err := r.ReadAt(toc, headerSize); err != nil {
@@ -165,6 +174,24 @@ func Open(r io.ReaderAt, size int64) (*Archive, error) {
 	for i := range a.blocks {
 		off := tocBytes + int64(i)*int64(width)
 		a.blocks[i] = readN(toc[off : off+int64(width)])
+	}
+
+	// Entry sizes and block indexes are only meaningful against the block
+	// table, so they are checked once it exists. Without this an entry may
+	// declare a 40-bit size — up to 1 TiB — that readEntry would preallocate
+	// before reading a single block.
+	for i, e := range a.entries {
+		if e.UncompressedSize == 0 {
+			continue
+		}
+		if int64(e.blockIndex) >= int64(len(a.blocks)) {
+			return nil, fmt.Errorf("%w: entry %d starts at block %d, past the %d-block table", ErrCorrupt, i, e.blockIndex, len(a.blocks))
+		}
+		available := int64(len(a.blocks)) - int64(e.blockIndex)
+		needed := (e.UncompressedSize + int64(a.BlockSize) - 1) / int64(a.BlockSize)
+		if needed > available {
+			return nil, fmt.Errorf("%w: entry %d declares %d bytes, needing %d blocks, but only %d remain", ErrCorrupt, i, e.UncompressedSize, needed, available)
+		}
 	}
 
 	if err := a.loadManifest(); err != nil {
@@ -254,6 +281,12 @@ func (a *Archive) readEntry(i int) ([]byte, error) {
 			if remaining := e.UncompressedSize - int64(len(out)); remaining < n {
 				n = remaining
 			}
+		} else if n > int64(a.BlockSize) {
+			// blockWidth rounds BlockSize up to a byte boundary, so a table
+			// value can hold more than BlockSize permits — a 1-byte width
+			// carries up to 255 against a block size of 2. Slicing the read
+			// buffer to it panics rather than reporting corruption.
+			return nil, fmt.Errorf("%w: entry %d block %d declares %d bytes, over the %d-byte block size", ErrCorrupt, i, bi, n, a.BlockSize)
 		}
 
 		chunk := buf[:n]
