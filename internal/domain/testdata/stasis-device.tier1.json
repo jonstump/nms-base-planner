@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "game_version": "community-2026-08",
+  "extracted": false,
+  "source": "docs/design/tree-canvas/handoff.md + Tree Canvas.dc.html",
+  "note": "Placeholder standing in for a real extracted artifact (ADR-0001 Tier 1). Community-sourced, not decoded from MBIN files; extracted:false marks that. Replace via the extraction spike. Prototype edge labels were aggregate totals at target quantity 1 and are recorded here as per-unit quantities. Carbon and the Condensed Carbon refine recipe are outside the 34-node Stasis tree: Condensed Carbon defaults to raw, so the recipe exists but is never expanded, which is the worked example for the terminal-node requirement.",
+
+  "items": [
+    { "id": "fc",  "name": "Frost Crystal",      "raw_obtainable": true, "default_method": "raw" },
+    { "id": "sol", "name": "Solanium",           "raw_obtainable": true, "default_method": "raw" },
+    { "id": "cf",  "name": "Cactus Flesh",       "raw_obtainable": true, "default_method": "raw" },
+    { "id": "sb",  "name": "Star Bulb",          "raw_obtainable": true, "default_method": "raw" },
+    { "id": "gr",  "name": "Gamma Root",         "raw_obtainable": true, "default_method": "raw" },
+    { "id": "fae", "name": "Faecium",            "raw_obtainable": true, "default_method": "raw" },
+    { "id": "sul", "name": "Sulphurine",         "raw_obtainable": true, "default_method": "raw" },
+    { "id": "cc",  "name": "Condensed Carbon",   "raw_obtainable": true, "default_method": "raw" },
+    { "id": "nit", "name": "Nitrogen",           "raw_obtainable": true, "default_method": "raw" },
+    { "id": "rad", "name": "Radon",              "raw_obtainable": true, "default_method": "raw" },
+    { "id": "par", "name": "Paraffinium",        "raw_obtainable": true, "default_method": "raw" },
+    { "id": "pho", "name": "Phosphorus",         "raw_obtainable": true, "default_method": "raw" },
+    { "id": "dio", "name": "Dioxite",            "raw_obtainable": true, "default_method": "raw" },
+    { "id": "ion", "name": "Ionised Cobalt",     "raw_obtainable": true, "default_method": "raw" },
+    { "id": "car", "name": "Carbon",             "raw_obtainable": true, "default_method": "raw" },
+
+    { "id": "hc",  "name": "Heat Capacitor",     "default_method": "craft" },
+    { "id": "gla", "name": "Glass",              "default_method": "craft", "verified": false },
+    { "id": "pf",  "name": "Poly Fibre",         "default_method": "craft" },
+    { "id": "lub", "name": "Lubricant",          "default_method": "craft" },
+    { "id": "ec",  "name": "Enriched Carbon",    "default_method": "craft" },
+    { "id": "ns",  "name": "Nitrogen Salt",      "default_method": "craft" },
+    { "id": "tc",  "name": "Thermic Condensate", "default_method": "craft" },
+    { "id": "aro", "name": "Aronium",            "default_method": "craft" },
+    { "id": "mg",  "name": "Magno-Gold",         "default_method": "craft" },
+    { "id": "gra", "name": "Grantine",           "default_method": "craft" },
+    { "id": "cb",  "name": "Circuit Board",      "default_method": "craft" },
+    { "id": "lg",  "name": "Living Glass",       "default_method": "craft" },
+    { "id": "hi",  "name": "Hot Ice",            "default_method": "craft", "verified": false },
+    { "id": "sem", "name": "Semiconductor",      "default_method": "craft" },
+    { "id": "sup", "name": "Superconductor",     "default_method": "craft" },
+    { "id": "cp",  "name": "Cryo-Pump",          "default_method": "craft" },
+    { "id": "qp",  "name": "Quantum Processor",  "default_method": "craft" },
+    { "id": "cry", "name": "Cryogenic Chamber",  "default_method": "craft" },
+    { "id": "iri", "name": "Iridesite",          "default_method": "craft" },
+    { "id": "sd",  "name": "Stasis Device",      "default_method": "craft" }
+  ],
+
+  "recipes": [
+    { "output": "hc",  "method": "craft",  "inputs": [{ "item": "fc", "quantity": 100 }, { "item": "sol", "quantity": 200 }] },
+
+    { "output": "cc",  "method": "refine", "inputs": [{ "item": "car", "quantity": 2 }] },
+
+    { "output": "gla", "method": "craft",  "inputs": [{ "item": "fc", "quantity": 40 }] },
+    { "output": "gla", "method": "refine", "inputs": [{ "item": "fc", "quantity": 250 }] },
+
+    { "output": "pf",  "method": "craft",  "inputs": [{ "item": "cf", "quantity": 100 }, { "item": "sb", "quantity": 200 }] },
+    { "output": "lub", "method": "craft",  "inputs": [{ "item": "fae", "quantity": 50 }, { "item": "gr", "quantity": 400 }] },
+
+    { "output": "ec",  "method": "craft",  "inputs": [{ "item": "sul", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "output": "ec",  "method": "refine", "inputs": [{ "item": "sul", "quantity": 300 }] },
+
+    { "output": "ns",  "method": "craft",  "inputs": [{ "item": "nit", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "output": "ns",  "method": "refine", "inputs": [{ "item": "nit", "quantity": 300 }] },
+
+    { "output": "tc",  "method": "craft",  "inputs": [{ "item": "rad", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "output": "tc",  "method": "refine", "inputs": [{ "item": "rad", "quantity": 300 }] },
+
+    { "output": "aro", "method": "craft",  "inputs": [{ "item": "par", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+    { "output": "mg",  "method": "craft",  "inputs": [{ "item": "pho", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+    { "output": "gra", "method": "craft",  "inputs": [{ "item": "dio", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+
+    { "output": "cb",  "method": "craft",  "inputs": [{ "item": "hc", "quantity": 1 }, { "item": "pf", "quantity": 1 }] },
+    { "output": "lg",  "method": "craft",  "inputs": [{ "item": "gla", "quantity": 5 }, { "item": "lub", "quantity": 1 }] },
+    { "output": "hi",  "method": "craft",  "inputs": [{ "item": "ns", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
+    { "output": "sem", "method": "craft",  "inputs": [{ "item": "tc", "quantity": 1 }, { "item": "ns", "quantity": 1 }] },
+
+    { "output": "sup", "method": "craft",  "inputs": [{ "item": "sem", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
+    { "output": "cp",  "method": "craft",  "inputs": [{ "item": "hi", "quantity": 1 }, { "item": "tc", "quantity": 1 }] },
+
+    { "output": "qp",  "method": "craft",  "inputs": [{ "item": "cb", "quantity": 1 }, { "item": "sup", "quantity": 1 }] },
+    { "output": "cry", "method": "craft",  "inputs": [{ "item": "lg", "quantity": 1 }, { "item": "cp", "quantity": 1 }] },
+    { "output": "iri", "method": "craft",  "inputs": [{ "item": "aro", "quantity": 1 }, { "item": "mg", "quantity": 1 }, { "item": "gra", "quantity": 1 }] },
+
+    { "output": "sd",  "method": "craft",  "inputs": [{ "item": "qp", "quantity": 1 }, { "item": "cry", "quantity": 1 }, { "item": "iri", "quantity": 1 }] }
+  ]
+}
