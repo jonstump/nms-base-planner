@@ -33,7 +33,7 @@ Where does that data come from, in what form does it reach the app, and under wh
 
 Chosen option: **C, direct extraction with a two-tier data model**, because it is the only option that gets the recipe graph under a permissive footing while keeping the refresh cycle under our control — and because the constants that extraction cannot supply turn out to be a small curated set rather than a second pipeline.
 
-**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, extracts them, shells out to MBINCompiler to convert `.MBIN` → `.EXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, and the base parts catalog. Regenerated per game version; never hand-edited.
+**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.EXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, and the base parts catalog. Regenerated per game version; never hand-edited.
 
 **Tier 2 — curated.** A hand-maintained YAML file of base-economy constants (generator outputs, power draws, extractor rates per class, biodome capacity, crop yields), each entry carrying a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
 
@@ -110,7 +110,7 @@ Copy the ~1.5 MB of `Products` / `RawMaterials` / `Refinery` / `NutrientProcesso
 
 ```mermaid
 graph TD
-    A["NMS install<br/>GAMEDATA/PCBANKS/*.pak"] -->|PSARC extract| B[".MBIN files"]
+    A["NMS install<br/>GAMEDATA/PCBANKS/*.pak<br/>(HGPAK container)"] -->|"Go: HGPAK reader<br/>(SPEC-0003)"| B[".MBIN files"]
     B -->|"MBINCompiler subprocess<br/>(LGPL-3.0)"| C[".EXML files"]
     C -->|"Go: encoding/xml"| D["Normalizer<br/>(graph build, ID resolution, provenance)"]
     D --> E["Tier 1 artifact<br/>recipe graph + metadata<br/>version-stamped"]
@@ -130,6 +130,20 @@ graph TD
 * **Save files** (for ADR-0002) live inside the Proton prefix, NMS being Steam app ID `275850`: `~/.steam/steam/steamapps/compatdata/275850/pfx/drive_c/users/steamuser/AppData/Roaming/HelloGames/NMS/st_<steamid>/`
 * **MBINCompiler ships first-class Linux binaries** — release `v6.45.0-pre1` publishes `MBINCompiler-linux`, `MBINCompiler-linux-dotnet6`, `libMBIN-linux.so`, and `libMBIN-linux-dotnet6.so`. It requires the .NET 8 runtime and does not need mono. Notably that release publishes **no macOS asset at all**, despite the README stating one accompanies every release — a further reason extraction belongs on Linux.
 * **Flow:** Linux PC extracts, normalizes, and commits the artifact; the Mac pulls and develops against it. The development machine never needs .NET, MBINCompiler, or the game installed.
+
+**The archive format is HGPAK, not PSARC — verified against the install.** An earlier revision of this ADR labelled the extraction edge of the diagram above `PSARC extract`. That label was never a decision, was never verified, and is wrong. All 97 archives under `GAMEDATA/PCBANKS` on the maintainer's install (game files dated 2026-06-05) carry the magic `HGPAK`; none carry `PSAR`. NMS shipped PSARC historically, which is why the assumption looked safe and why community documentation still describes it — but it does not hold for current builds.
+
+Confirmed by parsing real archives end to end:
+
+* Header is little-endian: 8-byte `HGPAK\0\0\0` magic, then u64 version (2), entry count, block count, an unknown field (1), and a data-start offset.
+* An entry table of 32-byte records — 16-byte MD5 + u64 offset + u64 size — followed by a block table of u64 compressed lengths.
+* Blocks are **zstd**, each decompressing to exactly 65,536 bytes, each starting 16-byte aligned. `NMSARC.globals.pak`: 87 blocks decompressing to 5,701,632 bytes = 87 x 64 KiB exactly.
+* Entry offsets are into a **virtual image** of the file, so stream position is `entry.offset - dataStart`.
+* **Entry 0 is a manifest** of CRLF-separated lowercase paths, and each entry's 16-byte hash is the **MD5 of its lowercase path** (verified 400/400 on sampled names). Filenames are therefore fully recoverable from the archive alone; no external hash mapping is required.
+
+**Consequence for Tier 1: the tables are in `NMSARC.Precache.pak`.** `NMSARC.MetadataEtc.pak` contains no `metadata/reality/tables/` paths at all. `NMSARC.Precache.pak` holds all 54, including `nms_reality_gcproducttable.mbin`, `nms_reality_gcsubstancetable.mbin`, `nms_reality_gcrecipetable.mbin`, and — for the base parts catalogue this ADR's Tier 1 promises — `basebuildingpartstable.mbin` and `basebuildingcoststable.mbin`. Entries extracted from it carry MBIN magic `cccccccc`, so they feed MBINCompiler directly as this decision assumes.
+
+None of this changes the decision. Option C is chosen for licensing and refresh-cycle reasons that are indifferent to the container format; only the unpacking step's implementation is affected. `internal/psarc` reads no file in the game install and is superseded by SPEC-0003.
 
 **Never commit a real save file.** The Tier 1 artifact is game data and is safe to commit. A save file is *player* data — discovered systems, base locations, platform UID — and committing one would defeat ADR-0002's privacy rationale permanently, since git history preserves it. Test fixtures MUST be either gitignored, drawn from a throwaway playthrough, or synthesized from a scrubbed `PersistentPlayerBases` subtree. The synthetic option is preferred: smaller, readable, and free of personal data.
 
