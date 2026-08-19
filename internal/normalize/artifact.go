@@ -151,6 +151,11 @@ func sortArtifact(t *domain.Tier1) {
 		return t.Economy.Hotspots[i].Category < t.Economy.Hotspots[j].Category
 	})
 	sort.Slice(t.Economy.Crops, func(i, j int) bool { return t.Economy.Crops[i].ID < t.Economy.Crops[j].ID })
+	// Searches sort by value; the Searched list inside each is deliberately
+	// left in the order it was consulted, since that sequence is the record.
+	sort.Slice(t.Economy.Searches, func(i, j int) bool {
+		return t.Economy.Searches[i].Value < t.Economy.Searches[j].Value
+	})
 }
 
 // Encode marshals the artifact deterministically.

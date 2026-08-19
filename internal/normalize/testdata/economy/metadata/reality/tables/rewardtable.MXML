@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--File created using MBINCompiler version (6.45.0.1)-->
+<Data template="cGcRewardTable">
+	<Property name="GenericTable">
+		<Property name="GenericTable" value="GcGenericRewardTableEntry" _id="WILD_SNOW">
+			<Property name="Id" value="WILD_SNOW" />
+			<Property name="List" value="GcRewardTableItemList">
+				<Property name="RewardChoice" value="GiveAll" />
+				<Property name="OverrideZeroSeed" value="false" />
+				<Property name="UseInventoryChoiceOverride" value="false" />
+				<Property name="IncrementStat" value="" />
+				<Property name="List">
+					<Property name="List" value="GcRewardTableItem" _index="0">
+						<Property name="PercentageChance" value="100.000000" />
+						<Property name="LabelID" value="" />
+						<Property name="Reward" value="GcRewardSpecificSubstance">
+							<Property name="GcRewardSpecificSubstance">
+								<Property name="Default" value="GcDefaultMissionSubstanceEnum">
+									<Property name="DefaultSubstanceType" value="None" />
+								</Property>
+								<Property name="ID" value="PLANT_SNOW" />
+								<Property name="AmountMin" value="18" />
+								<Property name="AmountMax" value="30" />
+								<Property name="DisableMultiplier" value="false" />
+								<Property name="RewardAsBlobs" value="false" />
+								<Property name="UseFuelMultiplier" value="false" />
+								<Property name="Silent" value="false" />
+								<Property name="UseMissionBoardDifficultyScale" value="false" />
+							</Property>
+						</Property>
+					</Property>
+				</Property>
+			</Property>
+		</Property>
+		<Property name="GenericTable" value="GcGenericRewardTableEntry" _id="PLANT_SACVENOM">
+			<Property name="Id" value="PLANT_SACVENOM" />
+			<Property name="List" value="GcRewardTableItemList">
+				<Property name="RewardChoice" value="GiveAll" />
+				<Property name="OverrideZeroSeed" value="false" />
+				<Property name="UseInventoryChoiceOverride" value="false" />
+				<Property name="IncrementStat" value="" />
+				<Property name="List">
+					<Property name="List" value="GcRewardTableItem" _index="0">
+						<Property name="PercentageChance" value="100.000000" />
+						<Property name="LabelID" value="" />
+						<Property name="Reward" value="GcRewardSpecificProduct">
+							<Property name="GcRewardSpecificProduct">
+								<Property name="Default" value="GcDefaultMissionProductEnum">
+									<Property name="DefaultProductType" value="None" />
+								</Property>
+								<Property name="ID" value="SACVENOM" />
+								<Property name="AmountMin" value="1" />
+								<Property name="AmountMax" value="1" />
+								<Property name="HideAmountInMessage" value="false" />
+								<Property name="ForceSpecialMessage" value="false" />
+								<Property name="HideInSeasonRewards" value="false" />
+								<Property name="Silent" value="false" />
+								<Property name="SeasonRewardListFormat" value="" />
+								<Property name="RequiresTech" value="" />
+							</Property>
+						</Property>
+					</Property>
+				</Property>
+			</Property>
+		</Property>
+		<Property name="GenericTable" value="GcGenericRewardTableEntry" _id="PLANT_BARREN">
+			<Property name="Id" value="PLANT_BARREN" />
+			<Property name="List" value="GcRewardTableItemList">
+				<Property name="RewardChoice" value="GiveAll" />
+				<Property name="OverrideZeroSeed" value="false" />
+				<Property name="UseInventoryChoiceOverride" value="false" />
+				<Property name="IncrementStat" value="" />
+				<Property name="List">
+					<Property name="List" value="GcRewardTableItem" _index="0">
+						<Property name="PercentageChance" value="100.000000" />
+						<Property name="LabelID" value="" />
+						<Property name="Reward" value="GcRewardSpecificSubstance">
+							<Property name="GcRewardSpecificSubstance">
+								<Property name="Default" value="GcDefaultMissionSubstanceEnum">
+									<Property name="DefaultSubstanceType" value="None" />
+								</Property>
+								<Property name="ID" value="PLANT_DUST" />
+								<Property name="AmountMin" value="100" />
+								<Property name="AmountMax" value="100" />
+								<Property name="DisableMultiplier" value="true" />
+								<Property name="RewardAsBlobs" value="false" />
+								<Property name="UseFuelMultiplier" value="false" />
+								<Property name="Silent" value="false" />
+								<Property name="UseMissionBoardDifficultyScale" value="false" />
+							</Property>
+						</Property>
+					</Property>
+				</Property>
+			</Property>
+		</Property>
+		<Property name="GenericTable" value="GcGenericRewardTableEntry" _id="PLANT_LUSH">
+			<Property name="Id" value="PLANT_LUSH" />
+			<Property name="List" value="GcRewardTableItemList">
+				<Property name="RewardChoice" value="GiveAll" />
+				<Property name="OverrideZeroSeed" value="false" />
+				<Property name="UseInventoryChoiceOverride" value="false" />
+				<Property name="IncrementStat" value="" />
+				<Property name="List">
+					<Property name="List" value="GcRewardTableItem" _index="0">
+						<Property name="PercentageChance" value="100.000000" />
+						<Property name="LabelID" value="" />
+						<Property name="Reward" value="GcRewardSpecificSubstance">
+							<Property name="GcRewardSpecificSubstance">
+								<Property name="Default" value="GcDefaultMissionSubstanceEnum">
+									<Property name="DefaultSubstanceType" value="None" />
+								</Property>
+								<Property name="ID" value="PLANT_LUSH" />
+								<Property name="AmountMin" value="25" />
+								<Property name="AmountMax" value="25" />
+								<Property name="DisableMultiplier" value="true" />
+								<Property name="RewardAsBlobs" value="false" />
+								<Property name="UseFuelMultiplier" value="false" />
+								<Property name="Silent" value="false" />
+								<Property name="UseMissionBoardDifficultyScale" value="false" />
+							</Property>
+						</Property>
+					</Property>
+				</Property>
+			</Property>
+		</Property>
+		<Property name="GenericTable" value="GcGenericRewardTableEntry" _id="PLANT_SNOW">
+			<Property name="Id" value="PLANT_SNOW" />
+			<Property name="List" value="GcRewardTableItemList">
+				<Property name="RewardChoice" value="GiveAll" />
+				<Property name="OverrideZeroSeed" value="false" />
+				<Property name="UseInventoryChoiceOverride" value="false" />
+				<Property name="IncrementStat" value="" />
+				<Property name="List">
+					<Property name="List" value="GcRewardTableItem" _index="0">
+						<Property name="PercentageChance" value="100.000000" />
+						<Property name="LabelID" value="" />
+						<Property name="Reward" value="GcRewardSpecificSubstance">
+							<Property name="GcRewardSpecificSubstance">
+								<Property name="Default" value="GcDefaultMissionSubstanceEnum">
+									<Property name="DefaultSubstanceType" value="None" />
+								</Property>
+								<Property name="ID" value="PLANT_SNOW" />
+								<Property name="AmountMin" value="50" />
+								<Property name="AmountMax" value="50" />
+								<Property name="DisableMultiplier" value="true" />
+								<Property name="RewardAsBlobs" value="false" />
+								<Property name="UseFuelMultiplier" value="false" />
+								<Property name="Silent" value="false" />
+								<Property name="UseMissionBoardDifficultyScale" value="false" />
+							</Property>
+						</Property>
+					</Property>
+				</Property>
+			</Property>
+		</Property>
+	</Property>
+</Data>
