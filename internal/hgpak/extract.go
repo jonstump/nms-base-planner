@@ -75,6 +75,13 @@ func (a *Archive) ExtractTo(outDir, filter string) (ExtractResult, error) {
 		if err != nil {
 			return res, fmt.Errorf("reading %s: %w", p, err)
 		}
+		// Check containment BEFORE creating anything. MkdirAll happily
+		// builds a tree through a symlinked parent, so checking afterwards
+		// refuses the write but has already made directories outside the
+		// output tree.
+		if err := confinedToRoot(root, deepestExisting(filepath.Dir(dest)), p); err != nil {
+			return res, err
+		}
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return res, fmt.Errorf("creating directory for %s: %w", p, err)
 		}
@@ -82,6 +89,13 @@ func (a *Archive) ExtractTo(outDir, filter string) (ExtractResult, error) {
 		// along it is resolvable — re-check containment before writing.
 		if err := confinedToRoot(root, filepath.Dir(dest), p); err != nil {
 			return res, err
+		}
+		// The parent chain is confined, but dest itself may already exist as
+		// a symlink pointing out of the tree, and os.WriteFile follows it.
+		// Lstat sees the link rather than its target.
+		if fi, err := os.Lstat(dest); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			return res, fmt.Errorf("refusing %q: destination already exists as a symlink: %w",
+				p, ErrUnsafePath)
 		}
 		if err := os.WriteFile(dest, body, 0o644); err != nil {
 			return res, fmt.Errorf("writing %s: %w", p, err)
@@ -139,4 +153,20 @@ func confinedToRoot(root, dir, archivePath string) error {
 			archivePath, ErrUnsafePath)
 	}
 	return nil
+}
+
+// deepestExisting returns the closest ancestor of p that exists, p included.
+// EvalSymlinks needs a path that is actually there, and the whole point of
+// checking before MkdirAll is that the leaf directories are not yet.
+func deepestExisting(p string) string {
+	for {
+		if _, err := os.Lstat(p); err == nil {
+			return p
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return p
+		}
+		p = parent
+	}
 }

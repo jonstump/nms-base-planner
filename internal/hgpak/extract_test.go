@@ -301,3 +301,78 @@ func TestEveryManifestPathIsReachableByItsOwnName(t *testing.T) {
 		}
 	}
 }
+
+// SPEC-0003 REQ "Safe Extraction to Disk": the resolved destination must not
+// fall outside the output directory, and nothing may be written outside it.
+//
+// A symlink at the destination *file* is a distinct escape from a symlink
+// among its parent directories: the parent chain resolves cleanly, and
+// os.WriteFile follows the final link. Lstat is what sees it.
+func TestSymlinkAtDestinationFileIsRefused(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on Windows")
+	}
+	root := t.TempDir()
+	out := filepath.Join(root, "out")
+	outside := filepath.Join(root, "outside")
+	for _, d := range []string{out, outside} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	victim := filepath.Join(outside, "victim.txt")
+	if err := os.WriteFile(victim, []byte("ORIGINAL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// out/pwned.mbin is already a symlink to a file outside the tree.
+	if err := os.Symlink(victim, filepath.Join(out, "pwned.mbin")); err != nil {
+		t.Fatal(err)
+	}
+
+	a := craft(t, []string{"pwned.mbin"}, [][]byte{[]byte("PAYLOAD")})
+	if _, err := a.ExtractTo(out, ""); err == nil {
+		t.Fatal("ExtractTo wrote through a symlink at the destination")
+	} else if !errors.Is(err, hgpak.ErrUnsafePath) {
+		t.Errorf("error is %v, want ErrUnsafePath", err)
+	}
+
+	got, err := os.ReadFile(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "ORIGINAL" {
+		t.Errorf("file outside the output directory was clobbered: %q", got)
+	}
+}
+
+// SPEC-0003 REQ "Safe Extraction to Disk": "nothing is written outside the
+// directory" covers directories too. Containment is therefore checked before
+// MkdirAll runs — checking afterwards refuses the write but has already
+// built a tree through the symlink.
+func TestNoDirectoriesAreCreatedOutsideTheOutputTree(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on Windows")
+	}
+	root := t.TempDir()
+	out := filepath.Join(root, "out")
+	outside := filepath.Join(root, "outside")
+	for _, d := range []string{out, outside} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(outside, filepath.Join(out, "link")); err != nil {
+		t.Fatal(err)
+	}
+
+	a := craft(t, []string{"link/sub/deep/pwned.mbin"}, [][]byte{[]byte("PAYLOAD")})
+	if _, err := a.ExtractTo(out, ""); err == nil {
+		t.Fatal("ExtractTo accepted a path through a symlinked parent")
+	} else if !errors.Is(err, hgpak.ErrUnsafePath) {
+		t.Errorf("error is %v, want ErrUnsafePath", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(outside, "sub")); err == nil {
+		t.Error("directories were created outside the output directory")
+	}
+}
