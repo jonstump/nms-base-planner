@@ -33,7 +33,7 @@ func seed(b *normalize.Builder) {
 		domain.Item{ID: "REACTION1", Name: "Thermic Condensate", DefaultMethod: domain.MethodRefine},
 	)
 	b.AddRecipes(domain.Recipe{
-		Output: "REACTION1", Method: domain.MethodRefine,
+		ID: "REACTION1_REFINE", Output: "REACTION1", Method: domain.MethodRefine,
 		Inputs: []domain.Input{{Item: "PLANT_SNOW", Quantity: 250}, {Item: "FUEL2", Quantity: 50}},
 	})
 }
@@ -112,7 +112,7 @@ func TestOutputIsByteIdenticalRegardlessOfInsertionOrder(t *testing.T) {
 		domain.Item{ID: "CCC", Name: "C", DefaultMethod: domain.MethodCraft},
 	)
 	forward.AddRecipes(domain.Recipe{
-		Output: "CCC", Method: domain.MethodCraft,
+		ID: "CCC_CRAFT", Output: "CCC", Method: domain.MethodCraft,
 		Inputs: []domain.Input{{Item: "AAA", Quantity: 1}, {Item: "BBB", Quantity: 2}},
 	})
 
@@ -123,7 +123,7 @@ func TestOutputIsByteIdenticalRegardlessOfInsertionOrder(t *testing.T) {
 		domain.Item{ID: "AAA", Name: "A", RawObtainable: true, DefaultMethod: domain.MethodRaw},
 	)
 	reverse.AddRecipes(domain.Recipe{
-		Output: "CCC", Method: domain.MethodCraft,
+		ID: "CCC_CRAFT", Output: "CCC", Method: domain.MethodCraft,
 		Inputs: []domain.Input{{Item: "BBB", Quantity: 2}, {Item: "AAA", Quantity: 1}},
 	})
 
@@ -208,7 +208,7 @@ func TestFailedGenerationNeverReachesTheWriter(t *testing.T) {
 	// A recipe input naming an item no table defines: the graph is not
 	// closed, so assembly must fail before anything is written.
 	b.AddRecipes(domain.Recipe{
-		Output: "REACTION1", Method: domain.MethodCraft,
+		ID: "REACTION1_CRAFT", Output: "REACTION1", Method: domain.MethodCraft,
 		Inputs: []domain.Input{{Item: "NOT_AN_ITEM", Quantity: 1}},
 	})
 
@@ -450,7 +450,7 @@ func TestEconomyOrderingIsTotalAcrossNestedSlices(t *testing.T) {
 			domain.Item{ID: "AAA", Name: "A", RawObtainable: true, DefaultMethod: domain.MethodRaw},
 			domain.Item{ID: "CCC", Name: "C", DefaultMethod: domain.MethodCraft},
 		)
-		b.AddRecipes(domain.Recipe{Output: "CCC", Method: domain.MethodCraft, Inputs: ins})
+		b.AddRecipes(domain.Recipe{ID: "CCC_CRAFT", Output: "CCC", Method: domain.MethodCraft, Inputs: ins})
 		b.SetEconomy(&domain.Economy{
 			Parts: []domain.Part{
 				{ID: "PART1", Primary: domain.Flow{Network: domain.NetworkResources, Rate: 10}, Dependencies: deps},

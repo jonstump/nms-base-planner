@@ -104,7 +104,12 @@ func sortArtifact(t *domain.Tier1) {
 		if t.Recipes[i].Output != t.Recipes[j].Output {
 			return t.Recipes[i].Output < t.Recipes[j].Output
 		}
-		return t.Recipes[i].Method < t.Recipes[j].Method
+		if t.Recipes[i].Method != t.Recipes[j].Method {
+			return t.Recipes[i].Method < t.Recipes[j].Method
+		}
+		// Output and method no longer identify a recipe — many recipes share
+		// a pair (ADR-0005) — so the id is what makes this key total.
+		return t.Recipes[i].ID < t.Recipes[j].ID
 	})
 	for _, r := range t.Recipes {
 		// Item alone is not total: Validate does not reject a recipe naming

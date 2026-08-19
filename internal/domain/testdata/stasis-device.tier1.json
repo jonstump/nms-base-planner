@@ -45,41 +45,41 @@
   ],
 
   "recipes": [
-    { "output": "hc",  "method": "craft",  "inputs": [{ "item": "fc", "quantity": 100 }, { "item": "sol", "quantity": 200 }] },
+    { "id": "hc_craft", "output": "hc", "method": "craft",  "inputs": [{ "item": "fc", "quantity": 100 }, { "item": "sol", "quantity": 200 }] },
 
-    { "output": "cc",  "method": "refine", "inputs": [{ "item": "car", "quantity": 2 }] },
+    { "id": "cc_refine", "output": "cc", "method": "refine", "inputs": [{ "item": "car", "quantity": 2 }] },
 
-    { "output": "gla", "method": "craft",  "inputs": [{ "item": "fc", "quantity": 40 }] },
-    { "output": "gla", "method": "refine", "inputs": [{ "item": "fc", "quantity": 250 }] },
+    { "id": "gla_craft", "output": "gla", "method": "craft",  "inputs": [{ "item": "fc", "quantity": 40 }] },
+    { "id": "gla_refine", "output": "gla", "method": "refine", "inputs": [{ "item": "fc", "quantity": 250 }] },
 
-    { "output": "pf",  "method": "craft",  "inputs": [{ "item": "cf", "quantity": 100 }, { "item": "sb", "quantity": 200 }] },
-    { "output": "lub", "method": "craft",  "inputs": [{ "item": "fae", "quantity": 50 }, { "item": "gr", "quantity": 400 }] },
+    { "id": "pf_craft", "output": "pf", "method": "craft",  "inputs": [{ "item": "cf", "quantity": 100 }, { "item": "sb", "quantity": 200 }] },
+    { "id": "lub_craft", "output": "lub", "method": "craft",  "inputs": [{ "item": "fae", "quantity": 50 }, { "item": "gr", "quantity": 400 }] },
 
-    { "output": "ec",  "method": "craft",  "inputs": [{ "item": "sul", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
-    { "output": "ec",  "method": "refine", "inputs": [{ "item": "sul", "quantity": 300 }] },
+    { "id": "ec_craft", "output": "ec", "method": "craft",  "inputs": [{ "item": "sul", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "id": "ec_refine", "output": "ec", "method": "refine", "inputs": [{ "item": "sul", "quantity": 300 }] },
 
-    { "output": "ns",  "method": "craft",  "inputs": [{ "item": "nit", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
-    { "output": "ns",  "method": "refine", "inputs": [{ "item": "nit", "quantity": 300 }] },
+    { "id": "ns_craft", "output": "ns", "method": "craft",  "inputs": [{ "item": "nit", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "id": "ns_refine", "output": "ns", "method": "refine", "inputs": [{ "item": "nit", "quantity": 300 }] },
 
-    { "output": "tc",  "method": "craft",  "inputs": [{ "item": "rad", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
-    { "output": "tc",  "method": "refine", "inputs": [{ "item": "rad", "quantity": 300 }] },
+    { "id": "tc_craft", "output": "tc", "method": "craft",  "inputs": [{ "item": "rad", "quantity": 250 }, { "item": "cc", "quantity": 50 }] },
+    { "id": "tc_refine", "output": "tc", "method": "refine", "inputs": [{ "item": "rad", "quantity": 300 }] },
 
-    { "output": "aro", "method": "craft",  "inputs": [{ "item": "par", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
-    { "output": "mg",  "method": "craft",  "inputs": [{ "item": "pho", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
-    { "output": "gra", "method": "craft",  "inputs": [{ "item": "dio", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+    { "id": "aro_craft", "output": "aro", "method": "craft",  "inputs": [{ "item": "par", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+    { "id": "mg_craft", "output": "mg", "method": "craft",  "inputs": [{ "item": "pho", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
+    { "id": "gra_craft", "output": "gra", "method": "craft",  "inputs": [{ "item": "dio", "quantity": 50 }, { "item": "ion", "quantity": 50 }] },
 
-    { "output": "cb",  "method": "craft",  "inputs": [{ "item": "hc", "quantity": 1 }, { "item": "pf", "quantity": 1 }] },
-    { "output": "lg",  "method": "craft",  "inputs": [{ "item": "gla", "quantity": 5 }, { "item": "lub", "quantity": 1 }] },
-    { "output": "hi",  "method": "craft",  "inputs": [{ "item": "ns", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
-    { "output": "sem", "method": "craft",  "inputs": [{ "item": "tc", "quantity": 1 }, { "item": "ns", "quantity": 1 }] },
+    { "id": "cb_craft", "output": "cb", "method": "craft",  "inputs": [{ "item": "hc", "quantity": 1 }, { "item": "pf", "quantity": 1 }] },
+    { "id": "lg_craft", "output": "lg", "method": "craft",  "inputs": [{ "item": "gla", "quantity": 5 }, { "item": "lub", "quantity": 1 }] },
+    { "id": "hi_craft", "output": "hi", "method": "craft",  "inputs": [{ "item": "ns", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
+    { "id": "sem_craft", "output": "sem", "method": "craft",  "inputs": [{ "item": "tc", "quantity": 1 }, { "item": "ns", "quantity": 1 }] },
 
-    { "output": "sup", "method": "craft",  "inputs": [{ "item": "sem", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
-    { "output": "cp",  "method": "craft",  "inputs": [{ "item": "hi", "quantity": 1 }, { "item": "tc", "quantity": 1 }] },
+    { "id": "sup_craft", "output": "sup", "method": "craft",  "inputs": [{ "item": "sem", "quantity": 1 }, { "item": "ec", "quantity": 1 }] },
+    { "id": "cp_craft", "output": "cp", "method": "craft",  "inputs": [{ "item": "hi", "quantity": 1 }, { "item": "tc", "quantity": 1 }] },
 
-    { "output": "qp",  "method": "craft",  "inputs": [{ "item": "cb", "quantity": 1 }, { "item": "sup", "quantity": 1 }] },
-    { "output": "cry", "method": "craft",  "inputs": [{ "item": "lg", "quantity": 1 }, { "item": "cp", "quantity": 1 }] },
-    { "output": "iri", "method": "craft",  "inputs": [{ "item": "aro", "quantity": 1 }, { "item": "mg", "quantity": 1 }, { "item": "gra", "quantity": 1 }] },
+    { "id": "qp_craft", "output": "qp", "method": "craft",  "inputs": [{ "item": "cb", "quantity": 1 }, { "item": "sup", "quantity": 1 }] },
+    { "id": "cry_craft", "output": "cry", "method": "craft",  "inputs": [{ "item": "lg", "quantity": 1 }, { "item": "cp", "quantity": 1 }] },
+    { "id": "iri_craft", "output": "iri", "method": "craft",  "inputs": [{ "item": "aro", "quantity": 1 }, { "item": "mg", "quantity": 1 }, { "item": "gra", "quantity": 1 }] },
 
-    { "output": "sd",  "method": "craft",  "inputs": [{ "item": "qp", "quantity": 1 }, { "item": "cry", "quantity": 1 }, { "item": "iri", "quantity": 1 }] }
+    { "id": "sd_craft", "output": "sd", "method": "craft",  "inputs": [{ "item": "qp", "quantity": 1 }, { "item": "cry", "quantity": 1 }, { "item": "iri", "quantity": 1 }] }
   ]
 }

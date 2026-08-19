@@ -188,7 +188,7 @@ func TestTerminalNodesAreNotExpanded(t *testing.T) {
 	if !cc.Terminal || len(cc.Children) != 0 {
 		t.Errorf("cc terminal = %v with %d children, want terminal with none", cc.Terminal, len(cc.Children))
 	}
-	if _, hasRecipe := loadFixture(t).Recipe("cc", MethodRefine); !hasRecipe {
+	if len(loadFixture(t).RecipesFor("cc", MethodRefine)) == 0 {
 		t.Fatal("fixture no longer holds a cc refine recipe, so this scenario is not being exercised")
 	}
 	if got, want := cc.LegalMethods, []Method{MethodRaw, MethodRefine}; !equalMethods(got, want) {
@@ -335,8 +335,8 @@ func TestCycleDetection(t *testing.T) {
 	    {"id":"b","name":"Beta","default_method":"refine"}
 	  ],
 	  "recipes": [
-	    {"output":"a","method":"refine","inputs":[{"item":"b","quantity":1}]},
-	    {"output":"b","method":"refine","inputs":[{"item":"a","quantity":1}]}
+	    {"id":"a_refine","output":"a","method":"refine","inputs":[{"item":"b","quantity":1}]},
+	    {"id":"b_refine","output":"b","method":"refine","inputs":[{"item":"a","quantity":1}]}
 	  ]
 	}`
 	a1, err := LoadTier1(strings.NewReader(cyclic))
@@ -422,10 +422,10 @@ func TestErrorCarriesResolutionPath(t *testing.T) {
 	// not exist. Structural validation catches it at load, so build the
 	// artifact past validation and confirm the walk reports the path.
 	a1 := loadFixture(t)
-	a1.recipesByOut["cp"][MethodCraft] = Recipe{
-		Output: "cp", Method: MethodCraft,
+	a1.recipesByOut["cp"][MethodCraft] = []Recipe{{
+		ID: "cp_craft", Output: "cp", Method: MethodCraft,
 		Inputs: []Input{{Item: "prod999", Quantity: 1}},
-	}
+	}}
 
 	g, err := Resolve(a1, PlanInput{Target: "sd", Quantity: 1})
 	if err == nil {

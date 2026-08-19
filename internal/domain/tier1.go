@@ -65,10 +65,34 @@ type Input struct {
 
 // Recipe produces one unit of Output by Method from Inputs.
 type Recipe struct {
-	Output   string  `json:"output"`
-	Method   Method  `json:"method"`
-	Inputs   []Input `json:"inputs"`
-	Verified *bool   `json:"verified,omitempty"`
+	// ID is the recipe's stable identifier — the source's own where it has
+	// one (RECIPE_1), synthesized otherwise. It is what a plan records when
+	// overriding the default, and what breaks ties in the default rule, so
+	// it MUST be stable across regenerations.
+	//
+	// Governing: SPEC-0001 REQ "Recipe Selection"
+	ID string `json:"id"`
+
+	Output string  `json:"output"`
+	Method Method  `json:"method"`
+	Inputs []Input `json:"inputs"`
+
+	// Yield is how many units of Output one application produces. Absent
+	// means one, which is what crafting always is; refining is not — 156 of
+	// 1,681 refiner recipes produce more, up to 250 (ADR-0005).
+	//
+	// Governing: SPEC-0001 REQ "Exact Arithmetic and Rounding Discipline"
+	Yield int64 `json:"yield,omitempty"`
+
+	Verified *bool `json:"verified,omitempty"`
+}
+
+// Producing returns the recipe's yield, treating absent as one.
+func (r Recipe) Producing() int64 {
+	if r.Yield == 0 {
+		return 1
+	}
+	return r.Yield
 }
 
 // IsVerified reports the recipe's provenance, defaulting to verified.
@@ -127,7 +151,7 @@ type Tier1 struct {
 
 	// Derived indexes, built by Validate.
 	itemsByID    map[string]Item
-	recipesByOut map[string]map[Method]Recipe
+	recipesByOut map[string]map[Method][]Recipe
 	legalMethods map[string][]Method
 }
 
@@ -176,7 +200,7 @@ func (t *Tier1) Validate() error {
 		t.itemsByID[it.ID] = it
 	}
 
-	t.recipesByOut = make(map[string]map[Method]Recipe)
+	t.recipesByOut = make(map[string]map[Method][]Recipe)
 	for _, rc := range t.Recipes {
 		if _, ok := t.itemsByID[rc.Output]; !ok {
 			return fmt.Errorf("%w: recipe output %q: %w", ErrInvalidArtifact, rc.Output, ErrUnknownItem)
@@ -186,6 +210,12 @@ func (t *Tier1) Validate() error {
 		}
 		if rc.Method == MethodRaw {
 			return fmt.Errorf("%w: recipe for %q declares method raw, which is terminal by definition", ErrInvalidArtifact, rc.Output)
+		}
+		if rc.ID == "" {
+			return fmt.Errorf("%w: recipe for %q has no id; a plan cannot name it", ErrInvalidArtifact, rc.Output)
+		}
+		if rc.Yield < 0 {
+			return fmt.Errorf("%w: recipe %q yield must be positive, got %d", ErrInvalidArtifact, rc.ID, rc.Yield)
 		}
 		if len(rc.Inputs) == 0 {
 			return fmt.Errorf("%w: recipe for %q has no inputs", ErrInvalidArtifact, rc.Output)
@@ -198,15 +228,20 @@ func (t *Tier1) Validate() error {
 				return fmt.Errorf("%w: recipe for %q input %q: quantity must be positive, got %d", ErrInvalidArtifact, rc.Output, in.Item, in.Quantity)
 			}
 		}
+		// Many recipes may produce the same item by the same method — 261 of
+		// 403 refiner output/method pairs do (ADR-0005). What must be unique
+		// is the recipe id, since that is what a plan records to name one.
 		byMethod, ok := t.recipesByOut[rc.Output]
 		if !ok {
-			byMethod = make(map[Method]Recipe)
+			byMethod = make(map[Method][]Recipe)
 			t.recipesByOut[rc.Output] = byMethod
 		}
-		if _, dup := byMethod[rc.Method]; dup {
-			return fmt.Errorf("%w: duplicate %s recipe for %q", ErrInvalidArtifact, rc.Method, rc.Output)
+		for _, prev := range byMethod[rc.Method] {
+			if prev.ID == rc.ID {
+				return fmt.Errorf("%w: duplicate recipe id %q for %q", ErrInvalidArtifact, rc.ID, rc.Output)
+			}
 		}
-		byMethod[rc.Method] = rc
+		byMethod[rc.Method] = append(byMethod[rc.Method], rc)
 	}
 
 	// An item's default method must actually be available to it.
@@ -270,8 +305,39 @@ func (t *Tier1) LegalMethods(id string) []Method {
 	return out
 }
 
-// Recipe returns the recipe producing id by method m.
-func (t *Tier1) Recipe(id string, m Method) (Recipe, bool) {
-	rc, ok := t.recipesByOut[id][m]
-	return rc, ok
+// RecipesFor returns every recipe producing id by method m, in artifact
+// order. Named to avoid colliding with the Recipes field.
+//
+// Governing: SPEC-0001 REQ "Recipe Selection" — a method does not identify a
+// recipe; the artifact carries a list because the game does.
+func (t *Tier1) RecipesFor(id string, m Method) []Recipe {
+	rs := t.recipesByOut[id][m]
+	out := make([]Recipe, len(rs))
+	copy(out, rs)
+	return out
+}
+
+// Recipe returns the recipe with the given id producing item by method m.
+func (t *Tier1) Recipe(item string, m Method, recipeID string) (Recipe, bool) {
+	for _, rc := range t.recipesByOut[item][m] {
+		if rc.ID == recipeID {
+			return rc, true
+		}
+	}
+	return Recipe{}, false
+}
+
+// LegalRecipes reports the recipe ids available for an item and method,
+// sorted, so the view can offer the alternatives rather than presenting one
+// route as though it were the only one.
+//
+// Governing: SPEC-0001 REQ "Recipe Selection"
+func (t *Tier1) LegalRecipes(id string, m Method) []string {
+	rs := t.recipesByOut[id][m]
+	out := make([]string, 0, len(rs))
+	for _, rc := range rs {
+		out = append(out, rc.ID)
+	}
+	sort.Strings(out)
+	return out
 }
