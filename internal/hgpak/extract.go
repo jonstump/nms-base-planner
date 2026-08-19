@@ -93,9 +93,22 @@ func (a *Archive) ExtractTo(outDir, filter string) (ExtractResult, error) {
 		// The parent chain is confined, but dest itself may already exist as
 		// a symlink pointing out of the tree, and os.WriteFile follows it.
 		// Lstat sees the link rather than its target.
-		if fi, err := os.Lstat(dest); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-			return res, fmt.Errorf("refusing %q: destination already exists as a symlink: %w",
-				p, ErrUnsafePath)
+		if fi, err := os.Lstat(dest); err == nil {
+			if fi.Mode()&os.ModeSymlink != 0 {
+				return res, fmt.Errorf("refusing %q: destination already exists as a symlink: %w",
+					p, ErrUnsafePath)
+			}
+			// A hardlink is the same escape wearing a different hat: it
+			// reports as a regular file, so the symlink check above cannot
+			// see it, and os.WriteFile writes through to the shared inode —
+			// modifying whatever else points at it, outside the tree
+			// included. Refuse rather than unlink: an existing link at the
+			// destination is evidence something is wrong, and REQ "Safe
+			// Extraction to Disk" wants that loud, not quietly repaired.
+			if n, ok := hardLinkCount(fi); ok && n > 1 {
+				return res, fmt.Errorf("refusing %q: destination is one of %d links to the same file: %w",
+					p, n, ErrUnsafePath)
+			}
 		}
 		if err := os.WriteFile(dest, body, 0o644); err != nil {
 			return res, fmt.Errorf("writing %s: %w", p, err)

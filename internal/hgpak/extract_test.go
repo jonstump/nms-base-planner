@@ -376,3 +376,72 @@ func TestNoDirectoriesAreCreatedOutsideTheOutputTree(t *testing.T) {
 		t.Error("directories were created outside the output directory")
 	}
 }
+
+// SPEC-0003 REQ "Safe Extraction to Disk": nothing is written outside the
+// output directory. A hardlink at the destination is the third variant of
+// that escape, after the symlinked parent and the symlinked destination.
+//
+// It is invisible to the symlink check the other two use: a hardlink reports
+// as a regular file, and os.WriteFile writes straight through to the shared
+// inode. Before the fix this modified a file outside the tree and ExtractTo
+// returned nil — reporting success while clobbering the victim.
+func TestHardlinkAtDestinationIsRefused(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hardlink semantics differ on Windows")
+	}
+	root := t.TempDir()
+	out := filepath.Join(root, "out")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(root, "victim.txt")
+	original := []byte("ORIGINAL CONTENTS")
+	if err := os.WriteFile(victim, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(victim, filepath.Join(out, "x.mbin")); err != nil {
+		t.Skipf("hardlinks unsupported on this filesystem: %v", err)
+	}
+
+	a := craft(t, []string{"x.mbin"}, [][]byte{[]byte("PAYLOAD")})
+	_, err := a.ExtractTo(out, "")
+	if err == nil {
+		t.Fatal("ExtractTo wrote through a hardlink instead of refusing")
+	}
+	if !errors.Is(err, hgpak.ErrUnsafePath) {
+		t.Errorf("error is %v, want ErrUnsafePath", err)
+	}
+	if !strings.Contains(err.Error(), "x.mbin") {
+		t.Errorf("error %q does not name the offending path", err)
+	}
+	after, readErr := os.ReadFile(victim)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !bytes.Equal(after, original) {
+		t.Errorf("a file outside the output tree was modified: victim = %q, want %q", after, original)
+	}
+}
+
+// Re-extracting over an existing output directory overwrites plain files
+// cleanly. The destination guards refuse links, not ordinary re-runs.
+func TestReExtractionIsIdempotent(t *testing.T) {
+	out := t.TempDir()
+	a := craft(t, []string{"metadata/thing.mbin"}, [][]byte{[]byte("contents")})
+	for i := range 2 {
+		res, err := a.ExtractTo(out, "")
+		if err != nil {
+			t.Fatalf("ExtractTo run %d: %v", i+1, err)
+		}
+		if res.Files != 1 {
+			t.Errorf("run %d wrote %d files, want 1", i+1, res.Files)
+		}
+	}
+	got, err := os.ReadFile(filepath.Join(out, "metadata", "thing.mbin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, []byte("contents")) {
+		t.Errorf("after re-extraction file is %q, want %q", got, "contents")
+	}
+}
