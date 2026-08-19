@@ -115,6 +115,14 @@ sequenceDiagram
     V->>V: render — no recomputation (ADR-0004)
 ```
 
+### Recipe selection joins method in the plan payload
+
+**Choice**: The per-node recipe choice crosses the boundary as plan state, and defaults encode nothing.
+
+**Rationale**: ADR-0005 makes recipe a user-facing choice, and ADR-0002 puts plan state in the URL hash. Both facts together mean the encoding has to be sparse or the hash grows with graph size rather than with user intent. Making the default deterministic in the engine — rather than "whatever the artifact listed first" — is what allows an unrecorded selection to mean something precise on decode.
+
+**Trade-off**: The decoder must know the engine's default rule to interpret an absent selection, which couples the two more tightly than a fully explicit encoding would. Accepted because the alternative is a hash that grows with every node in a 34-node tree whether or not the user touched it.
+
 ## Risks / Trade-offs
 
 - **Serialize/parse cost on every crossing** → Irrelevant at 34 nodes and one crossing per interaction. Revisit only if a combined tree pushes payloads far beyond current scale, and measure before optimizing.

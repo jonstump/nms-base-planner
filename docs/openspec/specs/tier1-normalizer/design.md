@@ -104,6 +104,20 @@ graph TD
 
 The four source groups are the reason the normalizer is not a single-table read. Names come from a different archive than products; class scaling comes from `METADATA/SIMULATION/SCANNING/` rather than `METADATA/REALITY/TABLES/`; refiner throughput comes from globals. Each was found only after looking somewhere the first pass had not.
 
+### The normalizer emits every recipe and selects none
+
+**Choice**: All recipes for an output and method are emitted; selection is left to the engine.
+
+**Rationale**: ADR-0005. Choosing requires knowing each candidate's raw-material total, which requires expanding it — work the normalizer does not do and should not start doing, since it would duplicate the engine's traversal and drift from it. Emitting everything also keeps the artifact a faithful record of the source rather than a record of one interpretation of it.
+
+**Trade-off**: A larger artifact. 2,159 recipes rather than roughly 400 if deduplicated. Acceptable: it is a static asset, and the alternative discards most of refining.
+
+### Cooking is a flag, not a table
+
+**Choice**: Read `Cooking` from each refiner recipe rather than treating cooking as a separate source.
+
+**Rationale**: This resolves what was an open question in this design. The refiner table carries both refining and cooking, with a per-recipe boolean distinguishing them — verified against the real table, where `RECIPE_1` (yeast) carries `Cooking` true. There is no separate nutrient-processor source to read.
+
 ## Risks / Trade-offs
 
 - **A game update moves a field.** Likely eventually. Mitigated by failing closed with a named error, so the next update presents as a precise failure rather than corrupt output.
@@ -125,7 +139,6 @@ The hand-authored fixtures stay after step 2, as golden files rather than as the
 ## Open Questions
 
 - Should the artifact be one file or split per section? One file is simpler and matches `LoadTier1` today; splitting would make `git diff` narrower when only economy data changes.
-- Does the cooking table need the same treatment as refining, or does `nutrient processor` output fold into the same `cook` method without a separate source?
 - Refiner throughput is difficulty-dependent (`RefinerSubsMadeInTime` 250 versus 100 on Survival). Does the artifact carry both and let the planner choose, or does the planner assume Normal?
 - Is there a stable machine-readable game version in the install, or does `game_version` have to be derived from pak timestamps and the executable's version string?
 - Biodome crop-slot count is reported as 16 by the community wiki and is not in any table searched. Is it geometric — snap points in the scene — and therefore extractable after all, or genuinely Tier 2?

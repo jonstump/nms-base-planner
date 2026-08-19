@@ -63,6 +63,28 @@ Rounding up is not an arithmetic preference but a physical fact: you cannot buil
 - *Floating point with epsilon comparison*: pushes tolerance decisions into every test and every comparison, and the epsilon is a lie that eventually bites.
 - *Fixed-point decimal*: workable, but rationals express the class multipliers more directly and Go's `math/big.Rat` is available without a dependency.
 
+### Recipe selection is the engine's job, not the artifact's
+
+**Choice**: The Tier 1 artifact carries every recipe the game defines for an output and method. The engine picks one — smallest raw-input total, ties broken by a stable recipe id — and the view may override it per node.
+
+**Rationale**: ADR-0005 records the discovery that forced this: 261 of 403 refiner output/method pairs have more than one recipe, up to 61 for a single item. Sodium Nitrate has 26. An artifact that carried only one would be discarding most of the refining graph, and a planner whose answer to "how do I make this?" is one arbitrary route is not doing the job the tree canvas exists to do.
+
+Selection belongs in the engine rather than in the normalizer because it depends on the *expansion* — the raw-input total of a candidate is only knowable by resolving it — and because it is a user-facing choice. ADR-0004 keeps the view rendering rather than computing, so the view surfaces alternatives and reports a selection; it does not evaluate them.
+
+**Trade-off**: The default rule costs more work per node than picking the only option, since candidates must be resolved before they can be compared. Acceptable — the comparison is over already-memoized subtrees, and correctness here is worth more than the saved traversal.
+
+**Alternative considered**: Let the normalizer pick and emit one recipe. Rejected in ADR-0005 — it discards the alternatives invisibly, and the planner cannot offer what the artifact does not carry.
+
+### Yield is part of exactness, not separate from it
+
+**Choice**: A recipe's output quantity is a first-class field, and demand-to-batch arithmetic is exact.
+
+**Rationale**: 156 of 1,681 refiner recipes produce a quantity other than one, up to 250. `1x Crystal Sulphide -> 50x Sodium Nitrate` is representative. The engine's exactness commitment was written for input quantities and non-integer multipliers; a yield of 50 handled as floating-point division reintroduces exactly the error that commitment exists to prevent, at the last step before the total the user reads.
+
+Rounding a batch count up follows the same reasoning as the physical-unit boundaries: you cannot run 0.4 of a refining cycle.
+
+**Trade-off**: One more place quantities can be wrong, and one more field the normalizer must read correctly. Mitigated by SPEC-0004's requirement that yields come from the source rather than defaulting silently.
+
 ### Tier 2 constants injected, never hardcoded
 
 **Choice**: All economy constants — crop yields, dome capacity, extractor rates per class, generator outputs, class multipliers, draws, depot thresholds and capacities, battery ratios, fauna yield per collection cycle, cycle durations, and steps per nutrient processor — arrive as a parameter.

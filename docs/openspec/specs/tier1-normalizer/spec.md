@@ -61,6 +61,39 @@ Every `Input.item` and every `Recipe.output` MUST reference an `Item.id` present
 
 Items with no recipe MUST be emitted with `raw_obtainable` true and `default_method` `raw`, so the rollup engine's terminal-node handling has the leaves it expects.
 
+**Every recipe the source defines MUST be emitted.** Per ADR-0005 the artifact carries a list of recipes per output and method, not one: 261 of 403 refiner output/method pairs have more than one route, up to 61 for a single item. The normalizer MUST NOT select, deduplicate, or otherwise discard alternatives — selection is the engine's job and depends on expansion the normalizer does not perform.
+
+**Each recipe's yield MUST be read from the source.** 156 of 1,681 refiner recipes produce a quantity other than one, up to 250. A yield MUST NOT default silently to one; where the source does not state it, generation MUST fail rather than assume.
+
+**Refining and cooking come from one table.** The refiner table carries both, distinguished by a per-recipe `Cooking` flag: true yields method `cook`, false yields `refine`. The normalizer MUST read that flag rather than inferring the method from the recipe's contents.
+
+**Self-referential recipes MUST be excluded, and the count recorded.** A recipe naming its own output among its ingredients — `1x Phosphorus + 1x Solanium -> 2x Solanium` — is a doubling strategy rather than a production path, and expanding it is a cycle. There are 27. The normalizer MUST omit them and MUST record how many it omitted in the artifact's provenance, so a change in that number is visible rather than silent.
+
+#### Scenario: Alternatives are all emitted
+
+- **WHEN** the source defines 26 refine recipes producing `CATALYST2`
+- **THEN** the artifact carries all 26, and the normalizer selects none of them
+
+#### Scenario: Yields survive
+
+- **WHEN** a recipe producing 50 units from one input is read
+- **THEN** its yield is 50 in the artifact, not 1
+
+#### Scenario: An absent yield fails rather than defaults
+
+- **WHEN** a recipe's output quantity cannot be read from the source
+- **THEN** generation fails naming the recipe, rather than assuming a yield of one
+
+#### Scenario: Cooking is distinguished by its flag
+
+- **WHEN** a refiner recipe carries `Cooking` true
+- **THEN** its method is `cook`, and a recipe carrying `Cooking` false is `refine`
+
+#### Scenario: Self-referential recipes are excluded and counted
+
+- **WHEN** a recipe names its own output among its ingredients
+- **THEN** it is omitted from the artifact, and the provenance records the omitted count
+
 #### Scenario: The graph is closed
 
 - **WHEN** an artifact is generated
