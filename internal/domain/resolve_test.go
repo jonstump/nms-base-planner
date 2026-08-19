@@ -329,7 +329,7 @@ func TestCycleDetection(t *testing.T) {
 	// A deliberately cyclic artifact: refining A yields B and refining B
 	// yields A, which is a shape the real refining data is capable of.
 	const cyclic = `{
-	  "schema_version": 1, "game_version": "test-cycle",
+	  "schema_version": 2, "game_version": "test-cycle",
 	  "items": [
 	    {"id":"a","name":"Alpha","default_method":"refine"},
 	    {"id":"b","name":"Beta","default_method":"refine"}
@@ -459,7 +459,7 @@ func TestSentinelsAreDistinct(t *testing.T) {
 
 func TestTier1ValidationRejectsMissingGameVersion(t *testing.T) {
 	const noVersion = `{
-	  "schema_version": 1,
+	  "schema_version": 2,
 	  "items": [{"id":"a","name":"Alpha","raw_obtainable":true,"default_method":"raw"}],
 	  "recipes": []
 	}`

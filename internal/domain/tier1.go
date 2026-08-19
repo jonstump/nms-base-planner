@@ -74,6 +74,31 @@ type Recipe struct {
 // IsVerified reports the recipe's provenance, defaulting to verified.
 func (r Recipe) IsVerified() bool { return r.Verified == nil || *r.Verified }
 
+// CurrentSchemaVersion is the schema every artifact this package writes or
+// accepts must declare.
+//
+// Governing: SPEC-0004 REQ "Schema Extension and Load Compatibility" — the
+// schema, the producer and the loader move together, so a version bump is
+// how an artifact from the wrong side of a change is rejected rather than
+// silently half-read.
+//
+// 1: items and recipes only.
+// 2: adds provenance and the base-economy section.
+const CurrentSchemaVersion = 2
+
+// Provenance records the inputs a generated artifact was derived from.
+//
+// Deliberately carries no generation timestamp: SPEC-0004 REQ "Deterministic
+// Output" requires two runs over one install to be byte-identical, and a
+// clock reading would defeat that for no benefit the game version does not
+// already provide.
+type Provenance struct {
+	// Archives names the .pak files read, in sorted order.
+	Archives []string `json:"archives"`
+	// MBINCompiler is the decompiler version that produced the .MXML input.
+	MBINCompiler string `json:"mbincompiler"`
+}
+
 // Tier1 is the extracted recipe graph.
 //
 // Governing: ADR-0001 (two-tier ingestion) — Tier 1 is machine-extracted and
@@ -85,8 +110,20 @@ type Tier1 struct {
 	Source        string `json:"source"`
 	Note          string `json:"note"`
 
+	// Provenance records what produced a generated artifact. Absent on
+	// hand-authored fixtures, which carry Extracted false instead.
+	//
+	// Governing: SPEC-0004 REQ "Source Provenance and Version Stamping"
+	Provenance *Provenance `json:"provenance,omitempty"`
+
 	Items   []Item   `json:"items"`
 	Recipes []Recipe `json:"recipes"`
+
+	// Economy is the base-economy half of the artifact. Optional so that
+	// recipe-only fixtures remain valid.
+	//
+	// Governing: SPEC-0004 REQ "Base Economy Data"
+	Economy *Economy `json:"economy,omitempty"`
 
 	// Derived indexes, built by Validate.
 	itemsByID    map[string]Item
@@ -110,6 +147,13 @@ func LoadTier1(r io.Reader) (*Tier1, error) {
 
 // Validate checks structural integrity and builds the lookup indexes.
 func (t *Tier1) Validate() error {
+	if t.SchemaVersion != CurrentSchemaVersion {
+		// Governing: SPEC-0004 REQ "Schema Extension and Load Compatibility"
+		// — an artifact from the other side of a schema change is refused
+		// outright rather than half-read, since the fields it is missing (or
+		// carrying) are exactly the ones a partial read would get wrong.
+		return fmt.Errorf("%w: schema_version %d, want %d", ErrInvalidArtifact, t.SchemaVersion, CurrentSchemaVersion)
+	}
 	if t.GameVersion == "" {
 		// Governing: SPEC-0001 REQ "Dependency Graph Resolution" — fixtures
 		// asserting exact node counts or leaf totals must name the game
@@ -169,6 +213,17 @@ func (t *Tier1) Validate() error {
 	for _, it := range t.Items {
 		if !t.methodAvailable(it, it.DefaultMethod) {
 			return fmt.Errorf("%w: item %q default method %q: %w", ErrInvalidArtifact, it.ID, it.DefaultMethod, ErrIllegalMethod)
+		}
+	}
+
+	if t.Economy != nil {
+		// Governing: SPEC-0004 REQ "Base Economy Data" — validated after the
+		// item index is built, since crop yields reference item IDs.
+		if err := t.Economy.validate(func(id string) bool {
+			_, ok := t.itemsByID[id]
+			return ok
+		}); err != nil {
+			return err
 		}
 	}
 
