@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-08-17
 decision-makers: [Jon Stump]
 ---
@@ -33,9 +33,9 @@ Where does that data come from, in what form does it reach the app, and under wh
 
 Chosen option: **C, direct extraction with a two-tier data model**, because it is the only option that gets the recipe graph under a permissive footing while keeping the refresh cycle under our control — and because the constants that extraction cannot supply turn out to be a small curated set rather than a second pipeline.
 
-**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.MXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, and the base parts catalog. Regenerated per game version; never hand-edited.
+**Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.MXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, the base parts catalog, refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`), the per-part production and consumption rates and storage buffers from `GcBaseLinkGridData`, the C/B/A/S hotspot class strengths and weightings from `REGIONHOTSPOTSTABLE`, and crop yields and growth times. Regenerated per game version; never hand-edited.
 
-**Tier 2 — curated.** A hand-maintained YAML file of base-economy constants (generator outputs, power draws, extractor rates per class, biodome capacity, crop yields), each entry carrying a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
+**Tier 2 — curated.** A hand-maintained YAML file of the base-economy constants that are genuinely *not* in the game files. As of the 2026-08-18 confirmation that is one entry — biodome crop-slot count — since generator and consumer rates, class scaling, crop yields, and growth times all turned out to be extractable (see the finding below). Each entry carries a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
 
 MBINCompiler is invoked as a **subprocess**, never linked. It is LGPL-3.0, and a license governs a program rather than its output, so the extracted artifact carries no copyleft obligation. AssistantNMS is retained as a **cross-check** on Tier 1 correctness — read, compared against, never vendored.
 
@@ -49,7 +49,7 @@ Extraction takes **structure and quantities only**. In-game `Description` text a
 * Good, because the substantial engineering (normalization, graph construction, provenance, artifact emission) is pure Go, satisfying the learning goal without contorting the frontend.
 * Bad, because ingestion requires a local NMS install, so it cannot run in CI. It is a developer-local step producing a committed artifact.
 * Bad, because a game update invalidates the artifact and may require waiting for an MBINCompiler release before re-extraction is possible.
-* Bad, because Tier 2 is manual labour that must be re-verified after balance changes, and nothing automatically detects when it has gone stale.
+* Bad, because Tier 2 is manual labour that must be re-verified after balance changes, and nothing automatically detects when it has gone stale — though the 2026-08-18 confirmation shrank Tier 2 to a single constant, so the exposure is now small.
 * Neutral, because MBINCompiler becomes a vendored build-time dependency with a .NET 8 runtime requirement on developer machines.
 
 ### Confirmation
@@ -157,9 +157,40 @@ None of this changes the decision. Option C is chosen for licensing and refresh-
 
 **Never commit a real save file.** The Tier 1 artifact is game data and is safe to commit. A save file is *player* data — discovered systems, base locations, platform UID — and committing one would defeat ADR-0002's privacy rationale permanently, since git history preserves it. Test fixtures MUST be either gitignored, drawn from a throwaway playthrough, or synthesized from a scrubbed `PersistentPlayerBases` subtree. The synthetic option is preferred: smaller, readable, and free of personal data.
 
-**Tier 2 rests on a provisional finding.** A search of libMBIN's struct definitions — every numeric field matching `Consumption|Production|Supply|Demand|Grid|Wattage|Output|Generation|Extract|Yield|Growth|Mine`, all 208 entries of `GcStatsTypes`, plus `GcBuildingGlobals` and `GcMaintenanceComponentData` — found no field corresponding to generator kPs, extractor rate per class, biodome capacity, crop yield, or C/B/A/S class multipliers.
+**Tier 2 rested on a provisional finding, now confirmed.** The original search covered libMBIN's struct definitions — every numeric field matching `Consumption|Production|Supply|Demand|Grid|Wattage|Output|Generation|Extract|Yield|Growth|Mine`, all 208 entries of `GcStatsTypes`, plus `GcBuildingGlobals` and `GcMaintenanceComponentData` — found no field corresponding to generator kPs, extractor rate per class, biodome capacity, crop yield, or C/B/A/S class multipliers.
 
-This is a *searched hard, did not find it* result, **not proof of absence**. libMBIN exposes field names and types, not values; the constants could live in a generically-named field, in a table not yet identified, or be compiled into the executable. **This ADR should not be marked `accepted` until the finding is confirmed by decompiling actual MBIN files and inspecting them.** If the constants turn out to be extractable, Tier 2 shrinks or disappears and this decision should be revised rather than superseded.
+That was a *searched hard, did not find it* result over libMBIN's field **names and types**, and it required confirmation against real values before this ADR could be accepted.
+
+**That confirmation was done on 2026-08-18 and the finding did not survive it.** Against a real NMS 5.97 install unpacked with `internal/hgpak` and decompiled with MBINCompiler 6.45.0.1, four of the five constants are present and extractable:
+
+| Constant | Where it actually lives |
+|---|---|
+| Generator / extractor / consumer rates | `GcBaseLinkGridData.Rate` and `.Storage` on the base-building entry — 101 parts carry a nonzero value |
+| C/B/A/S class scaling | `METADATA/SIMULATION/SCANNING/REGIONHOTSPOTSTABLE.MBIN` — `ClassStrengths` and `ClassWeightings` per hotspot category |
+| Crop yield | `NMS_REALITY_GCREWARDTABLE` — `GcRewardSpecificSubstance` with `AmountMin` / `AmountMax` |
+| Crop growth time | `Storage` on the plant's `PlantGrowth` network connection, in seconds |
+| Biodome crop-slot count | **Not found.** The only remaining Tier 2 constant. |
+
+**The class model is ranges attached to hotspots, not multipliers attached to devices.** A part declares a base `Rate` and a `DependsOnHotspots` category; the hotspot carries the class. `regionhotspotstable.mbin` gives Power hotspots `ClassStrengths` of 150 / 220 / 250 / 300 for C/B/A/S, and Mineral and Gas hotspots 1 / 1.5 / 2 / 2.5, alongside `ClassWeightings` (Power 10/6/2/1, Gas 20/4/2/1) that bias which class spawns. Searching the parts table for `_C`/`_B`/`_A` variants finds nothing precisely because the class is never a property of the device.
+
+The link-grid model is complete enough to compute a base's power budget directly:
+
+```
+U_EXTRACTOR_S   Rate=100  Storage=360000  DependsOnHotspots=Mineral
+                └─ DependentConnections: Power, DependentRate=-50, DependentEffect=EnablesRate
+U_SOLAR_S       Rate=50                   U_BATTERY_S  Storage=45000
+BIOROOM         Rate=-50                  PLANTER Rate=-5   PLANTERMEGA Rate=-20
+```
+
+Plants themselves declare `DependentRate = 0` against Power, so a biodome's -50 is the entire power cost of what it contains; there is no per-plant draw to accumulate.
+
+Crop yields are flat per crop: Cactus Flesh 100, Gamma Root / Solanium / Frost Crystal / Fungal Mould 50, Star Bulb / Mordite / Faecium 25. Growth times come from the same link-grid `Storage` field — 3,600 s for frostwart, 14,400 s for most, 57,600 s for the slowest.
+
+**Consequences for the two tiers.** Tier 1 gains generator and consumer rates, class strengths and weightings, crop yields, crop growth times, battery capacity, and refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`). Tier 2 shrinks to a single entry — biodome crop-slot count — plus whatever later proves genuinely absent. The decision itself is unaffected: this ADR already said that "if the constants turn out to be extractable, Tier 2 shrinks or disappears and this decision should be revised rather than superseded," and that is what has happened.
+
+**This ADR moved from `proposed` to `accepted` on 2026-08-18.** The single blocker it set for itself — confirming the Tier 2 finding against decompiled MBIN files rather than libMBIN struct names — is met, and the decision survives the confirmation going against it. Option C was chosen for licensing and refresh-cycle reasons that do not depend on how the tiers are split, and the ADR anticipated this exact outcome in its own text. What changed is the size of Tier 2, not whether the two-tier model is right.
+
+**On how the earlier answer was wrong**, because the failure is instructive and this document has now recorded three of them. An initial pass concluded the constants were absent and this section briefly said so. That pass searched `METADATA/REALITY/TABLES/` and the globals, found only `DependentRate` inside connection dependencies, and reported absence — while the sibling `Rate` and `Storage` fields on the same structure went unread, and `METADATA/SIMULATION/SCANNING/` was never opened at all despite `gcterrainglobals` naming `RegionHotspotsTable` outright. The reward table holding every crop yield had already been decompiled and grepped. The error was not a missing capability; it was reporting a bounded search as a general result, which is the same move that produced the `PSARC` edge label and the "unknown field, 1 in every archive observed" claim. State the boundary of a search whenever stating its result.
 
 Supporting signal that Tier 2 matches the design's intent: `docs/design/base-planner/handoff.md` already specifies these values as tweakable parameters — *"`emOutput` (kPs, default 110): base EM generator output at class B — swap in real game data without touching code."* The mock's tweaks panel is the curated-constants file in prototype form.
 
