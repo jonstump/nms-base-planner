@@ -62,6 +62,41 @@ The engine MUST report which methods are legal for a given node so the view can 
 - **WHEN** a method is requested for a node that has no recipe of that kind in the Tier 1 artifact
 - **THEN** the engine returns an error naming the node and the illegal method, and the plan is left unchanged
 
+### Requirement: Recipe Selection
+
+A method does not identify a recipe. The Tier 1 artifact carries a *list* of recipes per output and method, because the game's refining and cooking data provides many routes to the same item — 261 of 403 output/method pairs, per ADR-0005. Each node MUST therefore resolve to exactly one **recipe**, not merely one method.
+
+The engine MUST select a default recipe deterministically: the candidate whose expansion resolves to the smallest total of raw inputs, with ties broken by a stable recipe identifier. The same artifact and the same target MUST select the same default on every run, on every machine.
+
+The engine MUST report which recipes are legal for a node's chosen method, alongside the legal methods, so the view can offer the alternatives rather than presenting one route as though it were the only one. Changing a node's recipe MUST change that node's expansion and MUST trigger recomputation of all totals derived from it, exactly as changing its method does.
+
+A node using its default recipe MUST be representable without recording a selection, so that plan state carries only deliberate overrides.
+
+#### Scenario: A node with alternatives selects deterministically
+
+- **WHEN** a node's item has more than one recipe for its chosen method
+- **THEN** the engine expands the candidate with the smallest raw-input total, and repeated runs over the same artifact select the same one
+
+#### Scenario: Alternatives are reported, not hidden
+
+- **WHEN** the view asks for a node's options
+- **THEN** it receives every legal recipe for the chosen method, not only the selected one
+
+#### Scenario: Recipe change alters expansion
+
+- **WHEN** a node's recipe changes to another legal recipe for the same method
+- **THEN** the node's child edges change to that recipe's inputs, and all ancestor quantities are recomputed
+
+#### Scenario: An illegal recipe is rejected
+
+- **WHEN** a recipe is requested for a node that has no such recipe in the Tier 1 artifact
+- **THEN** the engine returns an error naming the node and the recipe, and the plan is left unchanged
+
+#### Scenario: Defaults cost no plan state
+
+- **WHEN** every node in a plan uses its default recipe
+- **THEN** the serialized plan records no recipe selections
+
 #### Scenario: No buy method exists
 
 - **WHEN** any input requests the method `buy`
@@ -104,7 +139,9 @@ The engine MUST detect cycles during graph resolution and MUST return an error n
 
 ### Requirement: Exact Arithmetic and Rounding Discipline
 
-All item quantities MUST be represented as exact integers. Multipliers that are not integers (such as extractor and generator class multipliers) MUST be applied as exact rational arithmetic. The engine MUST NOT accumulate binary floating-point error across the graph.
+All item quantities MUST be represented as exact integers. This includes a recipe's **yield** — the quantity it produces, which is not always one: 156 of 1,681 refiner recipes produce more, up to 250 (ADR-0005). A recipe producing *y* units to satisfy a demand of *n* MUST be applied as exact arithmetic over *n* and *y*, never as a floating-point division.
+
+Multipliers that are not integers (such as extractor and generator class multipliers) MUST be applied as exact rational arithmetic. The engine MUST NOT accumulate binary floating-point error across the graph.
 
 Rounding MUST occur only at stated physical boundaries, and MUST round up, because partial physical units cannot be built. The boundaries are: plants per crop, biodomes per crop, extractors per resource, supply depots per resource, fauna per fauna product, nutrient processors per base, generators per base, and batteries per base.
 

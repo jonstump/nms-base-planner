@@ -42,7 +42,7 @@ The adapter MUST NOT expose any function that mutates domain state. Every entry 
 
 ### Requirement: Exact Quantity Encoding
 
-Every quantity crossing the boundary MUST be encoded as a decimal string, never as a JavaScript number. This applies to node totals, edge per-unit quantities, target quantity, and every derived count added by later stages.
+Every quantity crossing the boundary MUST be encoded as a decimal string, never as a JavaScript number. This applies to node totals, edge per-unit quantities, target quantity, recipe **yields**, and every derived count added by later stages.
 
 The adapter MUST NOT convert a quantity to `float64` at any point in the encoding path. Where a total is not an exact integer, it MUST be encoded as an exact decimal or rational string that round-trips without loss.
 
@@ -67,6 +67,29 @@ Where the domain reports a value as inexact — `TotalInt` returning `false` per
 
 - **WHEN** the adapter encodes any quantity
 - **THEN** no conversion through `float64` occurs, verified by the absence of such conversions in the encoding code
+
+### Requirement: Recipe Selection Crossing
+
+A node's recipe selection is plan state, exactly as its method is, and MUST cross the boundary in both directions: inbound as part of the plan input, outbound as part of each node's reported options.
+
+Per SPEC-0001 REQ "Recipe Selection" a node using its default recipe is representable without recording a selection. The encoding MUST preserve that: a plan in which every node uses its default MUST encode no recipe selections, so the boundary payload and the URL hash carry only deliberate overrides.
+
+The adapter MUST report each node's legal recipes alongside its legal methods. The view MUST NOT be required to consult the artifact directly to discover alternatives, since that would put domain knowledge in the render layer that ADR-0004 keeps out of it.
+
+#### Scenario: A selection round-trips
+
+- **WHEN** a plan specifying a non-default recipe for one node crosses the boundary and is returned
+- **THEN** that node reports the specified recipe, and its expansion reflects it
+
+#### Scenario: Defaults encode nothing
+
+- **WHEN** a plan in which every node uses its default recipe is encoded
+- **THEN** the payload contains no recipe selections
+
+#### Scenario: Alternatives reach the view
+
+- **WHEN** the view receives a resolved graph
+- **THEN** each node carries its legal recipes for the chosen method, without the view reading the artifact
 
 ### Requirement: Result Envelope
 
