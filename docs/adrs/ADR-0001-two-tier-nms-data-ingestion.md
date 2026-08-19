@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-08-17
 decision-makers: [Jon Stump]
 ---
@@ -182,6 +182,8 @@ This is materially stronger evidence than the struct-name search it replaces, be
 *Two structural facts constrain how Tier 2 models class scaling.* Power exists in the data only as link-grid connection rates: `basebuildingobjectstable` carries `GcBaseLinkGridConnectionData` with `LinkNetworkType = Power` and a `DependentRate`, whose distinct values across the whole table are `-50, -5, -3, 0, 50`. Exactly one is positive — `U_BIOGENERATOR = 50` — and only 24 of 1,997 base-building entries carry a rate at all. And classes are **not** separate parts: there is one entry per device (`U_SOLAR_S`, `U_BATTERY_S`, `U_EXTRACTOR_S`, `U_GENERATOR_S`, `U_BIOGENERATOR`, `U_GASEXTRACTOR`) with no `_C`/`_B`/`_A` siblings, so the `_S` suffix is not a class marker. Class scaling must therefore be a runtime multiplier over a single part, and that multiplier is not in the data.
 
 Tier 2 accordingly **shrinks rather than disappears**: refiner throughput leaves it, the generator, extractor, biodome, and crop numbers stay curated.
+
+**This ADR moved from `proposed` to `accepted` on 2026-08-18**, on the strength of the confirmation above — the single blocker it set for itself. The untested executable hypothesis is not treated as a reason to hold: Tier 2 exists precisely so that constants which cannot be extracted are curated with a `source` and a `verified` date, so discovering later that some of them *are* extractable would shrink Tier 2 further rather than invalidate the two-tier split. That is a revision, which this decision already anticipates, not a supersession.
 
 Supporting signal that Tier 2 matches the design's intent: `docs/design/base-planner/handoff.md` already specifies these values as tweakable parameters — *"`emOutput` (kPs, default 110): base EM generator output at class B — swap in real game data without touching code."* The mock's tweaks panel is the curated-constants file in prototype form.
 
