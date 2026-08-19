@@ -418,3 +418,75 @@ func TestPartHotspotReferenceIsChecked(t *testing.T) {
 		t.Fatal("Artifact accepted a part referencing an absent hotspot category")
 	}
 }
+
+// SPEC-0004 REQ "Deterministic Output": collections are emitted in a
+// defined, stable order — "not map-iteration order".
+//
+// TestOutputIsByteIdenticalRegardlessOfInsertionOrder covers items and
+// recipes, but attaches no Economy and uses distinct input items, so it only
+// ever exercises sort keys that were already total. This covers the nested
+// slices, where a partial key let the caller's order show through: a part
+// with two dependencies on one network sorted only by network, and Validate
+// does not reject the duplicate.
+//
+// It matters for the story that fills Economy — if it builds dependencies by
+// ranging a map, unstable order here turns every regeneration into a
+// spurious diff, which is the failure this requirement exists to prevent.
+func TestEconomyOrderingIsTotalAcrossNestedSlices(t *testing.T) {
+	// Two dependencies on the SAME network, distinguishable only by the
+	// fields the sort has to fall through to.
+	d1 := domain.Dependency{Network: domain.NetworkPower, Rate: -50, Effect: "EnablesRate"}
+	d2 := domain.Dependency{Network: domain.NetworkPower, Rate: -20, Effect: "ReducesRate"}
+	d3 := domain.Dependency{Network: domain.NetworkResources, Rate: -5}
+
+	// Same rate, differing only by effect — the last tiebreaker.
+	e1 := domain.Dependency{Network: domain.NetworkPlantGrowth, Rate: 1, Effect: "Alpha"}
+	e2 := domain.Dependency{Network: domain.NetworkPlantGrowth, Rate: 1, Effect: "Beta"}
+
+	build := func(deps, more []domain.Dependency, ins []domain.Input) []byte {
+		t.Helper()
+		b := builder(t)
+		b.AddItems(
+			domain.Item{ID: "AAA", Name: "A", RawObtainable: true, DefaultMethod: domain.MethodRaw},
+			domain.Item{ID: "CCC", Name: "C", DefaultMethod: domain.MethodCraft},
+		)
+		b.AddRecipes(domain.Recipe{Output: "CCC", Method: domain.MethodCraft, Inputs: ins})
+		b.SetEconomy(&domain.Economy{
+			Parts: []domain.Part{
+				{ID: "PART1", Primary: domain.Flow{Network: domain.NetworkResources, Rate: 10}, Dependencies: deps},
+				{ID: "PART2", Primary: domain.Flow{Network: domain.NetworkPower, Rate: 100}, Dependencies: more},
+			},
+			Crops: []domain.Crop{{ID: "PLANT1", Substance: "AAA", Yield: domain.Range{Min: 1, Max: 3}, GrowthSeconds: 60}},
+		})
+		a, err := b.Artifact()
+		if err != nil {
+			t.Fatalf("Artifact: %v", err)
+		}
+		out, err := normalize.Encode(a)
+		if err != nil {
+			t.Fatalf("Encode: %v", err)
+		}
+		return out
+	}
+
+	// A recipe naming the same input twice is malformed source data, but
+	// Validate accepts it today, so the emitter still has to order it
+	// reproducibly rather than leave it to insertion order.
+	dupIn1 := domain.Input{Item: "AAA", Quantity: 1}
+	dupIn2 := domain.Input{Item: "AAA", Quantity: 7}
+
+	forward := build(
+		[]domain.Dependency{d1, d2, d3},
+		[]domain.Dependency{e1, e2},
+		[]domain.Input{dupIn1, dupIn2},
+	)
+	reverse := build(
+		[]domain.Dependency{d3, d2, d1},
+		[]domain.Dependency{e2, e1},
+		[]domain.Input{dupIn2, dupIn1},
+	)
+
+	if !bytes.Equal(forward, reverse) {
+		t.Errorf("encodings differ by insertion order:\n--- forward\n%s\n--- reverse\n%s", forward, reverse)
+	}
+}

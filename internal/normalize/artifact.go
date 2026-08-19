@@ -95,8 +95,9 @@ func (b *Builder) Artifact() (*domain.Tier1, error) {
 // Governing: SPEC-0004 REQ "Deterministic Output" — the artifact is
 // committed, so unstable ordering turns each regeneration into an
 // unreviewable diff and buries real balance changes in reordering noise.
-// Sort keys are chosen to be total: where one field can repeat, a second
-// breaks the tie.
+// Sort keys are chosen to be total: where one field can repeat, the
+// remaining fields break the tie, so two records that sort equal are also
+// byte-identical and their order cannot show in the output.
 func sortArtifact(t *domain.Tier1) {
 	sort.Slice(t.Items, func(i, j int) bool { return t.Items[i].ID < t.Items[j].ID })
 	sort.Slice(t.Recipes, func(i, j int) bool {
@@ -106,15 +107,39 @@ func sortArtifact(t *domain.Tier1) {
 		return t.Recipes[i].Method < t.Recipes[j].Method
 	})
 	for _, r := range t.Recipes {
-		sort.Slice(r.Inputs, func(i, j int) bool { return r.Inputs[i].Item < r.Inputs[j].Item })
+		// Item alone is not total: Validate does not reject a recipe naming
+		// the same input twice, and an unstable sort would then leave the
+		// caller's insertion order showing through.
+		sort.Slice(r.Inputs, func(i, j int) bool {
+			a, b := r.Inputs[i], r.Inputs[j]
+			if a.Item != b.Item {
+				return a.Item < b.Item
+			}
+			return a.Quantity < b.Quantity
+		})
 	}
 	if t.Economy == nil {
 		return
 	}
 	sort.Slice(t.Economy.Parts, func(i, j int) bool { return t.Economy.Parts[i].ID < t.Economy.Parts[j].ID })
 	for _, p := range t.Economy.Parts {
+		// Network alone is not total. Every other collection here sorts on a
+		// key Validate guarantees unique — item IDs, part IDs, hotspot
+		// categories, (output, method) pairs — but nothing rejects a part
+		// carrying two dependencies on one network, so the remaining fields
+		// have to break the tie. Tiebreaking rather than rejecting, because
+		// whether the game data ever does this has not been established, and
+		// refusing to generate over an unverified assumption is the failure
+		// mode this pipeline already learned once.
 		sort.Slice(p.Dependencies, func(i, j int) bool {
-			return p.Dependencies[i].Network < p.Dependencies[j].Network
+			a, b := p.Dependencies[i], p.Dependencies[j]
+			if a.Network != b.Network {
+				return a.Network < b.Network
+			}
+			if a.Rate != b.Rate {
+				return a.Rate < b.Rate
+			}
+			return a.Effect < b.Effect
 		})
 	}
 	sort.Slice(t.Economy.Hotspots, func(i, j int) bool {
