@@ -124,6 +124,22 @@ func (n node) int64(table, row, field string) (int64, error) {
 	return v, nil
 }
 
+// boolean returns a required boolean field.
+func (n node) boolean(table, row, field string) (bool, error) {
+	c, ok := n.child(field)
+	if !ok {
+		return false, Unrecognized(table, row, field, "present", "absent")
+	}
+	switch c.Value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, Unrecognized(table, row, field, "true or false", c.Value)
+	}
+}
+
 // float returns a required float field. MBINCompiler emits every float as a
 // fixed-point decimal ("150.000000"), so this is exact for the values it is
 // used on — class strengths and weightings — and would only lose precision

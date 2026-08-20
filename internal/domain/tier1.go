@@ -121,6 +121,19 @@ type Provenance struct {
 	Archives []string `json:"archives"`
 	// MBINCompiler is the decompiler version that produced the .MXML input.
 	MBINCompiler string `json:"mbincompiler"`
+
+	// SelfReferentialRecipesOmitted counts the recipes dropped for naming
+	// their own output among their ingredients — a doubling strategy rather
+	// than a production path, and a cycle if expanded. There are 27 in NMS
+	// 5.97.
+	//
+	// Not omitempty: a zero here is a finding, not an absence, and a silent
+	// change in this number is exactly what recording it prevents.
+	//
+	// Governing: SPEC-0004 REQ "Recipe Graph Construction" — "MUST record
+	// how many it omitted in the artifact's provenance, so a change in that
+	// number is visible rather than silent."
+	SelfReferentialRecipesOmitted int `json:"self_referential_recipes_omitted"`
 }
 
 // Tier1 is the extracted recipe graph.
