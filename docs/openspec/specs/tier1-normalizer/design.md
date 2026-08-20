@@ -136,6 +136,18 @@ Measured rather than assumed: setting `raw_obtainable` from `PinObjective != UI_
 
 **Trade-off**: The rule is a small allow/deny list over an enum this project has seen exactly one build of, so a game update that adds a `PinObjective` value will fail generation rather than classify it. That is the intended direction — the alternative is a default that silently reclassifies items — but it does mean this is a place an update can break, and it is named in the risks below.
 
+**Correction, 2026-08-19**: the first version of this decision said the product table carries no `PinObjective`. It does — on all 2,144 rows. That claim came from reading the substance table's shape and inferring the product table's rather than looking, which is the fourth recorded instance in this project of a bounded search reported as a general result, and it happened in the same change that added a requirement to read facts from the source. The rule survives the correction on its merits rather than on the false premise: 1,240 of those values are empty and the vocabulary is open-ended, running from `UI_BUY_OBJ` and `UI_CRAFT_OBJ` to per-item mission strings like `UI_PIN_VENTGEM_OBJ`. It classifies nothing.
+
+### Where two source facts disagree, the graph wins and the disagreement is recorded
+
+**Choice**: A substance the source marks refined-only that no recipe produces is emitted raw-obtainable, and every such override is reported.
+
+**Rationale**: Found by implementing the rule above against the whole table. `WATERPLANT` (Cyto-Phosphate) reads `UI_REFINE_OBJ` while nothing in the recipe table makes it. One of the two facts has to give, and it has to be the flag: an item with neither a recipe nor a gathering route is one the engine cannot terminate on, so honouring the flag produces an artifact that does not resolve.
+
+What matters is that the override is not silent. The "no recipe, therefore raw" fallback would have swallowed this case without a trace, and the next reader would have had no way to tell a rule being applied from a rule being contradicted. Reporting it makes the disagreement a reviewable line in the output, and a change in that set a change in the game data.
+
+**Trade-off**: One item today, and a mechanism for it. Justified because the alternative is indistinguishable from the bug: a silent fallback that happens to produce the right answer here is the same code that would produce a wrong one somewhere else.
+
 ### Cooking is a flag, not a table
 
 **Choice**: Read `Cooking` from each refiner recipe rather than treating cooking as a separate source.
