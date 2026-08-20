@@ -281,16 +281,18 @@ This project has three recorded instances of a bounded search reported as a gene
 
 The normalizer is correct when the artifact it produces reproduces ADR-0001's confirmation criteria through the merged rollup engine, rooted at `ULTRAPROD2`:
 
-- 34 distinct nodes across the Quantum Processor (`MEGAPROD2`), Cryogenic Chamber (`MEGAPROD3`), and Iridesite (`ALLOY8`) branches
+- 36 distinct nodes across the Quantum Processor (`MEGAPROD2`), Cryogenic Chamber (`MEGAPROD3`), and Iridesite (`ALLOY8`) branches
 - Each gas product costing 250 gas and 50 Condensed Carbon
 - At quantity ×1: 500 each of Sulphurine, Nitrogen and Radon, and 300 Condensed Carbon
+
+The node count is 36, not the 34 ADR-0001 originally recorded. `CAVE2` (Ionised Cobalt) is refined rather than gathered, so it expands into Cobalt and Oxygen instead of terminating, adding two nodes. The hand-authored fixture models it as a raw leaf; that was a prototype simplification, and the 34 was counted from the prototype rather than from an extraction. Every quantity in the list is unchanged — only the structural count moved.
 
 This acceptance MUST run against a generated artifact, not against the hand-authored fixtures. A test that only exercises the fixtures verifies the engine, not the normalizer.
 
 #### Scenario: The generated artifact reproduces the tree
 
 - **WHEN** the rollup engine resolves `ULTRAPROD2` at quantity 1 from a generated artifact
-- **THEN** it returns 34 distinct nodes and leaf totals of 500 Sulphurine, 500 Nitrogen, 500 Radon and 300 Condensed Carbon
+- **THEN** it returns 36 distinct nodes and leaf totals of 500 Sulphurine, 500 Nitrogen, 500 Radon and 300 Condensed Carbon
 
 #### Scenario: Acceptance uses generated output
 

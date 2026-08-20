@@ -111,7 +111,7 @@ graph TD
 
     H --> I["Tier 1 artifact<br/>items · recipes ·<br/>base economy<br/>version-stamped"]
     I -->|"LoadTier1<br/>DisallowUnknownFields"| J["Rollup engine<br/>(SPEC-0001)"]
-    J --> K["Acceptance:<br/>ULTRAPROD2 → 34 nodes"]
+    J --> K["Acceptance:<br/>ULTRAPROD2 → 36 nodes"]
 
     L["Tier 2 YAML<br/>biodome slot count"] -.->|later stage| I
 ```
