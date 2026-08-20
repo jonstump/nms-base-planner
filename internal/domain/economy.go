@@ -26,11 +26,18 @@ const (
 	NetworkResources   Network = "resources"
 	NetworkPlantGrowth Network = "plant_growth"
 	NetworkByteBeat    Network = "byte_beat"
+	// Fuel and Portals appear once and three times respectively in the
+	// source. They carry no planner meaning today, but the vocabulary
+	// mirrors GcLinkNetworkTypes rather than a filtered subset of it, so
+	// that a part using one is emitted rather than rejected.
+	NetworkFuel    Network = "fuel"
+	NetworkPortals Network = "portals"
 )
 
 var validNetworks = map[Network]bool{
 	NetworkPower: true, NetworkResources: true,
 	NetworkPlantGrowth: true, NetworkByteBeat: true,
+	NetworkFuel: true, NetworkPortals: true,
 }
 
 // Valid reports whether n is a known network.
@@ -114,12 +121,35 @@ type Refining struct {
 	SubstancesPerCycleSurvival int64 `json:"substances_per_cycle_survival"`
 }
 
+// Search records how a value was located when it was found by searching
+// rather than read from a known field.
+//
+// Governing: SPEC-0004 REQ "Search Boundaries Are Recorded" — this exists
+// because this project has three recorded instances of a bounded search
+// being reported as a general result. Recording where we looked makes the
+// boundary of a negative result visible to the next reader.
+type Search struct {
+	// Value names what was being derived, e.g. "crop substance".
+	Value string `json:"value"`
+	// Searched lists the sources consulted, in the order consulted.
+	Searched []string `json:"searched"`
+	// Note records what the search concluded, including anything it did
+	// not cover.
+	Note string `json:"note,omitempty"`
+}
+
 // Economy is the base-economy half of the artifact.
 type Economy struct {
 	Parts    []Part    `json:"parts,omitempty"`
 	Hotspots []Hotspot `json:"hotspots,omitempty"`
 	Crops    []Crop    `json:"crops,omitempty"`
 	Refining *Refining `json:"refining,omitempty"`
+
+	// Searches records the derivation of values the normalizer had to hunt
+	// for. Sorted by Value.
+	//
+	// Governing: SPEC-0004 REQ "Search Boundaries Are Recorded"
+	Searches []Search `json:"searches,omitempty"`
 }
 
 // validate checks the economy section's internal consistency. Item
@@ -160,6 +190,29 @@ func (e *Economy) validate(knownItem func(string) bool) error {
 	for _, p := range e.Parts {
 		if p.Hotspot != "" && !seenCat[p.Hotspot] {
 			return fmt.Errorf("%w: part %q references hotspot %q, which is not in this artifact", ErrInvalidArtifact, p.ID, p.Hotspot)
+		}
+	}
+
+	seenSearch := make(map[string]bool, len(e.Searches))
+	for _, s := range e.Searches {
+		if s.Value == "" {
+			return fmt.Errorf("%w: search record with empty value", ErrInvalidArtifact)
+		}
+		// Value is what sortArtifact orders Searches by, so it has to be
+		// unique or the emitted order falls back to however the normalizer
+		// happened to append them — the map-iteration order REQ
+		// "Deterministic Output" forbids. Rejecting rather than tiebreaking:
+		// unlike the game tables, these records are ours, so two searches
+		// deriving one value is an authoring mistake — either a duplicate to
+		// merge or two derivations wanting distinguishable names.
+		if seenSearch[s.Value] {
+			return fmt.Errorf("%w: duplicate search record for %q", ErrInvalidArtifact, s.Value)
+		}
+		seenSearch[s.Value] = true
+		if len(s.Searched) == 0 {
+			// A search record that names no sources records nothing; it
+			// would read as diligence while carrying none.
+			return fmt.Errorf("%w: search record %q lists no sources searched", ErrInvalidArtifact, s.Value)
 		}
 	}
 
