@@ -3,7 +3,7 @@
   "game_version": "community-2026-08",
   "extracted": false,
   "source": "docs/design/tree-canvas/handoff.md + Tree Canvas.dc.html",
-  "note": "Placeholder standing in for a real extracted artifact (ADR-0001 Tier 1). Community-sourced, not decoded from MBIN files; extracted:false marks that. Replace via the extraction spike. Prototype edge labels were aggregate totals at target quantity 1 and are recorded here as per-unit quantities. Carbon and the Condensed Carbon refine recipe are outside the 34-node Stasis tree: Condensed Carbon defaults to raw, so the recipe exists but is never expanded, which is the worked example for the terminal-node requirement.",
+  "note": "Golden file, not the dataset. Hand-authored from community sources before extraction existed; the real machine-generated artifact is data/tier1.json (see cmd/nmstier1). Retained because its short codes and small closure make the engine tests readable, and because a divergence between it and generated output is worth noticing. It is not identical to the real tree: it models Ionised Cobalt as a raw leaf, which the game does not — see SPEC-0004 REQ \"Acceptance Against the Golden Tree\". Prototype edge labels were aggregate totals at target quantity 1 and are recorded here as per-unit quantities. Carbon and the Condensed Carbon refine recipe are outside the 34-node Stasis tree: Condensed Carbon defaults to raw, so the recipe exists but is never expanded, which is the worked example for the terminal-node requirement.",
 
   "items": [
     { "id": "fc",  "name": "Frost Crystal",      "raw_obtainable": true, "default_method": "raw" },
