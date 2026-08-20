@@ -739,3 +739,65 @@ func TestHugeBlockLengthIsRefusedWithSentinel(t *testing.T) {
 // caller sees — so the record stride is restated here rather than exported
 // from the package just for tests.
 const entrySizeForTest = 32
+
+// SPEC-0003 REQ "Container Identification": a mismatch MUST fail "with an
+// error naming the magic found".
+//
+// The requirement's own scenario uses a PSARC file, whose header starts with
+// four printable bytes — so the obvious implementation, reporting the leading
+// printable run, satisfies the scenario while naming nothing for any file
+// that starts with a binary byte. A gzip archive was refused with
+// `magic is ""`, which tells the reader neither what they opened nor that
+// anything was read at all.
+func TestNonPrintableMagicIsStillNamed(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		magic []byte
+		want  string // a substring the message must carry
+	}{
+		{"gzip", []byte{0x1f, 0x8b, 0x08, 0x00, 0, 0, 0, 0}, "1f8b0800"},
+		{"all binary", []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}, "0001020304050607"},
+		{"zstd frame", []byte{0x28, 0xb5, 0x2f, 0xfd, 0, 0, 0, 0}, "28b52ffd"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := make([]byte, 0x30)
+			copy(buf, tc.magic)
+
+			_, err := hgpak.Open(bytes.NewReader(buf), int64(len(buf)))
+			if err == nil {
+				t.Fatal("Open accepted a non-HGPAK file")
+			}
+			if !errors.Is(err, hgpak.ErrNotHGPAK) {
+				t.Errorf("error is %v, want ErrNotHGPAK", err)
+			}
+			msg := err.Error()
+			if strings.Contains(msg, `magic is ""`) || strings.Contains(msg, "magic is ,") {
+				t.Errorf("error names no magic at all: %q", msg)
+			}
+			if !strings.Contains(msg, tc.want) {
+				t.Errorf("error %q does not carry the magic bytes %s", msg, tc.want)
+			}
+		})
+	}
+}
+
+// The eight-byte magic is reported in full even when part of it is
+// printable: "PSAR" is the recognisable half of a PSARC header, not all of
+// it, and a reader diagnosing a wrong-format file wants the rest.
+func TestPrintableMagicIsReportedWithItsFullBytes(t *testing.T) {
+	psarc := make([]byte, 0x30)
+	copy(psarc, []byte("PSAR"))
+	binary.BigEndian.PutUint32(psarc[4:], 0x00010004)
+
+	_, err := hgpak.Open(bytes.NewReader(psarc), int64(len(psarc)))
+	if err == nil {
+		t.Fatal("Open accepted a PSARC archive")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "PSAR") {
+		t.Errorf("error %q lost the recognisable prefix", msg)
+	}
+	if !strings.Contains(msg, "5053415200010004") {
+		t.Errorf("error %q does not carry all eight magic bytes", msg)
+	}
+}

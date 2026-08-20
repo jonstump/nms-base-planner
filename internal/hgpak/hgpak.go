@@ -209,8 +209,8 @@ func Open(r io.ReaderAt, size int64) (*Archive, error) {
 	// what was actually found — a PSARC archive must be diagnosable as such
 	// rather than as generic corruption.
 	if !bytes.Equal(hdr[:8], magic[:]) {
-		return nil, fmt.Errorf("magic is %q, want %q: %w",
-			printableMagic(hdr[:8]), "HGPAK", ErrNotHGPAK)
+		return nil, fmt.Errorf("magic is %s, want %q: %w",
+			describeMagic(hdr[:8]), "HGPAK", ErrNotHGPAK)
 	}
 
 	a := &Archive{r: r, size: size}
@@ -475,9 +475,34 @@ func (a *Archive) Close() error {
 	return nil
 }
 
-// printableMagic renders a magic value for an error message, keeping ASCII
-// readable so "PSAR" is recognizable at a glance.
-func printableMagic(b []byte) string {
+// describeMagic renders a magic value for an error message.
+//
+// Governing: SPEC-0003 REQ "Container Identification" — a mismatch MUST fail
+// "with an error naming the magic found", so this must never come back
+// empty.
+//
+// It previously returned only the leading run of printable ASCII, which
+// named nothing at all for a file whose first byte is binary: a gzip archive
+// was refused with `magic is ""`. The PSARC scenario the requirement gives
+// happens to start with four printable bytes, which is why the gap survived
+// — the one case the spec names was the one case that worked.
+//
+// The hex is always present because the magic is eight bytes and a printable
+// prefix is at most part of it: "PSAR" is the recognisable half of a PSARC
+// header, not the whole of it. The prefix stays in front because that
+// recognisability is the point — a reader who sees PSAR knows immediately
+// what they opened, and the requirement's own scenario is about exactly that
+// diagnosis.
+func describeMagic(b []byte) string {
+	if p := printablePrefix(b); p != "" {
+		return fmt.Sprintf("%q (%x)", p, b)
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+// printablePrefix is the leading run of printable ASCII in b, which may be
+// empty.
+func printablePrefix(b []byte) string {
 	end := len(b)
 	for i, c := range b {
 		if c < 0x20 || c > 0x7e {
