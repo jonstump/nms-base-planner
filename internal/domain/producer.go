@@ -487,6 +487,12 @@ func sortRows(b *BaseBuild) {
 //
 // Integer division on the numerator and denominator, so no float is
 // involved at the one place the engine is allowed to lose precision.
+//
+// Shared with the power stage: plants, biodomes, extractors, supply depots,
+// fauna and nutrient processors are this stage's boundaries, and generators
+// and batteries are stage 3's. One ceiling rule, one implementation — the
+// two stages arrived at an identical helper independently, which is the
+// argument for there being only one.
 func ceilRat(r *big.Rat) int64 {
 	q, m := new(big.Int).QuoRem(r.Num(), r.Denom(), new(big.Int))
 	if m.Sign() > 0 {
