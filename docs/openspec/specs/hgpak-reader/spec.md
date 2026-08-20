@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 date: 2026-08-17
 implements: [ADR-0001]
 supersedes-implementation: [internal/psarc]
