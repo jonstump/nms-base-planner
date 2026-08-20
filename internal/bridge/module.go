@@ -105,24 +105,112 @@ func (m *Module) Resolve(planJSON string) Envelope {
 	return Success(ResultPayload{Graph: wire})
 }
 
-// Rollup and Power are RESERVED for stages 2 and 3.
+// Rollup runs stage 2 and returns one envelope carrying every base's
+// construction instructions.
 //
 // Governing: SPEC-0002 REQ "Boundary Surface" — "WHEN rollup or power is
 // added in a later stage THEN it accepts and returns the same envelope
 // shape defined by REQ 'Result Envelope', with no bespoke calling
-// convention."
+// convention." The signature, the envelope and the error vocabulary are
+// Resolve's, unchanged.
 //
-// Declared now, with the same signature as Resolve, so the shape is fixed
-// before there is an implementation to bend it around. Each returns a
-// not-ready failure until its stage is wired: a reserved name that returns
-// undefined would be indistinguishable from a typo on the view's side.
-func (m *Module) Rollup(planJSON string) Envelope { return m.reserved("rollup") }
+// The stage resolves the plan itself rather than accepting a graph the
+// caller hands back. REQ "Boundary Surface" requires one call to perform
+// one complete stage, and a caller obliged to return a previous result
+// would be assembling this one out of two crossings.
+func (m *Module) Rollup(requestJSON string) Envelope {
+	artifact, ok := m.loaded()
+	if !ok {
+		return FailureFrom(fmt.Errorf("rollup: %w", ErrNotReady))
+	}
 
-// Power is RESERVED for stage 3. See Rollup.
-func (m *Module) Power(planJSON string) Envelope { return m.reserved("power") }
+	var req RollupRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return FailureFrom(fmt.Errorf("%w: %v", ErrMalformedInput, err))
+	}
+	plan, err := DecodePlanStrict(req.Plan)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	curated, err := DecodeCurated(req.Constants)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	grouping, err := DecodeRollupInput(req)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	producers, err := DecodeProducerInput(req)
+	if err != nil {
+		return FailureFrom(err)
+	}
 
-func (m *Module) reserved(name string) Envelope {
-	return FailureFrom(fmt.Errorf("%s is reserved and not yet wired: %w", name, ErrNotReady))
+	constants, err := domain.NewConstants(artifact, curated)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	graph, err := domain.Resolve(artifact, plan)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	grouped, err := domain.GroupLeaves(graph, grouping)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	build, err := domain.RollupProducers(grouped, artifact, constants, producers)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	wire, err := EncodeBuild(build, grouped)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	return Success(ResultPayload{Build: wire})
+}
+
+// Power runs stage 3 and returns one envelope carrying every base's power
+// position.
+//
+// Governing: SPEC-0002 REQ "Boundary Surface"
+//
+// It takes no plan. The domain's power stage costs a set of counts, not a
+// resolved graph — the same figures whether they came from a rollup or from
+// a caller sketching a base by hand — so requiring a plan here would invent
+// a coupling the engine does not have. It still requires a loaded artifact,
+// because the parts and hotspot strengths it reads live in the artifact's
+// economy section.
+func (m *Module) Power(requestJSON string) Envelope {
+	artifact, ok := m.loaded()
+	if !ok {
+		return FailureFrom(fmt.Errorf("power: %w", ErrNotReady))
+	}
+
+	var req PowerRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return FailureFrom(fmt.Errorf("%w: %v", ErrMalformedInput, err))
+	}
+	curated, err := DecodeCurated(req.Constants)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	in, err := DecodePowerInput(req)
+	if err != nil {
+		return FailureFrom(err)
+	}
+
+	constants, err := domain.NewConstants(artifact, curated)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	budgets, err := domain.ComputePower(constants, in)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	wire, err := EncodePower(budgets)
+	if err != nil {
+		return FailureFrom(err)
+	}
+	return Success(ResultPayload{Power: wire})
 }
 
 // loaded returns the artifact under a read lock.

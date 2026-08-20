@@ -31,7 +31,14 @@ import (
 // whenever the envelope shape, the encoding of quantities, or the sentinel
 // code set changes." The consuming view checks it and refuses a mismatch
 // rather than parsing an unexpected shape.
-const ContractVersion = "1.0.0"
+//
+// 1.1.0 added the build and power result payloads when stages 2 and 3 were
+// wired. The envelope's four keys, the exactly-one-of invariant, the
+// quantity encoding and the code set are all unchanged, so the addition is
+// backward compatible in shape — but the result payload is part of what a
+// consumer parses, and leaving two different payloads claiming one version
+// is the drift the requirement exists to prevent.
+const ContractVersion = "1.1.0"
 
 // Quantity is an exact quantity on the wire.
 //
@@ -90,8 +97,14 @@ type Envelope struct {
 }
 
 // ResultPayload is the success half.
+//
+// One field per stage, each omitempty, so a stage's result is present or
+// absent rather than present-and-empty. Exactly one is set by any entry
+// point this package exposes.
 type ResultPayload struct {
 	Graph *Graph `json:"graph,omitempty"`
+	Build *Build `json:"build,omitempty"`
+	Power *Power `json:"power,omitempty"`
 }
 
 // ErrorPayload is the failure half.
