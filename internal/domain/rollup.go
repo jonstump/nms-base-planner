@@ -110,6 +110,16 @@ type Curated struct {
 	// supply depots. Also a planner policy — the game does not have an
 	// opinion about when hoarding starts.
 	//
+	// PanelsPerBattery is how many solar panels one battery covers for the
+	// night. A planner ratio rather than a game constant: the battery's
+	// capacity is in the artifact, but how much darkness to plan for is a
+	// choice.
+	//
+	// Governing: SPEC-0001 REQ "Power Computation" — "Solar panels MUST be
+	// classless and MUST additionally require batteries at a configured
+	// ratio for night coverage."
+	PanelsPerBattery int64
+
 	// Depot *capacity* is not here: it is U_SILO_S's storage buffer, which
 	// the artifact carries. See Constants.DepotCapacity.
 	DepotThreshold int64
@@ -145,6 +155,7 @@ func (c Curated) validate() error {
 		{"steps per processor", c.StepsPerProcessor},
 		{"depot threshold", c.DepotThreshold},
 		{"process seconds", c.ProcessSeconds},
+		{"panels per battery", c.PanelsPerBattery},
 	} {
 		if f.v <= 0 {
 			return fmt.Errorf("%w: curated constant %q is %d; it must be supplied, not defaulted",

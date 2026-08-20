@@ -87,6 +87,9 @@ func baseCurated() Curated {
 	return Curated{
 		BiodomeCropSlots: 16, FaunaYieldPerCycle: 12, FaunaCycleSeconds: 1800,
 		StepsPerProcessor: 2, DepotThreshold: 1000, ProcessSeconds: 30,
+		// Required since #41 landed: the producer tests never read it, but
+		// Curated refuses a partially-specified set.
+		PanelsPerBattery: 2,
 		FaunaProducts:    map[string]bool{"milk": true, "egg": true},
 		ResourceHotspots: map[string]string{"gas_a": "Gas", "gas_b": "Gas"},
 	}
