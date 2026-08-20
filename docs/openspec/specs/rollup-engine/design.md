@@ -85,11 +85,35 @@ Rounding a batch count up follows the same reasoning as the physical-unit bounda
 
 **Trade-off**: One more place quantities can be wrong, and one more field the normalizer must read correctly. Mitigated by SPEC-0004's requirement that yields come from the source rather than defaulting silently.
 
-### Tier 2 constants injected, never hardcoded
+### Economy constants injected, never hardcoded
 
-**Choice**: All economy constants — crop yields, dome capacity, extractor rates per class, generator outputs, class multipliers, draws, depot thresholds and capacities, battery ratios, fauna yield per collection cycle, cycle durations, and steps per nutrient processor — arrive as a parameter.
+**Choice**: No economy constant is hardcoded. Every one arrives at the call — but "injected" now means *read from the Tier 1 artifact* for most of them, and *supplied by the caller* for a much smaller remainder.
 
-**Rationale**: ADR-0001 marks these as provisional and hand-curated; the game rebalances. The base-planner handoff already treats them as tweakable: *"`emOutput` (kPs, default 110) — swap in real game data without touching code."* Injection also makes every producer and power scenario testable with small synthetic constant sets rather than the full production dataset.
+**Where each constant comes from**, established by building the stage-2 input type against the generated artifact (#39) rather than by reasoning about it:
+
+| Constant | Source |
+|---|---|
+| Crop yield, growth time | `Economy.Crops[]` |
+| Part rates, storage, power draws | `Economy.Parts[]` |
+| Class strengths C/B/A/S | `Economy.Hotspots[]` |
+| Refiner throughput | `Economy.Refining` |
+| Depot capacity | `Economy.Parts[]` — `U_SILO_S.primary.storage`, 1,440,000 |
+| Battery capacity | `Economy.Parts[]` — `U_BATTERY_S.primary.storage`, 45,000 |
+| Biodome crop slots | Curated. No table searched states it; it may be geometric — snap points in the scene — and therefore extractable after all. |
+| Fauna yield per cycle, cycle duration | Curated. Fauna products come from creature data this pipeline does not read. |
+| Steps per nutrient processor | Curated, and **planner policy** rather than absent game data — how hard to work one machine. |
+| Depot threshold | Curated, and planner policy. The game has no opinion about when hoarding starts. |
+
+**This section previously listed the whole set as "provisional and hand-curated"**, which was written before the extraction spike and was wrong in both directions once there was an artifact to check. It over-counted the curated set — most of that list reads from `Economy` — while ADR-0001 under-counted it, recording one surviving entry where there are five.
+
+Two distinctions the earlier list collapsed, and which the type system now keeps apart:
+
+- **Depot capacity has a source; depot threshold does not.** `Constants.DepotCapacity()` reads the artifact; `Curated.DepotThreshold` is supplied. One is a fact about a silo, the other is a decision about when to suggest building one.
+- **Battery capacity is not battery ratio.** `U_BATTERY_S.primary.storage` is a buffer size. The batteries-per-solar-panel ratio that REQ "Power Computation" requires is a separate quantity, is not in `Economy`, and is unresolved — it belongs to stage 3 rather than here.
+
+**Rationale for injection is unchanged**: the game rebalances, and the base-planner handoff already treats these as tweakable — *"`emOutput` (kPs, default 110) — swap in real game data without touching code."* Injection also makes every producer and power scenario testable with small synthetic constant sets rather than the full production dataset. What changed is only where the values come from, not that they arrive at the call.
+
+**Curated constants are required, not defaulted.** A zero is refused. A default here is a number the planner reports that nobody chose.
 
 ### Byproducts offset demand rather than generating construction
 
