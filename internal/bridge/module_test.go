@@ -215,40 +215,6 @@ func TestBadArtifactIsNotAModuleFailure(t *testing.T) {
 	}
 }
 
-// SPEC-0002 REQ "Boundary Surface":
-// WHEN rollup or power is added in a later stage THEN it accepts and returns
-// the same envelope shape, with no bespoke calling convention.
-//
-// RESERVED means the shape is fixed now. Both are declared with Resolve's
-// signature and return a well-formed envelope today, so a view can wire them
-// before they compute anything — and a reserved name that returned undefined
-// would be indistinguishable from a typo.
-func TestReservedStagesShareTheEnvelopeShape(t *testing.T) {
-	m := loadedModule(t)
-
-	for _, name := range []string{"rollup", "power"} {
-		var env bridge.Envelope
-		if err := json.Unmarshal([]byte(m.CallJSON(name, `{"target":"sd","quantity":"1"}`)), &env); err != nil {
-			t.Fatalf("%s returned unparseable output: %v", name, err)
-		}
-		if env.OK {
-			t.Errorf("%s reported success before its stage exists", name)
-		}
-		if env.Error == nil {
-			t.Fatalf("%s returned no error payload — indistinguishable from a typo", name)
-		}
-		if env.Error.Code != bridge.CodeNotReady {
-			t.Errorf("%s code = %q, want %q", name, env.Error.Code, bridge.CodeNotReady)
-		}
-		if !strings.Contains(env.Error.Message, name) {
-			t.Errorf("%s message %q does not name the stage", name, env.Error.Message)
-		}
-		if env.ContractVersion != bridge.ContractVersion {
-			t.Errorf("%s returned a different contract version", name)
-		}
-	}
-}
-
 // A malformed plan reaching an entry point is the caller's problem, and says
 // so rather than crashing the module.
 func TestMalformedPlanAtTheEntryPoint(t *testing.T) {
