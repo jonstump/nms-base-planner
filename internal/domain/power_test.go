@@ -40,6 +40,12 @@ func powerConstants(t *testing.T) *Constants {
 	c, err := NewConstants(a1, Curated{
 		BiodomeCropSlots: 16, FaunaYieldPerCycle: 12, FaunaCycleSeconds: 1800,
 		StepsPerProcessor: 2, DepotThreshold: 1000, PanelsPerBattery: 2,
+		// Required since #40 landed: Curated refuses a partially-specified
+		// set, so the power tests must supply the producer stage's constants
+		// even though they never read them.
+		ProcessSeconds:   30,
+		FaunaProducts:    map[string]bool{},
+		ResourceHotspots: map[string]string{},
 	})
 	if err != nil {
 		t.Fatalf("NewConstants: %v", err)
@@ -421,6 +427,12 @@ func constantsFrom(t *testing.T, economy, version string) *Constants {
 	c, err := NewConstants(a1, Curated{
 		BiodomeCropSlots: 16, FaunaYieldPerCycle: 12, FaunaCycleSeconds: 1800,
 		StepsPerProcessor: 2, DepotThreshold: 1000, PanelsPerBattery: 2,
+		// Required since #40 landed: Curated refuses a partially-specified
+		// set, so the power tests must supply the producer stage's constants
+		// even though they never read them.
+		ProcessSeconds:   30,
+		FaunaProducts:    map[string]bool{},
+		ResourceHotspots: map[string]string{},
 	})
 	if err != nil {
 		t.Fatalf("NewConstants: %v", err)
