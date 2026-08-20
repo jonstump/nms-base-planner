@@ -65,7 +65,9 @@ Items with no recipe MUST be emitted with `raw_obtainable` true and `default_met
 
 The substance table states gatherability in `PinObjective`, the pinned objective shown for the item. Six substances read `UI_REFINE_OBJ` and are refined only; the other 105 read some flavour of gather, find or process. The normalizer MUST set `raw_obtainable` true for every substance whose `PinObjective` is not `UI_REFINE_OBJ`, and MUST fail rather than guess where the field is absent or holds a value that list does not cover.
 
-The product table carries no equivalent field, so a product that has a recipe MUST NOT be marked raw-obtainable. A product with no recipe still is, by the rule above — that is what gives the engine a leaf rather than an item it cannot terminate on.
+The product table carries `PinObjective` too, on all 2,144 rows, but it is not a gatherability signal: 1,240 are empty and the vocabulary is open-ended, running from `UI_BUY_OBJ` and `UI_CRAFT_OBJ` to per-item mission strings like `UI_PIN_VENTGEM_OBJ`. The normalizer MUST NOT read it. A product that has a recipe MUST NOT be marked raw-obtainable; a product with no recipe still is, by the rule above — that is what gives the engine a leaf rather than an item it cannot terminate on.
+
+**Where the source contradicts itself, the graph wins and the override is recorded.** Six substances read `UI_REFINE_OBJ`, and one of them — `WATERPLANT`, Cyto-Phosphate — is produced by no recipe in the table. Emitting it non-raw would leave an item with neither a recipe nor a gathering route, which the engine cannot terminate on, so it MUST be emitted raw-obtainable. The normalizer MUST record every such override, because it is a disagreement between two source facts rather than a rule being applied, and a change in that set is a change in the game data.
 
 A raw-obtainable item MUST default to `raw` even where it also has recipes. Gathering is the route a player takes by default, expanding it is what produces the cycles above, and the engine's per-node method override exists precisely so a player who wants the refine route can take it.
 
@@ -88,8 +90,18 @@ A raw-obtainable item MUST default to `raw` even where it also has recipes. Gath
 
 #### Scenario: A refine-only substance is not raw
 
-- **WHEN** a substance's `PinObjective` is `UI_REFINE_OBJ`
+- **WHEN** a substance's `PinObjective` is `UI_REFINE_OBJ` and the table defines a recipe producing it
 - **THEN** it is emitted `raw_obtainable` false, defaulting to `refine`
+
+#### Scenario: An unrecognized objective fails rather than defaults
+
+- **WHEN** a substance's `PinObjective` is absent, or holds a value outside the five the source uses
+- **THEN** generation fails naming the substance and the value, rather than classifying it either way
+
+#### Scenario: A refine-only substance no recipe produces is still raw
+
+- **WHEN** a substance's `PinObjective` is `UI_REFINE_OBJ` and no recipe in the table produces it
+- **THEN** it is emitted `raw_obtainable` true, and the override is recorded
 
 #### Scenario: The generated graph resolves
 
