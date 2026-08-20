@@ -35,7 +35,21 @@ Chosen option: **C, direct extraction with a two-tier data model**, because it i
 
 **Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.MXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, the base parts catalog, refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`), the per-part production and consumption rates and storage buffers from `GcBaseLinkGridData`, the C/B/A/S hotspot class strengths and weightings from `REGIONHOTSPOTSTABLE`, and crop yields and growth times. Regenerated per game version; never hand-edited.
 
-**Tier 2 — curated.** A hand-maintained YAML file of the base-economy constants that are genuinely *not* in the game files. As of the 2026-08-18 confirmation that is one entry — biodome crop-slot count — since generator and consumer rates, class scaling, crop yields, and growth times all turned out to be extractable (see the finding below). Each entry carries a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
+**Tier 2 — curated.** A hand-maintained YAML file of the base-economy constants that are genuinely *not* in the game files, plus the ones that are planner policy rather than game data at all. Each entry carries a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
+
+The 2026-08-18 confirmation recorded this as **one** entry — biodome crop-slot count — after generator and consumer rates, class scaling, crop yields and growth times all turned out extractable (see the finding below). Building the stage-2 input type against the generated artifact (#39) found **five**:
+
+| Entry | Why it is curated |
+|---|---|
+| Biodome crop-slot count | No table searched states it. May be geometric — snap points in the scene — and so extractable after all. |
+| Fauna yield per collection cycle | Fauna products come from creature data this pipeline does not read. |
+| Fauna cycle duration | As above. |
+| Steps per nutrient processor | **Planner policy**, not missing data — how hard to work one machine. |
+| Depot threshold | Planner policy. The game has no opinion about when hoarding starts. |
+
+The last two will never be found in a table, and separating them from the genuinely-absent three stops anyone searching for them. Going the other way, two constants SPEC-0001 had listed as curated turned out to be in the artifact: depot capacity is `U_SILO_S`'s storage buffer and battery capacity is `U_BATTERY_S`'s. Note that battery *capacity* is not the batteries-per-panel *ratio*, which remains unresolved.
+
+Tier 2 shrank from twelve-ish to five rather than to one. The direction of the finding holds; the arithmetic did not.
 
 MBINCompiler is invoked as a **subprocess**, never linked. It is LGPL-3.0, and a license governs a program rather than its output, so the extracted artifact carries no copyleft obligation. AssistantNMS is retained as a **cross-check** on Tier 1 correctness — read, compared against, never vendored.
 
@@ -204,7 +218,7 @@ Plants themselves declare `DependentRate = 0` against Power, so a biodome's -50 
 
 Crop yields are flat per crop: Cactus Flesh 100, Gamma Root / Solanium / Frost Crystal / Fungal Mould 50, Star Bulb / Mordite / Faecium 25. Growth times come from the same link-grid `Storage` field — 3,600 s for frostwart, 14,400 s for most, 57,600 s for the slowest.
 
-**Consequences for the two tiers.** Tier 1 gains generator and consumer rates, class strengths and weightings, crop yields, crop growth times, battery capacity, and refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`). Tier 2 shrinks to a single entry — biodome crop-slot count — plus whatever later proves genuinely absent. The decision itself is unaffected: this ADR already said that "if the constants turn out to be extractable, Tier 2 shrinks or disappears and this decision should be revised rather than superseded," and that is what has happened.
+**Consequences for the two tiers.** Tier 1 gains generator and consumer rates, class strengths and weightings, crop yields, crop growth times, battery capacity, and refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`). Tier 2 shrinks from twelve-ish entries to five — biodome crop-slot count, fauna yield and cycle duration, steps per nutrient processor, and depot threshold. The last two are planner policy rather than absent game data. This paragraph originally said "a single entry ... plus whatever later proves genuinely absent"; #39 is what settled the remainder, and the answer was four more. The decision itself is unaffected: this ADR already said that "if the constants turn out to be extractable, Tier 2 shrinks or disappears and this decision should be revised rather than superseded," and that is what has happened.
 
 **This ADR moved from `proposed` to `accepted` on 2026-08-18.** The single blocker it set for itself — confirming the Tier 2 finding against decompiled MBIN files rather than libMBIN struct names — is met, and the decision survives the confirmation going against it. Option C was chosen for licensing and refresh-cycle reasons that do not depend on how the tiers are split, and the ADR anticipated this exact outcome in its own text. What changed is the size of Tier 2, not whether the two-tier model is right.
 
