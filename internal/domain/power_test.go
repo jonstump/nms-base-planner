@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -334,4 +335,95 @@ func TestUnknownPartIsRefused(t *testing.T) {
 	if !strings.Contains(err.Error(), "U_NOT_A_PART") || !strings.Contains(err.Error(), "alpha") {
 		t.Errorf("error %q does not name the part and the base", err)
 	}
+}
+
+// Governing: ADR-0001 — "A part declares a base Rate and a DependsOnHotspots
+// category; the hotspot carries the class."
+//
+// Both factors have to be read. U_GENERATOR_S carries rate 1 in NMS 5.97, so
+// generation computed from the class strength alone agrees with the correct
+// model for every value the game currently ships — the factor is invisible
+// until the rate is not 1. Constants.ExtractorRate reads the same pair for
+// U_EXTRACTOR_S, and the solar branch reads U_SOLAR_S's rate, so a generator
+// ignoring its own rate would be the one place in the engine reading this
+// table a different way.
+//
+// This fixture gives the generator rate 3 precisely so the factor cannot hide.
+func TestGeneratorRateScalesGeneration(t *testing.T) {
+	const econ = `{
+  "parts":[
+    {"id":"U_GENERATOR_S","primary":{"network":"power","rate":3},"hotspot":"Power"},
+    {"id":"U_SOLAR_S","primary":{"network":"power","rate":50}},
+    {"id":"U_BATTERY_S","primary":{"network":"power","rate":0,"storage":45000}},
+    {"id":"BIOROOM","primary":{"network":"power","rate":-20}}
+  ],
+  "hotspots":[
+    {"category":"Power","strengths":{"c":55,"b":110,"a":165,"s":220},"weightings":{"c":1,"b":1,"a":1,"s":1}}
+  ]
+}`
+	c := constantsFrom(t, econ, "test-power-rate")
+
+	// Class B strength 110, generator rate 3, two generators.
+	//   reading both factors: 3 * 110 * 2 = 660
+	//   dropping the rate:        110 * 2 = 220
+	b := budgetFor(t, c, PowerInput{
+		Config: map[BaseID]PowerConfig{"alpha": {EMGenerators: 2, EMClass: ClassB}},
+	}, "alpha")
+
+	if got := b.Generation().RatString(); got != "660" {
+		t.Errorf("generation = %s, want 660 — the generator's own rate is not being read", got)
+	}
+	if got := b.PerGenerator().RatString(); got != "330" {
+		t.Errorf("per generator = %s, want 330 (rate 3 x strength 110)", got)
+	}
+}
+
+// A generator stating no output is refused rather than silently treated as
+// free — the same standard the solar branch already applies to U_SOLAR_S.
+func TestGeneratorWithNoStatedOutputIsRefused(t *testing.T) {
+	const econ = `{
+  "parts":[
+    {"id":"U_GENERATOR_S","primary":{"network":"power","rate":0},"hotspot":"Power"},
+    {"id":"U_SOLAR_S","primary":{"network":"power","rate":50}},
+    {"id":"U_BATTERY_S","primary":{"network":"power","rate":0,"storage":45000}}
+  ],
+  "hotspots":[
+    {"category":"Power","strengths":{"c":55,"b":110,"a":165,"s":220},"weightings":{"c":1,"b":1,"a":1,"s":1}}
+  ]
+}`
+	c := constantsFrom(t, econ, "test-power-zero")
+
+	_, err := ComputePower(c, PowerInput{
+		Config: map[BaseID]PowerConfig{"alpha": {EMGenerators: 1, EMClass: ClassB}},
+	})
+	if err == nil {
+		t.Fatal("Power accepted a generator stating no output")
+	}
+	if !errors.Is(err, ErrInvalidArtifact) {
+		t.Errorf("error is %v, want ErrInvalidArtifact", err)
+	}
+	if !strings.Contains(err.Error(), PartGenerator) {
+		t.Errorf("error %q does not name the part at fault", err)
+	}
+}
+
+// constantsFrom builds Constants from an economy fragment, so a test can vary
+// the artifact rather than the plan.
+func constantsFrom(t *testing.T, economy, version string) *Constants {
+	t.Helper()
+	src := `{"schema_version":2,"game_version":"` + version + `",
+	  "items":[{"id":"x","name":"X","raw_obtainable":true,"default_method":"raw"}],
+	  "recipes":[],"economy":` + economy + `}`
+	a1, err := LoadTier1(strings.NewReader(src))
+	if err != nil {
+		t.Fatalf("LoadTier1: %v", err)
+	}
+	c, err := NewConstants(a1, Curated{
+		BiodomeCropSlots: 16, FaunaYieldPerCycle: 12, FaunaCycleSeconds: 1800,
+		StepsPerProcessor: 2, DepotThreshold: 1000, PanelsPerBattery: 2,
+	})
+	if err != nil {
+		t.Fatalf("NewConstants: %v", err)
+	}
+	return c
 }

@@ -144,13 +144,32 @@ func powerFor(base BaseID, c *Constants, in PowerInput) (PowerBudget, error) {
 		perEM:      new(big.Rat),
 	}
 
-	// Electromagnetic generation: a class multiplier on a base output, both
-	// read from the artifact's Power hotspot.
+	// Electromagnetic generation: the generator's own rate scaled by its
+	// hotspot's class strength.
+	//
+	// Governing: ADR-0001 — "A part declares a base Rate and a
+	// DependsOnHotspots category; the hotspot carries the class." Both
+	// factors are read, the same way Constants.ExtractorRate reads them for
+	// U_EXTRACTOR_S and the solar branch below reads U_SOLAR_S's rate.
+	//
+	// U_GENERATOR_S carries rate 1 in NMS 5.97, so dropping the factor would
+	// agree with this for every value the game currently ships — which is
+	// exactly why it is read rather than assumed. A rate of 1 that is
+	// multiplied in documents itself; a rate of 1 that is ignored is
+	// indistinguishable from a rate nobody checked.
 	if cfg.EMGenerators > 0 {
-		perEM, err := c.ClassStrength("Power", cfg.EMClass)
+		gen, err := c.Part(PartGenerator)
 		if err != nil {
 			return PowerBudget{}, fmt.Errorf("base %q: %w", base, err)
 		}
+		if gen.Primary.Rate <= 0 {
+			return PowerBudget{}, fmt.Errorf("%w: %s states no output", ErrInvalidArtifact, PartGenerator)
+		}
+		strength, err := c.ClassStrength("Power", cfg.EMClass)
+		if err != nil {
+			return PowerBudget{}, fmt.Errorf("base %q: %w", base, err)
+		}
+		perEM := new(big.Rat).Mul(new(big.Rat).SetInt64(gen.Primary.Rate), strength)
 		budget.perEM = perEM
 		budget.generation.Add(budget.generation,
 			new(big.Rat).Mul(perEM, new(big.Rat).SetInt64(cfg.EMGenerators)))
