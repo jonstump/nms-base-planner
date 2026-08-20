@@ -692,3 +692,193 @@ func copyGraphTree(t *testing.T) string {
 	}
 	return dst
 }
+
+// SPEC-0004 REQ "Recipe Graph Construction":
+// WHEN a substance's `PinObjective` is `UI_GATHER_REFINE_OBJ` and the table
+// also defines refine recipes for it
+// THEN it is emitted raw-obtainable with default method raw, and its refine
+// recipes are emitted alongside.
+func TestGatherabilityComesFromTheSource(t *testing.T) {
+	g := buildGraph(t)
+	a1 := graphArtifact(t)
+	byID := itemsByID(g)
+
+	// Cobalt: mined with a terrain manipulator, and refinable. Having a
+	// recipe does not stop it being raw — that conflation is what made 571
+	// of 2,237 items unresolvable.
+	cobalt, ok := byID["CAVE1"]
+	if !ok {
+		t.Fatal("CAVE1 missing from the graph")
+	}
+	if !cobalt.RawObtainable {
+		t.Error("CAVE1 is not raw-obtainable; its PinObjective is UI_GATHER_OBJ")
+	}
+	if cobalt.DefaultMethod != domain.MethodRaw {
+		t.Errorf("CAVE1 defaults to %q, want raw", cobalt.DefaultMethod)
+	}
+	// The alternatives are still there for a player who wants them.
+	if len(a1.RecipesFor("CAVE1", domain.MethodRefine)) == 0 {
+		t.Error("CAVE1 lost its refine recipes when it was marked raw")
+	}
+	if legal := a1.LegalMethods("CAVE1"); len(legal) < 2 {
+		t.Errorf("CAVE1 legal methods = %v, want raw and refine", legal)
+	}
+
+	// Ionised Cobalt: the other half of the pair that used to cycle.
+	ionised, ok := byID["CAVE2"]
+	if !ok {
+		t.Fatal("CAVE2 missing from the graph")
+	}
+	if ionised.RawObtainable {
+		t.Error("CAVE2 is raw-obtainable; its PinObjective is UI_REFINE_OBJ")
+	}
+	if ionised.DefaultMethod != domain.MethodRefine {
+		t.Errorf("CAVE2 defaults to %q, want refine", ionised.DefaultMethod)
+	}
+}
+
+// SPEC-0004 REQ "Recipe Graph Construction":
+// WHEN the rollup engine resolves each item in a generated artifact under
+// default methods
+// THEN every item resolves, and none reports a cycle.
+func TestGeneratedGraphResolvesUnderDefaults(t *testing.T) {
+	a1 := graphArtifact(t)
+
+	var cycles []string
+	for _, it := range a1.Items {
+		_, err := domain.Resolve(a1, domain.PlanInput{Target: it.ID, Quantity: 1})
+		switch {
+		case err == nil:
+		case errors.Is(err, domain.ErrCycleDetected):
+			cycles = append(cycles, it.ID)
+		default:
+			t.Errorf("resolving %s: %v", it.ID, err)
+		}
+	}
+	if len(cycles) != 0 {
+		t.Errorf("%d items hit a cycle under default methods: %v", len(cycles), cycles)
+	}
+
+	// The pair that used to loop is the reason this test exists: resolving
+	// Ionised Cobalt reaches Cobalt and stops there.
+	rg, err := domain.Resolve(a1, domain.PlanInput{Target: "CAVE2", Quantity: 1})
+	if err != nil {
+		t.Fatalf("resolving CAVE2: %v", err)
+	}
+	cobalt, ok := rg.Node("CAVE1")
+	if !ok {
+		t.Fatal("CAVE1 missing from the resolved tree")
+	}
+	if !cobalt.Terminal {
+		t.Error("CAVE1 expanded rather than terminating; the loop is still open")
+	}
+}
+
+// A source that says something this rule has never seen fails rather than
+// classifying it by whichever default happened to be written.
+func TestUnrecognizedPinObjectiveFails(t *testing.T) {
+	root := copyGraphTree(t)
+	p := filepath.Join(root, "substances.MXML")
+	blob, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const from = `<Property name="PinObjective" value="UI_GATHER_OBJ" />`
+	if !strings.Contains(string(blob), from) {
+		t.Fatal("the fixture no longer carries UI_GATHER_OBJ, so this case proves nothing")
+	}
+	edited := strings.Replace(string(blob), from,
+		`<Property name="PinObjective" value="UI_TELEPORT_OBJ" />`, 1)
+	if err := os.WriteFile(p, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g, err := normalize.BuildGraph(graphSources(root))
+	if !errors.Is(err, normalize.ErrStructureUnrecognized) {
+		t.Fatalf("error = %v, want ErrStructureUnrecognized", err)
+	}
+	if g != nil {
+		t.Error("a graph was returned alongside an error")
+	}
+	if !strings.Contains(err.Error(), "UI_TELEPORT_OBJ") {
+		t.Errorf("error %q does not name the value it did not recognize", err)
+	}
+	if !strings.Contains(err.Error(), "PinObjective") {
+		t.Errorf("error %q does not name the field", err)
+	}
+}
+
+// An absent field fails rather than defaulting either way.
+func TestAbsentPinObjectiveFails(t *testing.T) {
+	root := copyGraphTree(t)
+	p := filepath.Join(root, "substances.MXML")
+	blob, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Strip the field from CAVE1's row only, so the failure is attributable.
+	const marker = `<Property name="Table" value="GcRealitySubstanceData" _id="CAVE1">`
+	i := strings.Index(string(blob), marker)
+	if i < 0 {
+		t.Fatal("CAVE1 is not in the fixture")
+	}
+	head, tail := string(blob)[:i], string(blob)[i:]
+	const field = `<Property name="PinObjective" value="UI_GATHER_OBJ" />`
+	if !strings.Contains(tail, field) {
+		t.Fatal("CAVE1 no longer carries UI_GATHER_OBJ")
+	}
+	if err := os.WriteFile(p, []byte(head+strings.Replace(tail, field, "", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g, err := normalize.BuildGraph(graphSources(root))
+	if !errors.Is(err, normalize.ErrStructureUnrecognized) {
+		t.Fatalf("error = %v, want ErrStructureUnrecognized", err)
+	}
+	if g != nil {
+		t.Error("a graph was returned alongside an error")
+	}
+	if !strings.Contains(err.Error(), "CAVE1") {
+		t.Errorf("error %q does not name the substance", err)
+	}
+}
+
+// The product table's PinObjective is not a gatherability signal — it is
+// mostly empty and its vocabulary is open-ended, carrying one-off strings
+// like `UI_PIN_VENTGEM_OBJ`. Products therefore take raw-obtainability from
+// the graph alone: a product with no recipe is a leaf, and one with a recipe
+// is not raw.
+func TestProductRawObtainabilityComesFromTheGraph(t *testing.T) {
+	g := buildGraph(t)
+	byID := itemsByID(g)
+
+	produced := map[string]bool{}
+	for _, r := range g.Recipes {
+		produced[r.Output] = true
+	}
+
+	// VENTGEM (Crystal Sulphide) is a product that no recipe in the fixture
+	// makes, and whose PinObjective is a one-off mission string.
+	gem, ok := byID["VENTGEM"]
+	if !ok {
+		t.Fatal("VENTGEM missing from the graph")
+	}
+	if produced["VENTGEM"] {
+		t.Fatal("the fixture now produces VENTGEM, so this case is not being exercised")
+	}
+	if !gem.RawObtainable || gem.DefaultMethod != domain.MethodRaw {
+		t.Errorf("VENTGEM raw=%v default=%q, want a raw terminal", gem.RawObtainable, gem.DefaultMethod)
+	}
+
+	// The Stasis Device is crafted, so it is not a leaf.
+	sd, ok := byID["ULTRAPROD2"]
+	if !ok {
+		t.Fatal("ULTRAPROD2 missing")
+	}
+	if sd.RawObtainable {
+		t.Error("ULTRAPROD2 is raw-obtainable; it is crafted")
+	}
+	if sd.DefaultMethod != domain.MethodCraft {
+		t.Errorf("ULTRAPROD2 defaults to %q, want craft", sd.DefaultMethod)
+	}
+}

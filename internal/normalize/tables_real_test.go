@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jonstump/nms-base-planner/internal/domain"
@@ -130,36 +131,86 @@ func TestRealInstallGraphMatchesTheRecordedCounts(t *testing.T) {
 		t.Errorf("ULTRAPROD2 name = %q, want %q", it.Name, "Stasis Device")
 	}
 
-	// A recorded finding, not desired behaviour.
+	// The whole point of reading gatherability from the source: under pure
+	// defaults, every item resolves.
 	//
-	// SPEC-0004 derives raw-obtainability from the absence of a recipe, so
-	// a substance you gather with a mining beam *and* can refine — Cobalt,
-	// Sodium, the gases — comes out defaulting to refine. Refining runs
-	// both ways between several of those pairs, so resolving under pure
-	// defaults hits a cycle: 571 of the 2,237 items do, all of them
-	// refine loops between gatherable substances.
-	//
-	// The engine is right to refuse; SPEC-0001 REQ "Cycle Detection" calls
-	// this a runtime condition rather than one to assume away. What is
-	// missing is a source of truth for gatherability, and the substance
-	// table has one — PinObjective, which reads UI_REFINE_OBJ for the six
-	// substances that are refined only and some flavour of gather, find or
-	// process for the rest. Marking raw-obtainability from it resolves all
-	// 2,237 with no cycles.
-	//
-	// That is a modelling decision SPEC-0004 does not make, so it is
-	// recorded here rather than invented in the normalizer. When the spec
-	// is amended, this assertion changes with it.
-	_, err = domain.Resolve(a1, domain.PlanInput{Target: "ULTRAPROD2", Quantity: 1})
-	if !errors.Is(err, domain.ErrCycleDetected) {
-		t.Fatalf("resolving the Stasis Device: error = %v, want ErrCycleDetected until "+
-			"raw-obtainability is read from the source", err)
+	// Governing: SPEC-0004 REQ "Recipe Graph Construction" — Scenario "The
+	// generated graph resolves". Before PinObjective was read, 571 of these
+	// hit a refine cycle between gatherable substances.
+	var cycles []string
+	for _, it := range g.Items {
+		_, err := domain.Resolve(a1, domain.PlanInput{Target: it.ID, Quantity: 1})
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, domain.ErrCycleDetected) {
+			cycles = append(cycles, it.ID)
+			continue
+		}
+		t.Errorf("resolving %s: %v", it.ID, err)
+	}
+	if len(cycles) != 0 {
+		limit := len(cycles)
+		if limit > 10 {
+			limit = 10
+		}
+		t.Errorf("%d of %d items hit a cycle under default methods: %v",
+			len(cycles), len(g.Items), cycles[:limit])
 	}
 
-	// The cycle is between refinable substances, not anywhere in the craft
-	// tree: every craft input still resolves to an item, which is what this
-	// story is responsible for.
-	if got := len(a1.RecipesFor("ULTRAPROD2", domain.MethodCraft)); got != 1 {
-		t.Errorf("ULTRAPROD2 craft recipes = %d, want 1", got)
+	// Six substances read UI_REFINE_OBJ. Five of them are emitted non-raw;
+	// WATERPLANT (Cyto-Phosphate) is marked refined-only by the source while
+	// no refiner recipe produces it, so it is emitted raw by necessity and
+	// recorded as a contradiction rather than silently overridden.
+	refineOnly := map[string]bool{
+		"CAVE2": true, "WATER2": true,
+		"LAND3": true, "LAUNCHSUB2": true, "STELLAR2": true,
 	}
+	if got, want := g.RawByNecessity, []string{"WATERPLANT"}; len(got) != len(want) || (len(got) > 0 && got[0] != want[0]) {
+		t.Errorf("raw by necessity = %v, want %v", got, want)
+	}
+	substances := substanceIDs(t, filepath.Join(tables, "nms_reality_gcsubstancetable.MXML"))
+	if len(substances) != 111 {
+		t.Errorf("substance table holds %d rows, want 111", len(substances))
+	}
+	var nonRaw []string
+	for _, it := range g.Items {
+		if !substances[it.ID] {
+			continue
+		}
+		if it.RawObtainable {
+			if it.DefaultMethod != domain.MethodRaw {
+				t.Errorf("%s is raw-obtainable but defaults to %q", it.ID, it.DefaultMethod)
+			}
+			continue
+		}
+		nonRaw = append(nonRaw, it.ID)
+		if !refineOnly[it.ID] {
+			t.Errorf("%s is not raw-obtainable and is not one of the six refine-only substances", it.ID)
+		}
+	}
+	if len(nonRaw) != len(refineOnly) {
+		t.Errorf("non-raw substances = %v, want the six refine-only ones", nonRaw)
+	}
+}
+
+// substanceIDs reads the substance table's row ids, so the assertions above
+// can tell a substance from a product without the graph carrying the
+// distinction into the artifact, where nothing needs it.
+func substanceIDs(t *testing.T, path string) map[string]bool {
+	t.Helper()
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const marker = `<Property name="Table" value="GcRealitySubstanceData" _id="`
+	out := map[string]bool{}
+	for _, row := range strings.Split(string(blob), marker)[1:] {
+		id, _, ok := strings.Cut(row, `"`)
+		if !ok {
+			t.Fatalf("malformed row marker in %s", path)
+		}
+		out[id] = true
+	}
+	return out
 }

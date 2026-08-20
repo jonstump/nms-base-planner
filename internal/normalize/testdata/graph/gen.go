@@ -27,7 +27,9 @@
 //	recipes               every recipe producing one of those items. That
 //	                      is 26 for CATALYST2 alone (ADR-0005's worked
 //	                      example), seven of them self-referential, and it
-//	                      includes yields other than one.
+//	                      includes yields other than one. CAVE1 and CAVE2
+//	                      bring the refine loop that made raw-obtainability
+//	                      a correctness question rather than a cosmetic one.
 //	localisation          only the Id and English properties of the keys
 //	                      the emitted items name. The real rows carry
 //	                      fifteen further translations that no code here
@@ -51,6 +53,8 @@ var seeds = []string{
 	"CATALYST2",      // Sodium Nitrate: 26 refine recipes, seven self-referential
 	"FOOD_P_STELLAR", // a cooked product, so the Cooking flag has both values
 	"AMMO",           // the one product in the table that crafts 25 at a time
+	"CAVE1",          // Cobalt: gathered *and* refinable, the case that broke
+	"CAVE2",          // Ionised Cobalt: refined only, and CAVE1's other half
 }
 
 // knownUnnamed products, included so the allowlist path is exercised. These
