@@ -62,6 +62,20 @@ Four facts shape this design:
 
 **Rationale**: The artifact is committed. Nondeterministic ordering makes every regeneration an unreviewable diff, which means nobody reviews it, which means a real balance change lands unnoticed among reordering noise. Determinism is what keeps `git diff` meaningful as the review surface.
 
+### Refiner throughput carries both difficulty variants
+
+**Choice**: Emit the standard and Survival figures side by side rather than picking one.
+
+**Rationale**: This resolves what was an open question in this design. `gcgameplayglobals` states both (`RefinerSubsMadeInTime` 250 against 100 on Survival), the planner knows which save it is planning for and the normalizer does not, and carrying both costs four integers.
+
+### Crop yields are read from whichever reward shape the entry carries
+
+**Choice**: Read both `GcRewardSpecificSubstance` and `GcRewardSpecificProduct`, and take the yielded item from the reward's own `ID` rather than from the key the reward was looked up by.
+
+**Rationale**: Both were found by running the normalizer against the real reward table rather than by reading the requirement. Eight of twelve farmable plants yield a substance and four yield a product, so a spec naming only the substance form describes a normalizer that drops four crops and still produces a loadable artifact. Separately, the reward key and the yielded item agree for eleven of twelve crops — `PLANT_BARREN` yields `PLANT_DUST` — which is exactly the ratio that makes "the key is the item" look true.
+
+**Trade-off**: Neither generalisation is provable from twelve cases. Both are written as "read what the entry says" rather than as a rule about which plants use which shape, so a thirteenth crop in a future build needs no change here.
+
 ### Base-economy data as ranges, keyed by hotspot
 
 **Choice**: Preserve minimum and maximum where the source expresses a range, and attach class scaling to hotspot categories rather than to devices.
@@ -112,6 +126,16 @@ The four source groups are the reason the normalizer is not a single-table read.
 
 **Trade-off**: A larger artifact. 2,159 recipes rather than roughly 400 if deduplicated. Acceptable: it is a static asset, and the alternative discards most of refining.
 
+### Raw-obtainability is a fact about the item, not a fact about the recipe table
+
+**Choice**: Read `raw_obtainable` from the substance table's `PinObjective`, and let a raw-obtainable item default to `raw` even where it also has recipes.
+
+**Rationale**: The first version of this spec derived raw-obtainability from the absence of a recipe, which quietly assumed the two are exclusive. They are not — you mine Cobalt and you can refine it — and the assumption produced a graph that does not resolve: 571 of 2,237 items hit a cycle under default methods, every one of them a refine loop between gatherable substances. The engine is right to refuse; SPEC-0001 REQ "Cycle Detection" treats cycles as a runtime condition rather than one to design away. The fix belongs in the producer, and the source states the fact directly rather than requiring it to be inferred.
+
+Measured rather than assumed: setting `raw_obtainable` from `PinObjective != UI_REFINE_OBJ` resolves all 2,237 items with no cycles.
+
+**Trade-off**: The rule is a small allow/deny list over an enum this project has seen exactly one build of, so a game update that adds a `PinObjective` value will fail generation rather than classify it. That is the intended direction — the alternative is a default that silently reclassifies items — but it does mean this is a place an update can break, and it is named in the risks below.
+
 ### Cooking is a flag, not a table
 
 **Choice**: Read `Cooking` from each refiner recipe rather than treating cooking as a separate source.
@@ -123,6 +147,7 @@ The four source groups are the reason the normalizer is not a single-table read.
 - **A game update moves a field.** Likely eventually. Mitigated by failing closed with a named error, so the next update presents as a precise failure rather than corrupt output.
 - **MBINCompiler lags the game.** ADR-0001 already records this. The normalizer inherits it and can do nothing about it beyond failing clearly.
 - **The schema extension is a wide change.** `DisallowUnknownFields` forces producer, schema, loader, and fixtures to move together. Split the stories by data section, not by layer.
+- **`PinObjective` is an enum read from one build.** Gatherability now depends on it, and a value NMS 5.97 does not contain will fail generation. Deliberate — the alternative silently reclassifies an item — but it is a new way for a game update to stop the pipeline.
 - **Localisation coverage may be incomplete for some items.** Failing on an unresolved key is deliberate, but if the tables genuinely omit names for some obscure items it becomes a hard blocker. If that happens the right answer is an explicit allowlist of known-unnamed IDs, not a silent fallback.
 - **Everything here was verified against one build.** NMS 5.97, paks spanning 2026-05-04 to 2026-06-16. Every structural claim in the spec names the table it came from so a future reader can tell measurement from assumption.
 
@@ -139,6 +164,5 @@ The hand-authored fixtures stay after step 2, as golden files rather than as the
 ## Open Questions
 
 - Should the artifact be one file or split per section? One file is simpler and matches `LoadTier1` today; splitting would make `git diff` narrower when only economy data changes.
-- Refiner throughput is difficulty-dependent (`RefinerSubsMadeInTime` 250 versus 100 on Survival). Does the artifact carry both and let the planner choose, or does the planner assume Normal?
 - Is there a stable machine-readable game version in the install, or does `game_version` have to be derived from pak timestamps and the executable's version string?
 - Biodome crop-slot count is reported as 16 by the community wiki and is not in any table searched. Is it geometric — snap points in the scene — and therefore extractable after all, or genuinely Tier 2?
