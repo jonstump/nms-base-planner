@@ -90,8 +90,25 @@ func run() error {
 		return err
 	}
 
+	// The archives every source above came from.
+	//
+	// This is a constant rather than something derived, because -src is a
+	// *decompiled* tree: the .MXML files carry no record of which .pak they
+	// were unpacked from, so the generator cannot observe this. It has to be
+	// stated, which means it has to be kept true by hand.
+	//
+	// SPEC-0004 REQ "Source Provenance and Version Stamping" requires the
+	// artifact to record its source archives, and the point of recording
+	// them is that someone can reassemble the same tree. An incomplete list
+	// fails that quietly: follow it and you get a graph with no names,
+	// because the localisation tables are not where the recipe tables are.
+	//
+	//	NMSARC.Precache.pak     metadata/reality/tables, simulation/scanning,
+	//	                        models/planets/.../interactiveflora
+	//	NMSARC.globals.pak      gcgameplayglobals.global
+	//	NMSARC.MetadataEtc.pak  language/nms_*_english — every display name
 	b, err := normalize.NewBuilder(*version, *mbin, []string{
-		"NMSARC.Precache.pak", "NMSARC.globals.pak",
+		"NMSARC.MetadataEtc.pak", "NMSARC.Precache.pak", "NMSARC.globals.pak",
 	})
 	if err != nil {
 		return err

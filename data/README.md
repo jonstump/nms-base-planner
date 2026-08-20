@@ -12,14 +12,24 @@ the next regeneration silently reverts.
 To regenerate, decompile an install and run the generator:
 
 ```
-nmsextract extract NMSARC.Precache.pak $SRC metadata/reality/tables/
-nmsextract extract NMSARC.Precache.pak $SRC metadata/simulation/scanning/
-nmsextract extract NMSARC.Precache.pak $SRC language/
-nmsextract extract NMSARC.Precache.pak $SRC interactiveflora/farm
-nmsextract extract NMSARC.globals.pak  $SRC gcgameplayglobals
+nmsextract extract NMSARC.Precache.pak    $SRC metadata/reality/tables/
+nmsextract extract NMSARC.Precache.pak    $SRC metadata/simulation/scanning/
+nmsextract extract NMSARC.Precache.pak    $SRC plantinteraction.entity
+nmsextract extract NMSARC.globals.pak     $SRC gcgameplayglobals.global
+nmsextract extract NMSARC.MetadataEtc.pak $SRC _english.mbin
 MBINCompiler <each .mbin>
 go run ./cmd/nmstier1 -src $SRC -out data/tier1.json -game-version 5.97
 ```
+
+Three archives, not two. The localisation tables that supply every display
+name live in `NMSARC.MetadataEtc.pak` — a different archive from the recipe
+tables, which is easy to miss because nothing else about the pipeline
+suggests it. `language/` is absent from `NMSARC.Precache.pak` entirely, so
+extracting it from there yields nothing and the generator fails on the
+missing glob rather than producing a nameless graph.
+
+`tier1.json`'s own `provenance.archives` records all three, and that field
+is what this procedure has to stay consistent with.
 
 `internal/normalize` has a test that does exactly this and compares the
 result byte for byte with the committed file. It is gated on a real install:
