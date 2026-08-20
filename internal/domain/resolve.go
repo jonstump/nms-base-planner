@@ -23,6 +23,17 @@ type PlanInput struct {
 	// Methods overrides the per-item default method. Items absent from the
 	// map use their Tier 1 default.
 	Methods map[string]Method
+
+	// Recipes overrides the per-item recipe, keyed by item ID and holding a
+	// recipe ID. Items absent from the map use the engine's default choice.
+	//
+	// Absence is meaningful: SPEC-0001 REQ "Recipe Selection" requires that a
+	// node using its default be representable without recording a selection,
+	// so that plan state — and the URL hash it serializes into — carries only
+	// deliberate overrides.
+	//
+	// Governing: SPEC-0001 REQ "Recipe Selection"
+	Recipes map[string]string
 }
 
 // Edge is one resolved dependency, carrying the per-unit-of-parent quantity.
@@ -31,8 +42,20 @@ type Edge struct {
 	From string
 	// To is the consumed (child) item ID.
 	To string
-	// PerUnit is how many To are needed per single unit of From.
+	// PerUnit is how many To the recipe consumes per application.
 	PerUnit int64
+
+	// Yield is how many From one application produces. Per unit of From the
+	// requirement is therefore PerUnit/Yield, which is rational — 1 Crystal
+	// Sulphide yields 50 Sodium Nitrate, so a unit of Sodium Nitrate costs
+	// one fiftieth of a Crystal Sulphide.
+	//
+	// Kept as a separate integer rather than folded into PerUnit so the edge
+	// still reports what the recipe literally says, and so the division
+	// happens once, exactly, in propagate.
+	//
+	// Governing: SPEC-0001 REQ "Exact Arithmetic and Rounding Discipline"
+	Yield int64
 }
 
 // Node is one item in the resolved graph, with its aggregated total.
@@ -46,6 +69,23 @@ type Node struct {
 	// LegalMethods lists every method available to this item, sorted, so the
 	// view can render unavailable options as inert rather than hiding them.
 	LegalMethods []Method
+
+	// Recipe is the id of the single recipe this node resolved to. Empty for
+	// terminal nodes, which expand through no recipe.
+	//
+	// Governing: SPEC-0001 REQ "Recipe Selection"
+	Recipe string
+
+	// LegalRecipes lists every recipe id available for this node's chosen
+	// method, sorted, so the view can offer the alternatives rather than
+	// presenting one route as though it were the only one.
+	LegalRecipes []string
+
+	// Yield is how many units one application of the resolved recipe
+	// produces. Zero for terminal nodes, which apply no recipe.
+	//
+	// Governing: ADR-0005 (explicit yields)
+	Yield int64
 
 	// Terminal reports that expansion stopped here (method raw).
 	Terminal bool
@@ -84,6 +124,20 @@ func (n *Node) TotalInt() (int64, bool) {
 		return 0, false
 	}
 	return n.total.Num().Int64(), true
+}
+
+// Applications returns how many times this node's recipe must be applied to
+// meet its total, as an exact rational. Nil for a terminal node.
+//
+// Deliberately unrounded: SPEC-0001 REQ "Exact Arithmetic and Rounding
+// Discipline" enumerates the boundaries at which rounding up is allowed, and
+// a recipe application is not one of them. A caller wanting whole batches
+// rounds this value itself, once, at the point it reports them.
+func (n *Node) Applications() *big.Rat {
+	if n.Terminal || n.Yield == 0 {
+		return nil
+	}
+	return new(big.Rat).Quo(n.total, new(big.Rat).SetInt64(n.Yield))
 }
 
 // ResolvedGraph is stage 1's output.
@@ -149,7 +203,7 @@ func Resolve(t *Tier1, in PlanInput) (*ResolvedGraph, error) {
 		return nil, fmt.Errorf("resolving %s: %w: %q", in.Target, ErrUnknownItem, in.Target)
 	}
 
-	r := &resolver{t: t, in: in, state: map[string]dfsState{}, nodes: map[string]*Node{}}
+	r := &resolver{t: t, in: in, state: map[string]dfsState{}, nodes: map[string]*Node{}, costs: map[string]*big.Rat{}}
 	if err := r.walk(in.Target, nil); err != nil {
 		return nil, fmt.Errorf("resolving %s: %w", targetItem.Name, err)
 	}
@@ -172,6 +226,9 @@ func Resolve(t *Tier1, in PlanInput) (*ResolvedGraph, error) {
 }
 
 type resolver struct {
+	// costs memoizes rawCost per item: nil means known-unresolvable.
+	costs map[string]*big.Rat
+
 	t     *Tier1
 	in    PlanInput
 	state map[string]dfsState
@@ -229,11 +286,13 @@ func (r *resolver) walk(id string, path []string) error {
 	}
 
 	if !n.Terminal {
-		rc, ok := r.t.Recipe(id, m)
-		if !ok {
-			// Unreachable via method(), which already validated availability.
-			return fmt.Errorf("expanding %s: %w: no %s recipe", it.Name, ErrIllegalMethod, m)
+		rc, err := r.selectRecipe(it, m)
+		if err != nil {
+			return err
 		}
+		n.Recipe = rc.ID
+		n.Yield = rc.Producing()
+		n.LegalRecipes = r.t.LegalRecipes(id, m)
 		if !rc.IsVerified() {
 			n.Verified = false
 		}
@@ -247,7 +306,7 @@ func (r *resolver) walk(id string, path []string) error {
 
 		child := append(append([]string{}, path...), id)
 		for _, input := range inputs {
-			n.Children = append(n.Children, Edge{From: id, To: input.Item, PerUnit: input.Quantity})
+			n.Children = append(n.Children, Edge{From: id, To: input.Item, PerUnit: input.Quantity, Yield: rc.Producing()})
 			if err := r.walk(input.Item, child); err != nil {
 				if len(path) == 0 {
 					// The target's own frame; Resolve supplies the
@@ -297,7 +356,13 @@ func (r *resolver) propagate(g *ResolvedGraph) {
 		for _, e := range parent.Children {
 			child := g.byID[e.To]
 
-			contribution := new(big.Rat).Mul(parent.total, new(big.Rat).SetInt64(e.PerUnit))
+			// PerUnit is per application of the parent's recipe; Yield is how
+			// many parents one application makes. Dividing here rather than
+			// pre-folding keeps the whole chain exact — 1/50 of a Crystal
+			// Sulphide stays 1/50, not 0.02.
+			// Governing: SPEC-0001 REQ "Exact Arithmetic and Rounding
+			// Discipline".
+			contribution := new(big.Rat).Mul(parent.total, big.NewRat(e.PerUnit, e.Yield))
 			child.total.Add(child.total, contribution)
 
 			// Over-flagging is the honest direction: any unverified

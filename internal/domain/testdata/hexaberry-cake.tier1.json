@@ -17,9 +17,9 @@
   ],
 
   "recipes": [
-    { "output": "flour",  "method": "cook", "inputs": [{ "item": "wheat", "quantity": 5 }] },
-    { "output": "butter", "method": "cook", "inputs": [{ "item": "milk",  "quantity": 4 }] },
-    { "output": "batter", "method": "cook", "inputs": [{ "item": "flour", "quantity": 2 }, { "item": "egg", "quantity": 3 }] },
-    { "output": "cake",   "method": "cook", "inputs": [{ "item": "batter", "quantity": 1 }, { "item": "butter", "quantity": 1 }] }
+    { "id": "flour_cook", "output": "flour", "method": "cook", "inputs": [{ "item": "wheat", "quantity": 5 }] },
+    { "id": "butter_cook", "output": "butter", "method": "cook", "inputs": [{ "item": "milk",  "quantity": 4 }] },
+    { "id": "batter_cook", "output": "batter", "method": "cook", "inputs": [{ "item": "flour", "quantity": 2 }, { "item": "egg", "quantity": 3 }] },
+    { "id": "cake_cook", "output": "cake", "method": "cook", "inputs": [{ "item": "batter", "quantity": 1 }, { "item": "butter", "quantity": 1 }] }
   ]
 }
