@@ -38,6 +38,7 @@ The design handoffs are the source for the visual rules: `docs/design/theme/hand
 **Alternatives considered**:
 - *Allow display rounding with a documented precision*: rejected. Every precision is wrong for some value, and the engine spent real effort keeping quantities exact through five stages. Discarding that at the last step is precisely the failure SPEC-0002's encoding requirement exists to prevent.
 - *Forbid all formatting*: rejected as unusable. Grouping separators and units are not computation.
+- *Require the rational's own string in every case*: rejected on re-reading. It contradicts the reversible-formatting allowance in the same decision — a grouping separator already changes the string — and it forces `3/2` to be set as a solidus where `1.5` is the same number, exactly recoverable, and the form the design's `tabular-nums` figures are built for. The line that survives is float and magnitude, not glyphs: an exact decimal is a representation, a rounded one is a computation.
 
 ### One boundary client, not per-surface module access
 
@@ -113,5 +114,6 @@ The surfaces follow in their own specs. Nothing here needs the tree canvas or th
 
 - **Client state management.** ADR-0004 records React as decided and leaves the state library open, recommending `useReducer` plus context or Zustand, and adopting Redux Toolkit only if a concrete need appears. The one argument for Redux worth keeping in view is that its devtools time-travel is useful precisely when debugging a boundary you cannot step through — which the JS/WASM boundary is. Settle after the first working slice.
 - **Whether the no-arithmetic rule can be enforced mechanically.** A branded type on values arriving from the boundary would make arithmetic on them a type error rather than a review finding. Worth trying once the payload shapes settle; premature before that.
+- **How the design sets a non-integer quantity.** The theme handoff specifies JetBrains Mono with `tabular-nums` for every figure, which aligns digits into columns and does nothing for a solidus, and no handoff or prototype has yet shown a fractional quantity — the reference was built entirely from integers. Terminating decimals fall out fine. A rational with no terminating decimal (`1/3` is reachable — a recipe yielding three units where one is needed) needs the design's answer, and the spec defers to it. Settle at the first quantity component rather than in the abstract.
 - **Where the save-file size limit is set.** The spec requires one; the number is not chosen. It should come from the largest real save observed rather than from a round figure, which means measuring before deciding.
 - **Whether the shell spec should own the URL hash codec or defer it.** Plan state in the hash is ADR-0002's decision and SPEC-0002 encodes it, but the decode-on-load path is view work and currently has no home.

@@ -32,6 +32,13 @@ Component styles MUST reference those custom properties and MUST NOT contain har
 
 A token whose value the design reference does not state MUST NOT be invented in a component; it is added to the token file or the design is asked.
 
+Two tokens carry conditional constraints that the theme reference states and this requirement restates by name, so a surface inherits them rather than rediscovering them from a contrast table: `--text-muted` measures 4.17:1 against `--panel-raised`, below AA for normal text, so against that surface it MUST be restricted to text 17px or larger or replaced with `--text`; `--text-dim` MUST be used only for decorative text 18px or larger, and MUST NOT be the only styling carrying information available nowhere else.
+
+#### Scenario: A low-contrast token is used within its stated range
+
+- **WHEN** a component sets text in `--text-muted` on a `--panel-raised` surface, or in `--text-dim`
+- **THEN** the type size is at or above the size the token's contrast requires, and no information appears only in `--text-dim`
+
 #### Scenario: Tokens live in one place
 
 - **WHEN** the stylesheet is searched for colour literals outside the token file
@@ -75,9 +82,11 @@ Controls MUST use one scale: 40px default and 30px small. A row MUST NOT mix the
 
 The view MUST NOT perform arithmetic on quantities, power figures, producer counts, or any other value the domain produces. Every such figure MUST arrive from the boundary and be rendered as received.
 
-This includes rounding. SPEC-0001 enumerates exactly which physical boundaries round and in which direction, and none of them is on the way to a screen. A rational the domain reports as `3/2` MUST be displayed as the domain's own string, not converted to a number and formatted.
+This includes rounding. SPEC-0001 enumerates exactly which physical boundaries round and in which direction, and none of them is on the way to a screen. A rational the domain reports as `3/2` MUST NOT be converted through a floating-point number, and MUST NOT be rounded or truncated to a nearby value on the way to the screen.
 
-The view MAY format for presentation — grouping separators, units, truncation with a title attribute — provided the formatting is reversible to the value received and changes no magnitude.
+The view MAY format for presentation — grouping separators, units, an exact decimal expansion, a truncation that carries the exact value on the same element — provided the formatting is reversible to the value received and changes no magnitude. `3/2` MAY therefore be set as `1.5`: the decimal terminates, so the figure displayed is the same number and the rational is recoverable from it. SPEC-0002 permits the boundary to send either form, so the received value may already be `1.5`. A rational with no terminating decimal MUST NOT be set as a decimal alone, because no such decimal is the value; it is set as the rational, or as a truncated decimal whose exact value is available on the element that carries it.
+
+Which of those forms a surface uses is a design question rather than a view author's choice. `docs/design/theme/handoff.md` sets every quantity in JetBrains Mono with `tabular-nums`, a figure style that aligns digits into columns and has nothing to say about a solidus, and no design reference has yet shown a non-integer quantity. A surface spec that introduces one MUST state how the design sets it rather than leaving the choice to the component.
 
 #### Scenario: A displayed total is the domain's
 
@@ -87,7 +96,17 @@ The view MAY format for presentation — grouping separators, units, truncation 
 #### Scenario: A fractional value is not rounded for display
 
 - **WHEN** the boundary reports a quantity as an exact rational that is not an integer
-- **THEN** the view displays the exact value, and does not round, truncate, or convert it through a floating-point number
+- **THEN** the view displays the exact value, and does not round it to a nearby value or convert it through a floating-point number
+
+#### Scenario: An exact decimal is a representation, not a computation
+
+- **WHEN** the boundary reports a quantity whose rational has a terminating decimal expansion
+- **THEN** the view MAY set it as that decimal, and a reader can recover the rational from what is shown
+
+#### Scenario: A repeating rational keeps its exact value on the element
+
+- **WHEN** the boundary reports a quantity whose rational has no terminating decimal expansion
+- **THEN** the view sets the rational itself, or a truncated decimal whose exact value is carried on the same element, and never a bare decimal
 
 #### Scenario: Changing an input recomputes through the core
 
