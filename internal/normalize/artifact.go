@@ -28,6 +28,8 @@ type Builder struct {
 	items   []domain.Item
 	recipes []domain.Recipe
 	economy *domain.Economy
+
+	selfReferentialOmitted int
 }
 
 // NewBuilder starts an artifact for the named game build.
@@ -63,6 +65,12 @@ func (b *Builder) AddRecipes(recipes ...domain.Recipe) { b.recipes = append(b.re
 // SetEconomy attaches the base-economy section.
 func (b *Builder) SetEconomy(e *domain.Economy) { b.economy = e }
 
+// SetSelfReferentialOmitted records how many recipes the graph pass dropped
+// for naming their own output among their ingredients.
+//
+// Governing: SPEC-0004 REQ "Recipe Graph Construction"
+func (b *Builder) SetSelfReferentialOmitted(n int) { b.selfReferentialOmitted = n }
+
 // Artifact assembles and validates the artifact.
 //
 // Every collection is sorted into a defined order here rather than at the
@@ -76,8 +84,9 @@ func (b *Builder) Artifact() (*domain.Tier1, error) {
 		Source:        fmt.Sprintf("%s via MBINCompiler %s", joinArchives(b.archives), b.mbinCompiler),
 		Note:          b.note,
 		Provenance: &domain.Provenance{
-			Archives:     sortedCopy(b.archives),
-			MBINCompiler: b.mbinCompiler,
+			Archives:                      sortedCopy(b.archives),
+			MBINCompiler:                  b.mbinCompiler,
+			SelfReferentialRecipesOmitted: b.selfReferentialOmitted,
 		},
 		Items:   append([]domain.Item(nil), b.items...),
 		Recipes: append([]domain.Recipe(nil), b.recipes...),

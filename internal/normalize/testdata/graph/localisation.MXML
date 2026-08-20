@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--File created using MBINCompiler version (6.45.0.1)-->
+<Data template="cTkLocalisationTable">
+	<Property name="Table">
+		<Property name="Table" value="TkLocalisationEntry" _id="AMMO_PROD_NAME_L">
+			<Property name="Id" value="AMMO_PROD_NAME_L" />
+			<Property name="English" value="Projectile Ammunition" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="FOOD_MISC_STELLAR_NAME_L">
+			<Property name="Id" value="FOOD_MISC_STELLAR_NAME_L" />
+			<Property name="English" value="Silicon Egg" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="SUB_DEADDRONE_NAME_L">
+			<Property name="Id" value="SUB_DEADDRONE_NAME_L" />
+			<Property name="English" value="Pugneum" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_AIR1_NAME_L">
+			<Property name="Id" value="UI_AIR1_NAME_L" />
+			<Property name="English" value="Oxygen" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ALLOY_COMPLEX_2_NAME_L">
+			<Property name="Id" value="UI_ALLOY_COMPLEX_2_NAME_L" />
+			<Property name="English" value="Iridesite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ALLOY_SIMPLE_1_NAME_L">
+			<Property name="Id" value="UI_ALLOY_SIMPLE_1_NAME_L" />
+			<Property name="English" value="Aronium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ALLOY_SIMPLE_5_NAME_L">
+			<Property name="Id" value="UI_ALLOY_SIMPLE_5_NAME_L" />
+			<Property name="English" value="Magno-Gold" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ALLOY_SIMPLE_6_NAME_L">
+			<Property name="Id" value="UI_ALLOY_SIMPLE_6_NAME_L" />
+			<Property name="English" value="Grantine" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ASTEROID1_NAME_L">
+			<Property name="Id" value="UI_ASTEROID1_NAME_L" />
+			<Property name="English" value="Silver" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ASTEROID2_NAME_L">
+			<Property name="Id" value="UI_ASTEROID2_NAME_L" />
+			<Property name="English" value="Gold" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ASTEROID3_NAME_L">
+			<Property name="Id" value="UI_ASTEROID3_NAME_L" />
+			<Property name="English" value="Platinum" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_CAVE1_NAME_L">
+			<Property name="Id" value="UI_CAVE1_NAME_L" />
+			<Property name="English" value="Cobalt" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_CAVE2_NAME_L">
+			<Property name="Id" value="UI_CAVE2_NAME_L" />
+			<Property name="English" value="Ionised Cobalt" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_COLD1_NAME_L">
+			<Property name="Id" value="UI_COLD1_NAME_L" />
+			<Property name="English" value="Dioxite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_COMPOUND_2_NAME_L">
+			<Property name="Id" value="UI_COMPOUND_2_NAME_L" />
+			<Property name="English" value="Semiconductor" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_COMPOUND_3_NAME_L">
+			<Property name="Id" value="UI_COMPOUND_3_NAME_L" />
+			<Property name="English" value="Hot Ice" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_COMPOUND_5_NAME_L">
+			<Property name="Id" value="UI_COMPOUND_5_NAME_L" />
+			<Property name="English" value="Superconductor" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_COMPOUND_6_NAME_L">
+			<Property name="Id" value="UI_COMPOUND_6_NAME_L" />
+			<Property name="English" value="Cryo-Pump" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_DUSTY1_NAME_L">
+			<Property name="Id" value="UI_DUSTY1_NAME_L" />
+			<Property name="English" value="Pyrite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_EX_PURPLE_NAME_L">
+			<Property name="Id" value="UI_EX_PURPLE_NAME_L" />
+			<Property name="English" value="Activated Quartzite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_2_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_2_NAME_L" />
+			<Property name="English" value="Lubricant" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_3_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_3_NAME_L" />
+			<Property name="English" value="Glass" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_4_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_4_NAME_L" />
+			<Property name="English" value="Heat Capacitor" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_5_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_5_NAME_L" />
+			<Property name="English" value="Poly Fibre" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_8_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_8_NAME_L" />
+			<Property name="English" value="Living Glass" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FARMPROD_9_NAME_L">
+			<Property name="Id" value="UI_FARMPROD_9_NAME_L" />
+			<Property name="English" value="Circuit Board" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FUEL_1_NAME_L">
+			<Property name="Id" value="UI_FUEL_1_NAME_L" />
+			<Property name="English" value="Carbon" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_FUEL_2_NAME_L">
+			<Property name="Id" value="UI_FUEL_2_NAME_L" />
+			<Property name="English" value="Condensed Carbon" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_GASGIANT1_NAME_L">
+			<Property name="Id" value="UI_GASGIANT1_NAME_L" />
+			<Property name="English" value="Crystallised Helium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_GAS_1_NAME_L">
+			<Property name="Id" value="UI_GAS_1_NAME_L" />
+			<Property name="English" value="Sulphurine" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_GAS_2_NAME_L">
+			<Property name="Id" value="UI_GAS_2_NAME_L" />
+			<Property name="English" value="Radon" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_GAS_3_NAME_L">
+			<Property name="Id" value="UI_GAS_3_NAME_L" />
+			<Property name="English" value="Nitrogen" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_GAS_4_NAME_L">
+			<Property name="Id" value="UI_GAS_4_NAME_L" />
+			<Property name="English" value="Methane" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_HOT1_NAME_L">
+			<Property name="Id" value="UI_HOT1_NAME_L" />
+			<Property name="English" value="Phosphorus" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_LAND1_NAME_L">
+			<Property name="Id" value="UI_LAND1_NAME_L" />
+			<Property name="English" value="Ferrite Dust" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_LAND2_NAME_L">
+			<Property name="Id" value="UI_LAND2_NAME_L" />
+			<Property name="English" value="Pure Ferrite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_LAND3_NAME_L">
+			<Property name="Id" value="UI_LAND3_NAME_L" />
+			<Property name="English" value="Magnetised Ferrite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_LAUNCHSUB_NAME_L">
+			<Property name="Id" value="UI_LAUNCHSUB_NAME_L" />
+			<Property name="English" value="Di-hydrogen" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_LUSH1_NAME_L">
+			<Property name="Id" value="UI_LUSH1_NAME_L" />
+			<Property name="English" value="Paraffinium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_MAINTAIN_SUB3_NAME_L">
+			<Property name="Id" value="UI_MAINTAIN_SUB3_NAME_L" />
+			<Property name="English" value="Rusted Metal" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_MEGAPROD_2_NAME_L">
+			<Property name="Id" value="UI_MEGAPROD_2_NAME_L" />
+			<Property name="English" value="Quantum Processor" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_MEGAPROD_3_NAME_L">
+			<Property name="Id" value="UI_MEGAPROD_3_NAME_L" />
+			<Property name="English" value="Cryogenic Chamber" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_NEWCATA2_NAME_L">
+			<Property name="Id" value="UI_NEWCATA2_NAME_L" />
+			<Property name="English" value="Sodium Nitrate" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_NEWWATER2_NAME_L">
+			<Property name="Id" value="UI_NEWWATER2_NAME_L" />
+			<Property name="English" value="Chlorine" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_BARREN_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_BARREN_NAME_L" />
+			<Property name="English" value="Cactus Flesh" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_CAVE_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_CAVE_NAME_L" />
+			<Property name="English" value="Marrow Bulb" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_CREATUREPOOP_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_CREATUREPOOP_NAME_L" />
+			<Property name="English" value="Faecium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_DEADCREATURE_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_DEADCREATURE_NAME_L" />
+			<Property name="English" value="Mordite" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_LUSH_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_LUSH_NAME_L" />
+			<Property name="English" value="Star Bulb" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_RADIO_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_RADIO_NAME_L" />
+			<Property name="English" value="Gamma Root" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_SCORCHED_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_SCORCHED_NAME_L" />
+			<Property name="English" value="Solanium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_SNOW_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_SNOW_NAME_L" />
+			<Property name="English" value="Frost Crystal" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_PLANTSUB_WATER_NAME_L">
+			<Property name="Id" value="UI_PLANTSUB_WATER_NAME_L" />
+			<Property name="English" value="Kelp Sac" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_RADIO1_NAME_L">
+			<Property name="Id" value="UI_RADIO1_NAME_L" />
+			<Property name="English" value="Uranium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_REACTION_1_NAME_L">
+			<Property name="Id" value="UI_REACTION_1_NAME_L" />
+			<Property name="English" value="Thermic Condensate" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_REACTION_2_NAME_L">
+			<Property name="Id" value="UI_REACTION_2_NAME_L" />
+			<Property name="English" value="Enriched Carbon" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_REACTION_3_NAME_L">
+			<Property name="Id" value="UI_REACTION_3_NAME_L" />
+			<Property name="English" value="Nitrogen Salt" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ROCKETFUEL_NAME_L">
+			<Property name="Id" value="UI_ROCKETFUEL_NAME_L" />
+			<Property name="English" value="Tritium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_SAND1_NAME_L">
+			<Property name="Id" value="UI_SAND1_NAME_L" />
+			<Property name="English" value="Silicate Powder" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_STELLAR2_NAME_L">
+			<Property name="Id" value="UI_STELLAR2_NAME_L" />
+			<Property name="English" value="Chromatic Metal" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_TOXIC1_NAME_L">
+			<Property name="Id" value="UI_TOXIC1_NAME_L" />
+			<Property name="English" value="Ammonia" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_ULTRAPROD_2_NAME_L">
+			<Property name="Id" value="UI_ULTRAPROD_2_NAME_L" />
+			<Property name="English" value="Stasis Device" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_VENTGEM_NAME_L">
+			<Property name="Id" value="UI_VENTGEM_NAME_L" />
+			<Property name="English" value="Crystal Sulphide" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_WATER1_NAME_L">
+			<Property name="Id" value="UI_WATER1_NAME_L" />
+			<Property name="English" value="Salt" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_WATER2_NAME_L">
+			<Property name="Id" value="UI_WATER2_NAME_L" />
+			<Property name="English" value="Sodium" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_WATERPLANT_NAME_L">
+			<Property name="Id" value="UI_WATERPLANT_NAME_L" />
+			<Property name="English" value="Cyto-Phosphate" />
+		</Property>
+		<Property name="Table" value="TkLocalisationEntry" _id="UI_WATERWORLD1_NAME_L">
+			<Property name="Id" value="UI_WATERWORLD1_NAME_L" />
+			<Property name="English" value="Lithium" />
+		</Property>
+	</Property>
+</Data>
