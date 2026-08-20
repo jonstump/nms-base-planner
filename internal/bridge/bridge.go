@@ -96,20 +96,14 @@ type ResultPayload struct {
 
 // ErrorPayload is the failure half.
 //
-// Code is a stable machine-readable identifier; the sentinel mapping that
-// fills it is #44's story, and until then everything crosses as
-// CodeUnclassified. Message carries the domain's prose, including the
-// wrapped resolution path, with no contractual guarantee of format.
+// Code is a stable machine-readable identifier from the set in errors.go;
+// see CodeFor for the mapping. Message carries the domain's prose,
+// including the wrapped resolution path, with no contractual guarantee of
+// format.
 type ErrorPayload struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
-
-// CodeUnclassified is the code reserved for a failure matching no known
-// sentinel. SPEC-0002 REQ "Sentinel Error Preservation" requires the
-// reserved code exist so an unmatched error is never silently mapped onto
-// an unrelated sentinel; the rest of the code set arrives with #44.
-const CodeUnclassified = "UNCLASSIFIED"
 
 // Success builds an envelope carrying a payload and no error.
 func Success(data ResultPayload) Envelope {
