@@ -36,6 +36,9 @@ func curatedForTest() Curated {
 		FaunaCycleSeconds:  1800,
 		StepsPerProcessor:  2,
 		DepotThreshold:     1000,
+		ProcessSeconds:     30,
+		FaunaProducts:      map[string]bool{},
+		ResourceHotspots:   map[string]string{},
 	}
 }
 
@@ -371,6 +374,7 @@ func TestCuratedConstantsMustBeSupplied(t *testing.T) {
 		"fauna cycle seconds":   func(c *Curated) { c.FaunaCycleSeconds = 0 },
 		"steps per processor":   func(c *Curated) { c.StepsPerProcessor = 0 },
 		"depot threshold":       func(c *Curated) { c.DepotThreshold = 0 },
+		"process seconds":       func(c *Curated) { c.ProcessSeconds = 0 },
 	}
 	for name, clear := range cases {
 		t.Run(name, func(t *testing.T) {

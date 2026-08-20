@@ -59,6 +59,17 @@ type SiteConfig struct {
 	// Governing: SPEC-0001 REQ "Producer Rollup" — "Extractor class MUST be
 	// configured per site, not per row."
 	ExtractorClass HotspotClass
+
+	// FillSeconds is how long the plan is willing to wait for an extractor
+	// row to produce its requirement. Extractor counts are sized to it.
+	//
+	// Per site rather than global because it pairs with the class: a base
+	// on an S hotspot and one on a C hotspot are rarely given the same
+	// patience.
+	//
+	// Governing: SPEC-0001 REQ "Producer Rollup" — "sized so the required
+	// quantity is produced within a configured fill duration".
+	FillSeconds int64
 }
 
 // Curated holds the economy constants no game table states.
@@ -102,6 +113,24 @@ type Curated struct {
 	// Depot *capacity* is not here: it is U_SILO_S's storage buffer, which
 	// the artifact carries. See Constants.DepotCapacity.
 	DepotThreshold int64
+
+	// ProcessSeconds is how long one nutrient processor step takes.
+	// Economy.Refining states throughput per cycle but not the cycle's
+	// duration, so this is supplied.
+	ProcessSeconds int64
+
+	// FaunaProducts and ResourceHotspots are classification rather than
+	// scalars: which leaf items come from creatures, and which hotspot
+	// category each extracted resource sits on.
+	//
+	// Neither is in the tables. Crops classify themselves — Economy.Crops
+	// names the substance each plant yields — but nothing says Wild Milk
+	// comes from a creature or that Sulphurine is a Gas hotspot rather
+	// than a Mineral one. Supplied rather than guessed from the item's
+	// name, which is the kind of inference that has cost this project
+	// before.
+	FaunaProducts    map[string]bool
+	ResourceHotspots map[string]string
 }
 
 // validate refuses a partially-specified constant set.
@@ -115,6 +144,7 @@ func (c Curated) validate() error {
 		{"fauna cycle seconds", c.FaunaCycleSeconds},
 		{"steps per processor", c.StepsPerProcessor},
 		{"depot threshold", c.DepotThreshold},
+		{"process seconds", c.ProcessSeconds},
 	} {
 		if f.v <= 0 {
 			return fmt.Errorf("%w: curated constant %q is %d; it must be supplied, not defaulted",
@@ -192,6 +222,55 @@ func NewConstants(t *Tier1, curated Curated) (*Constants, error) {
 
 // Curated returns the caller-supplied constants.
 func (c *Constants) Curated() Curated { return c.curated }
+
+// ProcessSeconds is one nutrient processor step's duration.
+func (c *Constants) ProcessSeconds() int64 { return c.curated.ProcessSeconds }
+
+// IsFauna reports whether an item comes from a creature rather than a plant
+// or a hotspot.
+func (c *Constants) IsFauna(itemID string) bool { return c.curated.FaunaProducts[itemID] }
+
+// ExtractorRate is one extractor's output for a resource at a class, as an
+// exact rational.
+//
+// Governing: SPEC-0001 REQ "Producer Rollup", REQ "Exact Arithmetic and
+// Rounding Discipline"
+//
+// The base rate comes from the extractor part the resource's hotspot
+// category implies, scaled by that category's class strength. Both halves
+// read from the artifact; only the item-to-category mapping is curated,
+// because nothing in the tables states it.
+//
+// The unit is whatever the part's Rate is denominated in, and the artifact
+// does not say. U_EXTRACTOR_S carries rate 100 against storage 360000,
+// which fills in 3,600 of those units — an hour if the rate is per second.
+// Callers therefore supply SiteConfig.FillSeconds in the same unit; the
+// arithmetic is consistent either way, and the plan's absolute times are
+// only as right as that reading. Worth confirming in game before any
+// duration is shown to a user.
+func (c *Constants) ExtractorRate(itemID string, class HotspotClass) (*big.Rat, error) {
+	category, ok := c.curated.ResourceHotspots[itemID]
+	if !ok {
+		return nil, fmt.Errorf("%w: no hotspot category is configured for %q, so no extractor can be sized for it",
+			ErrUnknownItem, itemID)
+	}
+	part := PartExtractorMineral
+	if category == "Gas" {
+		part = PartExtractorGas
+	}
+	p, err := c.Part(part)
+	if err != nil {
+		return nil, err
+	}
+	if p.Primary.Rate <= 0 {
+		return nil, fmt.Errorf("%w: %s states no extraction rate", ErrInvalidArtifact, part)
+	}
+	strength, err := c.ClassStrength(category, class)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Rat).Mul(new(big.Rat).SetInt64(p.Primary.Rate), strength), nil
+}
 
 // CropFor returns the crop that yields the given item.
 func (c *Constants) CropFor(itemID string) (Crop, error) {
