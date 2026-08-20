@@ -32,7 +32,7 @@ The adapter MUST NOT expose any function that mutates domain state. Every entry 
 
 #### Scenario: One crossing per stage
 
-- **WHEN** the view resolves a plan and renders 34 nodes
+- **WHEN** the view resolves a plan and renders 36 nodes
 - **THEN** exactly one boundary crossing occurred, and node data was read from the single returned value
 
 #### Scenario: Reserved stages follow the same contract

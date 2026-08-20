@@ -56,7 +56,7 @@ Extraction takes **structure and quantities only**. In-game `Description` text a
 
 The pipeline is correct when it reproduces the Stasis Device tree from `docs/design/tree-canvas/handoff.md` exactly, rooted at product ID **`ULTRAPROD2`**:
 
-* 34 distinct nodes across the Quantum Processor (`MEGAPROD2`), Cryogenic Chamber (`MEGAPROD3`), and Iridesite (`ALLOY8`) branches
+* 36 distinct nodes across the Quantum Processor (`MEGAPROD2`), Cryogenic Chamber (`MEGAPROD3`), and Iridesite (`ALLOY8`) branches
 * Each gas product costing 250 gas + 50 Condensed Carbon — `REACTION1` / `REACTION2` / `REACTION3`
 * At quantity ×1: 500 each of Sulphurine / Nitrogen / Radon, and 300 Condensed Carbon
 
@@ -69,7 +69,25 @@ NMS_REALITY_GCPRODUCTTABLE.MBIN    →  NameLower = UI_ULTRAPROD_2_NAME_L  →  
 
 Any normalizer that wants human-readable names must join against the localisation tables; the reality tables alone cannot produce them.
 
-All three bullets above were verified on 2026-08-17 against a real extraction — `NMSARC.Precache.pak` unpacked with `internal/hgpak`, decompiled with MBINCompiler 6.45.0.1 — and the traversal returns exactly 34 distinct nodes over 47 edges to 14 leaf resources. An earlier revision of this section named the root `prod80` and asserted the tree "has already been verified by hand against extracted data". No such ID exists in the game data, in the handoff this section cites, or in the design mocks, and no extraction was possible at the time the claim was written: the reader then in the tree could not open a single archive. The three quantitative bullets were nevertheless correct, so only the identifier was invented — see the HGPAK note below for the same failure mode on the container format.
+The quantities above are verified against generated data: `data/tier1.json`, produced by `cmd/nmstier1` from a real NMS 5.97 install and resolved through the merged rollup engine, returns **36 distinct nodes over 43 edges to 15 leaf resources**, with every gas and carbon figure exactly as stated.
+
+**The structural counts in this section were wrong twice, and the second correction is more interesting than the first.**
+
+An earlier revision named the root `prod80` and asserted the tree "has already been verified by hand against extracted data". No such ID exists, and no extraction was possible when that was written — the reader in the tree could not open a single archive. That revision was corrected on 2026-08-18, which kept the three quantitative bullets as "nevertheless correct".
+
+Two of them were not. This section claimed 34 nodes over 47 edges to 14 leaves, attributed to a 2026-08-17 extraction. Measured against all three candidate sources:
+
+| Source | Nodes | Edges | Leaves |
+|---|---|---|---|
+| Hand-authored fixture (`internal/domain/testdata/stasis-device.tier1.json`, target `sd`) | 34 | 41 | 14 |
+| Generated artifact (`data/tier1.json`, target `ULTRAPROD2`) | **36** | **43** | **15** |
+| What this section previously claimed | 34 | 47 | 14 |
+
+The node and leaf counts match the *fixture* — which uses synthetic IDs (`sd`, `prod999`) and therefore cannot have come from an extraction at all. The edge count matches nothing measurable.
+
+The two extra nodes are `CAVE1` (Cobalt) and `OXYGEN`. `CAVE2` (Ionised Cobalt) is refined rather than gathered — its `PinObjective` reads `UI_REFINE_OBJ`, established in #34 — so it expands rather than terminating, which is also why the leaf count rises by one while `CAVE2` stops being a leaf. The prototype modelled it as a raw leaf; that was a simplification, not a fact about the game.
+
+The lesson is the same one the `prod80` correction drew and did not apply far enough: a number that agrees with the artifact you already had is not evidence about the artifact you did not. See the HGPAK note below for the same failure mode on the container format.
 
 Tier 2 is confirmed differently: every entry must carry a `source` and `verified` date, and any entry lacking one must render with the `unverified` badge rather than silently presenting as fact.
 
@@ -79,7 +97,7 @@ Tier 2 is confirmed differently: every entry must carry a `source` and `verified
 
 Copy the ~1.5 MB of `Products` / `RawMaterials` / `Refinery` / `NutrientProcessor` JSON out of the AssistantNMS app repository.
 
-* Good, because the data is clean, normalized, multilingual, and verified working — walking it reproduces the design's 34-node tree exactly.
+* Good, because the data is clean, normalized, multilingual, and verified working — walking it reproduces the design's tree, differing only where the prototype simplified (`CAVE2` modelled as a raw leaf rather than a refined one).
 * Good, because it requires no game install, no .NET runtime, and no extraction step.
 * Bad, because the repository is **GPL-3.0**, and copying data files out of a copyleft work carries a real argument that the app inherits those obligations.
 * Bad, because it does not close the constants gap — their `Buildings.lang.json` schema has no power or yield fields, so Tier 2 would still be needed.

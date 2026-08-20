@@ -63,7 +63,7 @@ The decision is implemented when all of the following hold against a generated a
 * `CATALYST2` (Sodium Nitrate) carries 26 refine recipes, including `1x Crystal Sulphide -> 50x Sodium Nitrate` with its yield intact
 * No recipe in the artifact names its own output as an ingredient, and the provenance records 27 excluded
 * The engine, asked for Sodium Nitrate's options, reports all 26 and expands the default deterministically across repeated runs
-* ADR-0001's acceptance test still passes: `ULTRAPROD2` resolves to 34 distinct nodes with leaf totals of 500 Sulphurine, 500 Nitrogen, 500 Radon and 300 Condensed Carbon
+* ADR-0001's acceptance test still passes: `ULTRAPROD2` resolves to 36 distinct nodes with leaf totals of 500 Sulphurine, 500 Nitrogen, 500 Radon and 300 Condensed Carbon
 
 ## Pros and Cons of the Options
 
