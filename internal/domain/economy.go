@@ -193,10 +193,22 @@ func (e *Economy) validate(knownItem func(string) bool) error {
 		}
 	}
 
+	seenSearch := make(map[string]bool, len(e.Searches))
 	for _, s := range e.Searches {
 		if s.Value == "" {
 			return fmt.Errorf("%w: search record with empty value", ErrInvalidArtifact)
 		}
+		// Value is what sortArtifact orders Searches by, so it has to be
+		// unique or the emitted order falls back to however the normalizer
+		// happened to append them — the map-iteration order REQ
+		// "Deterministic Output" forbids. Rejecting rather than tiebreaking:
+		// unlike the game tables, these records are ours, so two searches
+		// deriving one value is an authoring mistake — either a duplicate to
+		// merge or two derivations wanting distinguishable names.
+		if seenSearch[s.Value] {
+			return fmt.Errorf("%w: duplicate search record for %q", ErrInvalidArtifact, s.Value)
+		}
+		seenSearch[s.Value] = true
 		if len(s.Searched) == 0 {
 			// A search record that names no sources records nothing; it
 			// would read as diligence while carrying none.

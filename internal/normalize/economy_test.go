@@ -497,3 +497,49 @@ func copyTree(t *testing.T, src string) string {
 	}
 	return dst
 }
+
+// SPEC-0004 REQ "Deterministic Output": collections are emitted in a
+// defined, stable order — "not map-iteration order".
+//
+// sortArtifact orders Searches by Value, which is only a total key if Value
+// is unique. Every other collection in the artifact pairs its sort key with a
+// uniqueness check in Validate; this is that check for Searches.
+//
+// Rejecting rather than tiebreaking is deliberate. These records are written
+// by the normalizer rather than read out of the game tables, so two searches
+// deriving one value is an authoring mistake — a duplicate that wants merging
+// or two derivations that want distinguishable names — and surfacing it beats
+// silently ordering it.
+func TestDuplicateSearchValueIsRefused(t *testing.T) {
+	dup := []domain.Search{
+		{Value: "crop substance", Searched: []string{"tableA"}, Note: "first"},
+		{Value: "crop substance", Searched: []string{"tableB"}, Note: "second"},
+	}
+
+	b, err := normalize.NewBuilder("NMS 5.97", "6.45.0.1", []string{"a.pak"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.AddItems(domain.Item{ID: "AAA", RawObtainable: true, DefaultMethod: domain.MethodRaw})
+	b.SetEconomy(&domain.Economy{Searches: dup})
+
+	if _, err := b.Artifact(); err == nil {
+		t.Fatal("Artifact accepted two search records deriving the same value")
+	} else if !errors.Is(err, domain.ErrInvalidArtifact) {
+		t.Errorf("error is %v, want ErrInvalidArtifact", err)
+	} else if !strings.Contains(err.Error(), "crop substance") {
+		t.Errorf("error %q does not name the duplicated value", err)
+	}
+}
+
+// The real economy's search records must satisfy the uniqueness the sort
+// depends on — otherwise the check above only ever fires on crafted input.
+func TestRealSearchValuesAreUnique(t *testing.T) {
+	seen := map[string]bool{}
+	for _, s := range economy(t).Searches {
+		if seen[s.Value] {
+			t.Errorf("two search records derive %q", s.Value)
+		}
+		seen[s.Value] = true
+	}
+}
