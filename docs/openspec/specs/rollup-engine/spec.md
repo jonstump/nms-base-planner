@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-08-17
 implements: [ADR-0001, ADR-0003]
 ---
