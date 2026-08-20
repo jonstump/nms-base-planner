@@ -440,9 +440,9 @@ func readCrops(root string, rows []node) ([]domain.Crop, []domain.Search, error)
 		"by their PlantGrowth connection, resolved to a reward key through the flora entity "+
 		"their placement scene names, and to a substance and amount through the reward table. "+
 		"The reward key and the substance are not always the same — PLANT_BARREN yields "+
-		"PLANT_DUST. Five of the twelve yield a product rather than a substance, under "+
-		"GcRewardSpecificProduct; SPEC-0004 names only GcRewardSpecificSubstance, so both "+
-		"forms are read. Wild-harvest entries (WILD_*) were not read: they are not farmed.",
+		"PLANT_DUST. Four of the twelve yield a product rather than a substance, under "+
+		"GcRewardSpecificProduct, so both reward forms are read. Wild-harvest entries "+
+		"(WILD_*) were not read: they are not farmed.",
 		len(crops))
 	if len(containers) > 0 {
 		note += fmt.Sprintf(" Buildables on the growth network with no flora entity are carried "+
@@ -508,13 +508,11 @@ type reward struct {
 
 // rewardKinds are the reward shapes a farmable plant can hand back.
 //
-// SPEC-0004 names only GcRewardSpecificSubstance. Against the real table
-// that covers seven of the twelve farmable plants: the other five —
-// venom sacs, gravitino balls, nip-nip buds, albumen pearls and creature
-// pellets — yield a *product*, under GcRewardSpecificProduct with an
-// identical Amount shape. Reading only the substance form would have
-// dropped them silently, so both are read and the divergence is recorded
-// on the crop search note.
+// Against the real table the substance form covers eight of the twelve
+// farmable plants: the other four — venom sacs, gravitino balls, nip-nip
+// buds and albumen pearls — yield a *product*, under
+// GcRewardSpecificProduct with an identical Amount shape. Reading only the
+// substance form would have dropped them silently, so both are read.
 var rewardKinds = []string{"GcRewardSpecificSubstance", "GcRewardSpecificProduct"}
 
 // readRewards indexes the reward table by entry id.

@@ -61,6 +61,14 @@ Every `Input.item` and every `Recipe.output` MUST reference an `Item.id` present
 
 Items with no recipe MUST be emitted with `raw_obtainable` true and `default_method` `raw`, so the rollup engine's terminal-node handling has the leaves it expects.
 
+**Raw-obtainability MUST be read from the source, not inferred from the absence of a recipe.** Having a recipe and being gatherable are independent: you mine Cobalt with a terrain manipulator *and* you can refine it. Deriving `raw_obtainable` from "has no recipe" therefore marks every gatherable substance as non-raw the moment the game gives it a refine route, and the item defaults to `refine`. Because refining runs both ways between several such pairs — `CAVE1 ⇄ CAVE2`, `CATALYST1 ⇄ CATALYST2`, `GAS1 → GAS3 → GAS2 → GAS1` — the resulting graph is not resolvable: 571 of 2,237 items hit a cycle under pure defaults.
+
+The substance table states gatherability in `PinObjective`, the pinned objective shown for the item. Six substances read `UI_REFINE_OBJ` and are refined only; the other 105 read some flavour of gather, find or process. The normalizer MUST set `raw_obtainable` true for every substance whose `PinObjective` is not `UI_REFINE_OBJ`, and MUST fail rather than guess where the field is absent or holds a value that list does not cover.
+
+The product table carries no equivalent field, so a product that has a recipe MUST NOT be marked raw-obtainable. A product with no recipe still is, by the rule above — that is what gives the engine a leaf rather than an item it cannot terminate on.
+
+A raw-obtainable item MUST default to `raw` even where it also has recipes. Gathering is the route a player takes by default, expanding it is what produces the cycles above, and the engine's per-node method override exists precisely so a player who wants the refine route can take it.
+
 **Every recipe the source defines MUST be emitted.** Per ADR-0005 the artifact carries a list of recipes per output and method, not one: 261 of 403 refiner output/method pairs have more than one route, up to 61 for a single item. The normalizer MUST NOT select, deduplicate, or otherwise discard alternatives — selection is the engine's job and depends on expansion the normalizer does not perform.
 
 **Each recipe's yield MUST be read from the source.** 156 of 1,681 refiner recipes produce a quantity other than one, up to 250. A yield MUST NOT default silently to one; where the source does not state it, generation MUST fail rather than assume.
@@ -73,6 +81,21 @@ Items with no recipe MUST be emitted with `raw_obtainable` true and `default_met
 
 - **WHEN** the source defines 26 refine recipes producing `CATALYST2`
 - **THEN** the artifact carries all 26, and the normalizer selects none of them
+#### Scenario: Gatherability comes from the source
+
+- **WHEN** a substance's `PinObjective` is `UI_GATHER_REFINE_OBJ` and the table also defines refine recipes for it
+- **THEN** it is emitted `raw_obtainable` true with `default_method` `raw`, and its refine recipes are emitted alongside
+
+#### Scenario: A refine-only substance is not raw
+
+- **WHEN** a substance's `PinObjective` is `UI_REFINE_OBJ`
+- **THEN** it is emitted `raw_obtainable` false, defaulting to `refine`
+
+#### Scenario: The generated graph resolves
+
+- **WHEN** the rollup engine resolves each item in a generated artifact under default methods
+- **THEN** every item resolves, and none reports a cycle
+
 
 #### Scenario: Yields survive
 
@@ -144,13 +167,17 @@ The artifact MUST carry the base-economy values confirmed extractable on 2026-08
 
 - Per-part production and consumption **rates** and **storage** buffers, from `GcBaseLinkGridData`, together with the network each applies to and any dependent-connection rate
 - **Hotspot class strengths and weightings** for C/B/A/S per hotspot category, from `REGIONHOTSPOTSTABLE`
-- **Crop yields**, from the reward table's `GcRewardSpecificSubstance` minimum and maximum amounts
+- **Crop yields**, from the reward table's minimum and maximum amounts — under `GcRewardSpecificSubstance` or `GcRewardSpecificProduct`, whichever the entry carries
 - **Crop growth times**, from the plant's `PlantGrowth` connection storage value
 - **Refiner throughput**, from `gcgameplayglobals`, including the difficulty variants
 
 Class scaling MUST be modelled as a property of the hotspot, not of the device. A part declares a base rate and a hotspot dependency; the class belongs to the hotspot. The normalizer MUST NOT emit per-class device variants, which do not exist in the source data.
 
 Yields and class strengths that the source expresses as a minimum and a maximum MUST be preserved as a range. Collapsing a range to a single value discards information the planner needs to show best and worst case.
+
+**A crop's reward may be a product rather than a substance.** Eight of the twelve farmable plants hand back a substance under `GcRewardSpecificSubstance`; the other four — venom sacs, gravitino balls, nip-nip buds and albumen pearls — hand back a product under `GcRewardSpecificProduct`, which carries an identical `AmountMin`/`AmountMax` shape. The normalizer MUST read both forms. Reading only the substance form silently drops four of twelve crops, which is a smaller artifact that still loads.
+
+**A crop's reward key is not its substance.** The reward table is keyed by the plant's interaction id, and the item it yields is named inside the entry: `PLANT_BARREN` yields `PLANT_DUST`. The normalizer MUST take the yielded item from the reward's own `ID` rather than from the key it looked the reward up by. The two agree for eleven of twelve crops, which is what makes assuming they always agree dangerous.
 
 #### Scenario: Rates carry their network
 
@@ -166,6 +193,16 @@ Yields and class strengths that the source expresses as a minimum and a maximum 
 
 - **WHEN** a crop yield is expressed as a minimum and maximum in the source
 - **THEN** both bounds are emitted, rather than one derived value
+
+#### Scenario: A crop yielding a product is emitted
+
+- **WHEN** a plant's reward entry carries `GcRewardSpecificProduct` rather than `GcRewardSpecificSubstance`
+- **THEN** the crop is emitted with that product as its yielded item, rather than omitted
+
+#### Scenario: The yielded item comes from the reward, not the key
+
+- **WHEN** a plant's reward entry is keyed `PLANT_BARREN` and names `PLANT_DUST` inside
+- **THEN** the emitted crop yields `PLANT_DUST`
 
 ### Requirement: Schema Extension and Load Compatibility
 
