@@ -140,6 +140,29 @@
 				</Property>
 			</Property>
 		</Property>
+		<Property name="Table" value="GcRefinerRecipe" _id="REFINERECIPE_24">
+			<Property name="Id" value="REFINERECIPE_24" />
+			<Property name="RecipeType" value="RECIPE_CAVE2" />
+			<Property name="RecipeName" value="R_NAME_CAVE2" />
+			<Property name="TimeToMake" value="30.000000" />
+			<Property name="Cooking" value="false" />
+			<Property name="Result" value="GcRefinerRecipeElement">
+				<Property name="Id" value="CAVE1" />
+				<Property name="Type" value="GcInventoryType">
+					<Property name="InventoryType" value="Substance" />
+				</Property>
+				<Property name="Amount" value="2" />
+			</Property>
+			<Property name="Ingredients">
+				<Property name="Ingredients" value="GcRefinerRecipeElement" _id="CAVE2">
+					<Property name="Id" value="CAVE2" />
+					<Property name="Type" value="GcInventoryType">
+						<Property name="InventoryType" value="Substance" />
+					</Property>
+					<Property name="Amount" value="1" />
+				</Property>
+			</Property>
+		</Property>
 		<Property name="Table" value="GcRefinerRecipe" _id="REFINERECIPE_26">
 			<Property name="Id" value="REFINERECIPE_26" />
 			<Property name="RecipeType" value="RECIPE_FUEL1" />

@@ -42,6 +42,19 @@ type Graph struct {
 	// their name key, sorted. Every one is checked to be unreferenced.
 	UnnamedOmitted []string
 
+	// RawByNecessity lists substances the source marks refined-only that no
+	// recipe in fact produces, sorted. They are emitted raw-obtainable
+	// anyway, because an item with neither a recipe nor a gathering route is
+	// one the engine cannot terminate on.
+	//
+	// Recorded rather than silently overridden: it is the source
+	// contradicting itself, and one of them is `WATERPLANT` (Cyto-Phosphate),
+	// whose PinObjective reads UI_REFINE_OBJ while no refiner recipe makes
+	// it. A change in this list is a change in the game data.
+	//
+	// Governing: SPEC-0004 REQ "Search Boundaries Are Recorded"
+	RawByNecessity []string
+
 	// LocalisationFiles records which tables the name resolution read.
 	//
 	// Governing: SPEC-0004 REQ "Search Boundaries Are Recorded"
@@ -65,7 +78,7 @@ func BuildGraph(src Sources) (*Graph, error) {
 		return nil, err
 	}
 
-	subItems, err := parseSubstances(src.Substances, loc)
+	subItems, refinedOnly, err := parseSubstances(src.Substances, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +94,7 @@ func BuildGraph(src Sources) (*Graph, error) {
 	items := append(subItems, prodItems...)
 	recipes := append(craft, refined...)
 
-	resolveMethods(items, recipes)
+	rawByNecessity := resolveMethods(items, recipes, refinedOnly)
 
 	// Omitting an unnamed item is only safe while nothing references it.
 	// Asserted rather than assumed: a game update could start using one, and
@@ -97,40 +110,89 @@ func BuildGraph(src Sources) (*Graph, error) {
 		Recipes:                recipes,
 		SelfReferentialOmitted: selfRef,
 		UnnamedOmitted:         sortedStrings(skipped),
+		RawByNecessity:         rawByNecessity,
 		LocalisationFiles:      loc.Files(),
 	}, nil
+}
+
+// pinObjectives is the closed vocabulary of the substance table's
+// PinObjective field, mapped to whether the substance can be obtained
+// without a refiner.
+//
+// Governing: SPEC-0004 REQ "Recipe Graph Construction" — "Raw-obtainability
+// MUST be read from the source, not inferred from the absence of a recipe."
+//
+// Having a recipe and being gatherable are independent: you mine Cobalt with
+// a terrain manipulator and you can also refine it. Inferring raw-ness from
+// "has no recipe" made every gatherable substance with a refine route
+// default to refine, and refining runs both ways between several such pairs
+// — CAVE1 ⇄ CAVE2, CATALYST1 ⇄ CATALYST2, GAS1 → GAS3 → GAS2 → GAS1. 571 of
+// 2,237 items were unresolvable as a result.
+//
+// All five values below occur in NMS 5.97, over all 111 substances. The map
+// is closed on purpose: a sixth value is a game update changing something
+// this rule depends on, and failing is better than classifying it by
+// whichever default happened to be written here.
+var pinObjectives = map[string]bool{
+	"UI_GATHER_OBJ":        true,  // gathered directly
+	"UI_GATHER_REFINE_OBJ": true,  // gathered, and refinable too
+	"UI_FIND_OBJ":          true,  // found rather than mined, but still no refiner
+	"UI_PROCESS_OBJ":       true,  // the gases, from an atmosphere harvester
+	"UI_REFINE_OBJ":        false, // refined only: the six that are not raw
+}
+
+// rawObtainable reads a substance's gatherability from the source.
+func rawObtainable(table, id string, r node) (bool, error) {
+	pin, err := r.str(table, id, "PinObjective")
+	if err != nil {
+		return false, err
+	}
+	raw, known := pinObjectives[pin]
+	if !known {
+		return false, Unrecognized(table, id, "PinObjective",
+			"one of the five objectives NMS 5.97 uses", pin)
+	}
+	return raw, nil
 }
 
 // parseSubstances reads the substance table. Substances have no recipe of
 // their own; anything craftable from them lives in the product or recipe
 // tables.
-func parseSubstances(path string, loc *Localisation) ([]domain.Item, error) {
+func parseSubstances(path string, loc *Localisation) ([]domain.Item, map[string]bool, error) {
 	name := filepath.Base(path)
 	doc, err := readMXML(path, "cGcSubstanceTable")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rows, err := doc.rows(name, "Table", "GcRealitySubstanceData")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	items := make([]domain.Item, 0, len(rows))
+	refinedOnly := map[string]bool{}
 	for _, r := range rows {
 		id, err := r.nonEmpty(name, r.ID, "ID")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		key, err := r.nonEmpty(name, id, "NameLower")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		display, err := loc.Resolve(name, id, key)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		items = append(items, domain.Item{ID: id, Name: display})
+		raw, err := rawObtainable(name, id, r)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !raw {
+			refinedOnly[id] = true
+		}
+		items = append(items, domain.Item{ID: id, Name: display, RawObtainable: raw})
 	}
-	return items, nil
+	return items, refinedOnly, nil
 }
 
 // parseProducts reads the product table, emitting one item per product and a
@@ -344,10 +406,20 @@ func parseRecipes(path string) ([]domain.Recipe, int, error) {
 
 // resolveMethods assigns each item its default method and marks the leaves.
 //
-// Precedence is craft, then refine, then cook, then raw. An item with no
-// recipe at all becomes a raw-obtainable terminal, which is what the rollup
-// engine's terminal-node handling expects to find at the bottom of a tree.
-func resolveMethods(items []domain.Item, recipes []domain.Recipe) {
+// A raw-obtainable item defaults to raw even where it also has recipes:
+// gathering is the route a player takes by default, expanding it is what
+// produces the refine cycles, and the engine's per-node method override is
+// there for a player who wants the refine route. Otherwise precedence is
+// craft, then refine, then cook.
+//
+// An item with no recipe at all becomes a raw-obtainable terminal anyway.
+// That is not an inference about the game so much as a requirement of the
+// graph: without it the engine has an item it cannot terminate on. Where
+// that overrides a substance the source marked refined-only, the id is
+// returned so the caller can record the contradiction rather than bury it.
+//
+// Governing: SPEC-0004 REQ "Recipe Graph Construction"
+func resolveMethods(items []domain.Item, recipes []domain.Recipe, refinedOnly map[string]bool) []string {
 	byOutput := make(map[string]map[domain.Method]bool, len(recipes))
 	for _, r := range recipes {
 		m, ok := byOutput[r.Output]
@@ -357,9 +429,12 @@ func resolveMethods(items []domain.Item, recipes []domain.Recipe) {
 		}
 		m[r.Method] = true
 	}
+	var rawByNecessity []string
 	for i := range items {
 		methods := byOutput[items[i].ID]
 		switch {
+		case items[i].RawObtainable:
+			items[i].DefaultMethod = domain.MethodRaw
 		case methods[domain.MethodCraft]:
 			items[i].DefaultMethod = domain.MethodCraft
 		case methods[domain.MethodRefine]:
@@ -369,8 +444,12 @@ func resolveMethods(items []domain.Item, recipes []domain.Recipe) {
 		default:
 			items[i].DefaultMethod = domain.MethodRaw
 			items[i].RawObtainable = true
+			if refinedOnly[items[i].ID] {
+				rawByNecessity = append(rawByNecessity, items[i].ID)
+			}
 		}
 	}
+	return sortedStrings(rawByNecessity)
 }
 
 // checkClosed verifies every recipe endpoint resolves to an item in the
