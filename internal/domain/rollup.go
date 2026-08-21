@@ -141,21 +141,50 @@ type Curated struct {
 	// before.
 	FaunaProducts    map[string]bool
 	ResourceHotspots map[string]string
+
+	// VerifiedOn records the date each curated constant was confirmed in
+	// game, keyed by the names above. A constant absent from this map has
+	// no verified date, and every figure derived from it is reported
+	// unverified.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation" — Scenario
+	// "Unverified constant taints producer count".
+	//
+	// Absence rather than a boolean is deliberate: "we have not checked" is
+	// the honest default for a set that is curated precisely because the
+	// game tables do not state it, and a caller who has checked records
+	// when. An empty map therefore taints every producer count, which is
+	// the correct reading of today's data rather than a limitation.
+	VerifiedOn map[string]string
 }
 
 // validate refuses a partially-specified constant set.
+// The curated constants' names, used both to report an unsupplied one and
+// to key its verification date. Named rather than repeated as literals so
+// a constant cannot be validated under one spelling and verified under
+// another.
+const (
+	ConstantBiodomeCropSlots   = "biodome crop slots"
+	ConstantFaunaYieldPerCycle = "fauna yield per cycle"
+	ConstantFaunaCycleSeconds  = "fauna cycle seconds"
+	ConstantStepsPerProcessor  = "steps per processor"
+	ConstantDepotThreshold     = "depot threshold"
+	ConstantProcessSeconds     = "process seconds"
+	ConstantPanelsPerBattery   = "panels per battery"
+)
+
 func (c Curated) validate() error {
 	for _, f := range []struct {
 		name string
 		v    int64
 	}{
-		{"biodome crop slots", c.BiodomeCropSlots},
-		{"fauna yield per cycle", c.FaunaYieldPerCycle},
-		{"fauna cycle seconds", c.FaunaCycleSeconds},
-		{"steps per processor", c.StepsPerProcessor},
-		{"depot threshold", c.DepotThreshold},
-		{"process seconds", c.ProcessSeconds},
-		{"panels per battery", c.PanelsPerBattery},
+		{ConstantBiodomeCropSlots, c.BiodomeCropSlots},
+		{ConstantFaunaYieldPerCycle, c.FaunaYieldPerCycle},
+		{ConstantFaunaCycleSeconds, c.FaunaCycleSeconds},
+		{ConstantStepsPerProcessor, c.StepsPerProcessor},
+		{ConstantDepotThreshold, c.DepotThreshold},
+		{ConstantProcessSeconds, c.ProcessSeconds},
+		{ConstantPanelsPerBattery, c.PanelsPerBattery},
 	} {
 		if f.v <= 0 {
 			return fmt.Errorf("%w: curated constant %q is %d; it must be supplied, not defaulted",
@@ -233,6 +262,30 @@ func NewConstants(t *Tier1, curated Curated) (*Constants, error) {
 
 // Curated returns the caller-supplied constants.
 func (c *Constants) Curated() Curated { return c.curated }
+
+// ConstantVerified reports whether a curated constant carries a verified
+// date.
+//
+// Governing: SPEC-0001 REQ "Provenance Propagation" — "Where any
+// contributing node or constant is marked unverified in the source data,
+// the derived figure MUST be marked unverified."
+func (c *Constants) ConstantVerified(name string) bool {
+	_, ok := c.curated.VerifiedOn[name]
+	return ok
+}
+
+// allVerified reports whether every named constant carries a date. Used by
+// the producer stage to decide a row's provenance from the constants that
+// row's arithmetic actually read — not from the whole set, which would
+// taint a farm row for an unverified ranch constant.
+func (c *Constants) allVerified(names ...string) bool {
+	for _, n := range names {
+		if !c.ConstantVerified(n) {
+			return false
+		}
+	}
+	return true
+}
 
 // ProcessSeconds is one nutrient processor step's duration.
 func (c *Constants) ProcessSeconds() int64 { return c.curated.ProcessSeconds }

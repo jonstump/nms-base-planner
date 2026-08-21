@@ -50,6 +50,13 @@ type FarmRow struct {
 	// GrowthSeconds is time to maturity, from the artifact.
 	GrowthSeconds int64
 
+	// Verified is false when this row's demand carried unverified
+	// provenance, or when a curated constant its sizing read has no
+	// verified date.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
+
 	required *big.Rat
 }
 
@@ -73,6 +80,13 @@ type ExtractorRow struct {
 	// Depots is ceil(required / depot capacity) above the configured
 	// threshold, and zero below it.
 	Depots int64
+
+	// Verified is false when this row's demand carried unverified
+	// provenance, or when a curated constant its sizing read has no
+	// verified date.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
 
 	required *big.Rat
 	rate     *big.Rat
@@ -104,6 +118,13 @@ type RanchRow struct {
 	// CycleSeconds is that cycle's duration.
 	CycleSeconds int64
 
+	// Verified is false when this row's demand carried unverified
+	// provenance, or when a curated constant its sizing read has no
+	// verified date.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
+
 	required *big.Rat
 }
 
@@ -129,6 +150,12 @@ type KitchenStep struct {
 	// Governing: SPEC-0001 REQ "Producer Rollup" — Scenario "Final kitchen
 	// step is distinguished".
 	Final bool
+
+	// Verified is false when a curated constant this step's timing read has
+	// no verified date.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
 
 	required *big.Rat
 }
@@ -160,6 +187,12 @@ type NoBuild struct {
 	// From names the producer whose byproduct covers it.
 	From string
 
+	// Verified carries the demand's provenance. A covered demand builds
+	// nothing, but it is still a figure the plan reports.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
+
 	required *big.Rat
 }
 
@@ -187,6 +220,14 @@ type BaseBuild struct {
 
 	// NoBuild are items a byproduct at this base already covers.
 	NoBuild []NoBuild
+
+	// Verified is false when any row at this base is unverified, or when
+	// the constant sizing the base's nutrient processors has no verified
+	// date. It is the base-level answer to "was everything contributing to
+	// these instructions confirmed".
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
 }
 
 // Build is stage 2's producer output.
@@ -284,6 +325,7 @@ func rollupBase(group BaseGroup, t *Tier1, c *Constants, in ProducerInput) (*Bas
 		if from, ok := covered[demand.ItemID]; ok {
 			build.NoBuild = append(build.NoBuild, NoBuild{
 				ItemID: demand.ItemID, Name: demand.Name, From: from,
+				Verified: demand.Verified,
 				required: demand.Total(),
 			})
 			continue
@@ -329,8 +371,48 @@ func rollupBase(group BaseGroup, t *Tier1, c *Constants, in ProducerInput) (*Bas
 		build.NutrientProcessors = ceilRat(big.NewRat(n, c.Curated().StepsPerProcessor))
 	}
 
+	// The base's own provenance: every row it carries, plus the constant
+	// that sized its processors. Computed after the rows rather than
+	// alongside them, because it is an answer about the whole base and a
+	// row added later must be included without a second place to remember.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation" — "The engine MUST
+	// NOT silently present unverified-derived values as verified."
+	build.Verified = build.rowsVerified() &&
+		(build.NutrientProcessors == 0 || c.allVerified(ConstantStepsPerProcessor))
+
 	sortRows(build)
 	return build, nil
+}
+
+// rowsVerified reports whether every row at this base is verified.
+func (b *BaseBuild) rowsVerified() bool {
+	for _, r := range b.Farms {
+		if !r.Verified {
+			return false
+		}
+	}
+	for _, r := range b.Extractors {
+		if !r.Verified {
+			return false
+		}
+	}
+	for _, r := range b.Ranches {
+		if !r.Verified {
+			return false
+		}
+	}
+	for _, s := range b.Kitchen {
+		if !s.Verified {
+			return false
+		}
+	}
+	for _, n := range b.NoBuild {
+		if !n.Verified {
+			return false
+		}
+	}
+	return true
 }
 
 // farmRow sizes plants and biodomes for a crop.
@@ -361,7 +443,9 @@ func farmRow(d LeafDemand, c *Constants) (FarmRow, error) {
 		Plants: plants, Biodomes: domes,
 		YieldPerPlant: crop.Yield,
 		GrowthSeconds: crop.GrowthSeconds,
-		required:      d.Total(),
+		// Domes are sized by a curated constant; plants are not.
+		Verified: d.Verified && c.allVerified(ConstantBiodomeCropSlots),
+		required: d.Total(),
 	}, nil
 }
 
@@ -391,6 +475,10 @@ func extractorRow(d LeafDemand, site SiteConfig, c *Constants) (ExtractorRow, er
 	row := ExtractorRow{
 		ItemID: d.ItemID, Name: d.Name,
 		Class: site.ExtractorClass, Extractors: count,
+		// The depot threshold is read on every row, not only on those that
+		// report depots: it is the comparison that decides whether a row
+		// reports none, so a row saying "no depots" rests on it too.
+		Verified: d.Verified && c.allVerified(ConstantDepotThreshold),
 		required: d.Total(), rate: rate, fill: fill,
 	}
 
@@ -415,6 +503,8 @@ func ranchRow(d LeafDemand, c *Constants) RanchRow {
 	return RanchRow{
 		ItemID: d.ItemID, Name: d.Name,
 		Fauna: fauna, CycleSeconds: curated.FaunaCycleSeconds,
+		Verified: d.Verified &&
+			c.allVerified(ConstantFaunaYieldPerCycle, ConstantFaunaCycleSeconds),
 		required: d.Total(),
 	}
 }
@@ -448,6 +538,7 @@ func kitchenSteps(inputs []KitchenStepInput, t *Tier1, c *Constants) ([]KitchenS
 		s := KitchenStep{
 			ItemID: step.ItemID, Name: item.Name, Recipe: recipe.ID,
 			ProcessSeconds: c.ProcessSeconds(),
+			Verified:       c.allVerified(ConstantProcessSeconds),
 			required:       new(big.Rat).SetInt64(step.Quantity),
 			// The last step named is the one producing the plan target;
 			// everything before it is intermediate.

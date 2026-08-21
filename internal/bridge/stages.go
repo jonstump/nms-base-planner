@@ -54,6 +54,14 @@ type Curated struct {
 	// category each extracted resource sits on.
 	FaunaProducts    []string          `json:"faunaProducts,omitempty"`
 	ResourceHotspots map[string]string `json:"resourceHotspots,omitempty"`
+
+	// VerifiedOn records the date each constant was confirmed in game,
+	// keyed by the domain's constant names. A constant absent from this map
+	// has no verified date, and every figure derived from it comes back
+	// unverified.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	VerifiedOn map[string]string `json:"verifiedOn,omitempty"`
 }
 
 // Byproduct declares that one producer's output covers another item's
@@ -149,6 +157,7 @@ type FarmRow struct {
 	Biodomes      Quantity   `json:"biodomes"`
 	YieldPerPlant YieldRange `json:"yieldPerPlant"`
 	GrowthSeconds Quantity   `json:"growthSeconds"`
+	Verified      bool       `json:"verified"`
 }
 
 // ExtractorRow is one extracted resource at one base.
@@ -169,6 +178,7 @@ type ExtractorRow struct {
 	// configured duration, and usually less because the count rounded up.
 	RatePerSecond Quantity `json:"ratePerSecond"`
 	FillSeconds   Quantity `json:"fillSeconds"`
+	Verified      bool     `json:"verified"`
 }
 
 // RanchRow is one fauna product at one base.
@@ -178,6 +188,7 @@ type RanchRow struct {
 	Required     Quantity `json:"required"`
 	Fauna        Quantity `json:"fauna"`
 	CycleSeconds Quantity `json:"cycleSeconds"`
+	Verified     bool     `json:"verified"`
 }
 
 // KitchenInput is one ingredient of a processing step.
@@ -194,6 +205,7 @@ type KitchenStep struct {
 	Required       Quantity       `json:"required"`
 	ProcessSeconds Quantity       `json:"processSeconds"`
 	Final          bool           `json:"final"`
+	Verified       bool           `json:"verified"`
 	Inputs         []KitchenInput `json:"inputs,omitempty"`
 }
 
@@ -207,6 +219,7 @@ type NoBuildRow struct {
 	Name     string   `json:"name"`
 	From     string   `json:"from"`
 	Required Quantity `json:"required"`
+	Verified bool     `json:"verified"`
 }
 
 // BaseBuild is one base's construction instructions.
@@ -224,6 +237,10 @@ type BaseBuild struct {
 	PelletFeeders      Quantity `json:"pelletFeeders"`
 
 	NoBuild []NoBuildRow `json:"noBuild,omitempty"`
+
+	// Verified is the base-level answer: every row here, and the constant
+	// that sized its processors.
+	Verified bool `json:"verified"`
 }
 
 // Build is stage 2's output.
@@ -329,6 +346,12 @@ func DecodeCurated(c Curated) (domain.Curated, error) {
 		out.ResourceHotspots = make(map[string]string, len(c.ResourceHotspots))
 		for item, category := range c.ResourceHotspots {
 			out.ResourceHotspots[item] = category
+		}
+	}
+	if len(c.VerifiedOn) > 0 {
+		out.VerifiedOn = make(map[string]string, len(c.VerifiedOn))
+		for name, date := range c.VerifiedOn {
+			out.VerifiedOn[name] = date
 		}
 	}
 	return out, nil
@@ -481,6 +504,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 		},
 		NutrientProcessors: QuantityOfInt(b.NutrientProcessors),
 		PelletFeeders:      QuantityOfInt(b.PelletFeeders),
+		Verified:           b.Verified,
 	}
 	for _, r := range b.Farms {
 		out.Farms = append(out.Farms, FarmRow{
@@ -494,6 +518,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 				Max: QuantityOfInt(r.YieldPerPlant.Max),
 			},
 			GrowthSeconds: QuantityOfInt(r.GrowthSeconds),
+			Verified:      r.Verified,
 		})
 	}
 	for _, r := range b.Extractors {
@@ -506,6 +531,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			Depots:         QuantityOfInt(r.Depots),
 			RatePerSecond:  QuantityOf(r.RatePerSecond()),
 			FillSeconds:    QuantityOf(r.FillSeconds()),
+			Verified:       r.Verified,
 		})
 	}
 	for _, r := range b.Ranches {
@@ -515,6 +541,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			Required:     QuantityOf(r.Required()),
 			Fauna:        QuantityOfInt(r.Fauna),
 			CycleSeconds: QuantityOfInt(r.CycleSeconds),
+			Verified:     r.Verified,
 		})
 	}
 	for _, s := range b.Kitchen {
@@ -525,6 +552,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			Required:       QuantityOf(s.Required()),
 			ProcessSeconds: QuantityOfInt(s.ProcessSeconds),
 			Final:          s.Final,
+			Verified:       s.Verified,
 		}
 		for _, i := range s.Inputs {
 			step.Inputs = append(step.Inputs, KitchenInput{
@@ -540,6 +568,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			Name:     n.Name,
 			From:     n.From,
 			Required: QuantityOf(n.Required()),
+			Verified: n.Verified,
 		})
 	}
 	return out

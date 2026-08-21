@@ -591,3 +591,142 @@ func TestUnclassifiedResourceIsRefused(t *testing.T) {
 		t.Errorf("error %q does not name the item and what is missing", err)
 	}
 }
+
+// SPEC-0001 REQ "Provenance Propagation" — Scenario "Unverified constant
+// taints producer count":
+// WHEN a Tier 2 constant used in a producer calculation lacks a verified
+// date THEN the resulting producer count is marked unverified.
+//
+// The selectivity cases are the point. A blanket "any constant unverified"
+// flag would pass the first two assertions and be useless: it would mark a
+// farm row unverified because nobody has confirmed the fauna cycle length.
+// Provenance is only worth carrying if it is computed from the constants
+// the row's own arithmetic read.
+func TestUnverifiedConstantTaintsOnlyTheRowsThatReadIt(t *testing.T) {
+	// milk, crop_a and gas_a are all in producerArtifact's base item set.
+	a1 := producerArtifact(t, economyFor(25, 1800, 100, 720))
+
+	site := SiteConfig{ExtractorClass: ClassB, FillSeconds: 3600}
+	demands := map[string]int64{"crop_a": 200, "gas_a": 300, "milk": 120}
+
+	rollupWith := func(t *testing.T, verifiedOn map[string]string) BaseBuild {
+		t.Helper()
+		curated := baseCurated()
+		curated.VerifiedOn = verifiedOn
+		c := constantsFor(t, a1, curated)
+		b := build(t, demandOf("alpha", site, demands), a1, c, ProducerInput{})
+		base, ok := b.Base("alpha")
+		if !ok {
+			t.Fatal("no build for alpha")
+		}
+		return base
+	}
+
+	t.Run("no dates at all taints every row", func(t *testing.T) {
+		base := rollupWith(t, nil)
+		if base.Farms[0].Verified {
+			t.Error("farm row verified with no constant dates")
+		}
+		if base.Extractors[0].Verified {
+			t.Error("extractor row verified with no constant dates")
+		}
+		if base.Ranches[0].Verified {
+			t.Error("ranch row verified with no constant dates")
+		}
+		if base.Verified {
+			t.Error("base verified with no constant dates")
+		}
+	})
+
+	t.Run("every date present verifies every row", func(t *testing.T) {
+		base := rollupWith(t, map[string]string{
+			ConstantBiodomeCropSlots:   "2026-08-20",
+			ConstantDepotThreshold:     "2026-08-20",
+			ConstantFaunaYieldPerCycle: "2026-08-20",
+			ConstantFaunaCycleSeconds:  "2026-08-20",
+			ConstantStepsPerProcessor:  "2026-08-20",
+			ConstantProcessSeconds:     "2026-08-20",
+			ConstantPanelsPerBattery:   "2026-08-20",
+		})
+		if !base.Farms[0].Verified || !base.Extractors[0].Verified || !base.Ranches[0].Verified {
+			t.Errorf("a row is unverified with every date present: farm=%v extractor=%v ranch=%v",
+				base.Farms[0].Verified, base.Extractors[0].Verified, base.Ranches[0].Verified)
+		}
+		if !base.Verified {
+			t.Error("base unverified with every date present and every row verified")
+		}
+	})
+
+	t.Run("an unverified fauna constant leaves the farm and extractor alone", func(t *testing.T) {
+		base := rollupWith(t, map[string]string{
+			ConstantBiodomeCropSlots: "2026-08-20",
+			ConstantDepotThreshold:   "2026-08-20",
+			// fauna constants deliberately absent
+		})
+		if !base.Farms[0].Verified {
+			t.Error("farm row tainted by an unverified fauna constant it never read")
+		}
+		if !base.Extractors[0].Verified {
+			t.Error("extractor row tainted by an unverified fauna constant it never read")
+		}
+		if base.Ranches[0].Verified {
+			t.Error("ranch row verified without a fauna constant date")
+		}
+		if base.Verified {
+			t.Error("base verified while one of its rows is not")
+		}
+	})
+
+	t.Run("an unverified dome constant leaves the extractor alone", func(t *testing.T) {
+		base := rollupWith(t, map[string]string{
+			ConstantDepotThreshold:     "2026-08-20",
+			ConstantFaunaYieldPerCycle: "2026-08-20",
+			ConstantFaunaCycleSeconds:  "2026-08-20",
+		})
+		if base.Farms[0].Verified {
+			t.Error("farm row verified without a biodome constant date")
+		}
+		if !base.Extractors[0].Verified {
+			t.Error("extractor row tainted by an unverified biodome constant it never read")
+		}
+	})
+}
+
+// SPEC-0001 REQ "Provenance Propagation" — Scenario "Unverified input taints
+// derived total", carried into stage 2.
+//
+// Stage 1 already marked the demand; before this the producer stage dropped
+// that mark on the floor, so a row derived entirely from unverified data
+// reported nothing about it.
+func TestUnverifiedDemandTaintsItsProducerRow(t *testing.T) {
+	a1 := producerArtifact(t, economyFor(25, 1800, 100, 720))
+
+	curated := baseCurated()
+	curated.VerifiedOn = map[string]string{
+		ConstantBiodomeCropSlots: "2026-08-20",
+		ConstantDepotThreshold:   "2026-08-20",
+	}
+	c := constantsFor(t, a1, curated)
+
+	group := demandOf("alpha", SiteConfig{ExtractorClass: ClassB, FillSeconds: 3600},
+		map[string]int64{"crop_a": 200, "gas_a": 300})
+	// crop_a arrives unverified from stage 1; gas_a does not.
+	for i := range group.Groups[0].Demands {
+		if group.Groups[0].Demands[i].ItemID == "crop_a" {
+			group.Groups[0].Demands[i].Verified = false
+		}
+	}
+
+	b := build(t, group, a1, c, ProducerInput{})
+	base, _ := b.Base("alpha")
+
+	if base.Farms[0].Verified {
+		t.Error("a row built from an unverified demand reported itself verified")
+	}
+	if !base.Extractors[0].Verified {
+		t.Error("a verified demand's row was tainted by an unrelated unverified demand")
+	}
+	if base.Verified {
+		t.Error("base verified while one of its rows is not")
+	}
+}
