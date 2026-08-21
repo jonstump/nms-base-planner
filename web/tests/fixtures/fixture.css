@@ -1,0 +1,55 @@
+/*
+ * Layout for the fixture's subjects, and nothing the stylesheet is
+ * responsible for.
+ *
+ * Governing: SPEC-0005 REQ "Component Styling Discipline"
+ *
+ * The split matters. A subject needs a size and a place before anything can
+ * be observed about it, and neither is under test — but the ring, the
+ * outline, the filter and every colour they use are, and a fixture that set
+ * any of them could pass against a stylesheet that had stopped setting them.
+ *
+ * One appearance property is set here, deliberately: the badge's background.
+ * An occluding child is the *precondition* of the paint-order test, not its
+ * subject — a transparent badge hides nothing, and the test would pass
+ * against an inset box-shadow ring, which is the one thing it exists to
+ * reject. It resolves through a token like everything else, so the fixture
+ * is bound by token discipline too (stylelint lints this file).
+ *
+ * In particular `#ring-subject` is NOT given `position: relative` here.
+ * `.selectable` is what establishes it, and if base.css ever stopped doing
+ * so the badge and the ring would both position against the viewport and the
+ * paint-order test would fail — which is the correct outcome, and one an
+ * inline `position: relative` would have hidden.
+ */
+
+#ring-subject {
+  width: 320px;
+  height: 64px;
+}
+
+/* Both children are flush with the top edge so each covers the same pixels as
+ * the ring's 2px top border, and both are opaque so there is something for the
+ * ring to be in front of. They differ only in stacking position, which is the
+ * whole reason there are two of them. */
+#ring-badge,
+#ring-stacked {
+  position: absolute;
+  inset-block-start: 0;
+  padding-inline: 8px;
+  background-color: var(--input-bg);
+}
+
+/* No z-index: stacks at `auto`. This is the child an inset box-shadow ring
+ * would hide behind. */
+#ring-badge {
+  inset-inline-start: 40px;
+}
+
+/* Stacks at 1, the same layer the overlay claims. The ring wins on DOM order
+ * — the ::after is last in the tree — which is exactly what stops working if
+ * the overlay drops to `auto`. */
+#ring-stacked {
+  inset-inline-start: 170px;
+  z-index: 1;
+}

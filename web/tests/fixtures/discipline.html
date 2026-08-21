@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Token and border discipline fixture</title>
+
+    <!--
+      Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling
+      Discipline"
+
+      The suite mounts this rather than the application.
+
+      src/App.tsx happens to render every primitive under test today, but it
+      is a scaffolding surface that issue #60 replaces with the app shell.
+      Tests pointed at it would break on that replacement and read as a
+      regression in the stylesheet, which is not what they cover. This file
+      is owned by the tests, so the stylesheet is the only thing that can
+      make them fail.
+
+      Beyond the two global stylesheets, the only rules linked are the
+      layout-only ones in fixture.css — size and placement, never appearance.
+      A fixture that set a colour, a border or a shadow on its own subjects
+      could pass against a stylesheet that had stopped setting them.
+    -->
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <link rel="stylesheet" href="./fixture.css" />
+  </head>
+  <body>
+    <!--
+      The ring subject.
+
+      Deliberately carries no identity frame: `.selectable::after` is inset to
+      the padding box, so without a border the ring's top edge sits at y 0..2
+      of this element's own screenshot and the test can compute the sample
+      coordinate rather than discover it.
+
+      Two positioned children, both flush with the top edge so each occupies
+      the same pixels as the ring's 2px top border, and each defeating a
+      different wrong implementation.
+
+      The badge stacks at `auto`. An `inset box-shadow` ring paints into this
+      element's background layer, beneath every positioned child including
+      this one, so the sampled pixel would be the badge's fill rather than the
+      ring's.
+
+      The stacked child carries `z-index: 1`. It exists because the badge
+      alone cannot see a missing z-index on the overlay: with both at `auto`,
+      DOM order decides and the ::after is last in the tree, so the ring stays
+      visible and the overlay's z-index looks unnecessary. Against a child
+      that has opened its own stacking position, it is not — and this is the
+      arrangement that actually regressed once (PR #76), where a badge at
+      z-index 2 sat in front of a ring the comment claimed it sat behind.
+    -->
+    <div id="ring-subject" class="panel-raised selectable" data-selected="true">
+      <span id="ring-badge" class="label">AUTO</span>
+      <span id="ring-stacked" class="label">STACKED</span>
+    </div>
+
+    <!-- The three interaction states, one subject each so a test never has to
+         put a subject into two states at once. -->
+    <button id="hover-subject" type="button" class="control interactive">Hover</button>
+    <button id="focus-subject" type="button" class="control interactive">Focus</button>
+    <button
+      id="selection-subject"
+      type="button"
+      class="control interactive selectable"
+      data-selected="true"
+    >
+      Selected
+    </button>
+    <button id="unselected-subject" type="button" class="control interactive selectable">
+      Not selected
+    </button>
+
+    <!-- Control scale. Each row declares one step; the assertion is that every
+         control inside a row resolves to that row's height. -->
+    <div id="row-default" class="control-row">
+      <button type="button" class="control">One</button>
+      <button type="button" class="control">Two</button>
+      <input class="control" aria-label="Default scale field" />
+    </div>
+
+    <div id="row-small" class="control-row control-row-sm">
+      <button type="button" class="control">One</button>
+      <button type="button" class="control">Two</button>
+      <input class="control" aria-label="Small scale field" />
+    </div>
+  </body>
+</html>

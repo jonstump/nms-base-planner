@@ -24,3 +24,5 @@ testdata/saves/
 web/node_modules/
 web/dist/
 web/node_modules/.tmp/
+web/playwright-report/
+web/test-results/

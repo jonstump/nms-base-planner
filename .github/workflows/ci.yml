@@ -141,6 +141,42 @@ jobs:
         # literal and stylelint does not look.
         run: npm run check:tokens
 
+  web-test:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: install chromium
+        # --with-deps pulls the shared libraries the headless build needs;
+        # only chromium, because the suite asserts computed styles and pixels
+        # against one engine and running it against three would be asserting
+        # three different correct answers.
+        run: npx playwright install --with-deps chromium
+      - name: playwright
+        run: npm test
+      - name: the tests fail against a broken stylesheet
+        # SPEC-0005 REQ "Token Discipline", REQ "Component Styling Discipline".
+        # A green suite says the stylesheet is not broken in the ways the suite
+        # can see. This breaks it eleven ways and requires the suite to go red
+        # each time — which is the only thing that distinguishes a working
+        # check from one that has quietly stopped matching anything.
+        run: npm run test:mutation
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
+
   web-build:
     name: Frontend build
     runs-on: ubuntu-latest

@@ -9,10 +9,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "lint:css": "stylelint \"src/**/*.css\"",
+    "lint:css": "stylelint \"src/**/*.css\" \"tests/**/*.css\"",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "check:tokens": "bash scripts/check-tokens.sh"
+    "check:tokens": "bash scripts/check-tokens.sh",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:mutation": "bash scripts/mutation-check.sh"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -20,7 +23,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.57.0",
     "@types/node": "^24.13.3",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.1.0",
@@ -28,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.0",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "pngjs": "^7.0.0",
     "prettier": "^3.8.0",
     "stylelint": "^17.0.0",
     "stylelint-config-standard": "^40.0.0",
