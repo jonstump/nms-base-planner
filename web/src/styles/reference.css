@@ -1,0 +1,63 @@
+/*
+ * Styles for the token reference surface (src/App.tsx).
+ *
+ * Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling
+ * Discipline"
+ *
+ * This file exists so the project's first component carries no inline style
+ * at all. Inline styles would pass the colour-literal check — `var(--ok)` in
+ * a style prop is still a token reference — but they are where dimensions
+ * that belong in the token file get written as magic numbers instead, and
+ * the first component in a project is the one every later one is copied
+ * from.
+ */
+
+.reference {
+  min-height: 100vh;
+  padding: var(--space-5);
+}
+
+.reference-group {
+  margin-block: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.reference-group + .reference-group {
+  margin-block-start: var(--space-3);
+}
+
+/*
+ * A card carrying an absolutely positioned child, which is the arrangement
+ * that makes the selection ring's implementation observable: an inset
+ * box-shadow would paint beneath the badge, the overlay element paints over
+ * it.
+ */
+.reference-card {
+  position: relative;
+  width: calc(var(--space-7) * 4);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--text-bright);
+  background-color: var(--panel-raised);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reference-badge {
+  position: absolute;
+
+  /* Flush with the top edge so the badge crosses the ring's border box
+   * rather than sitting inside it. Offset from the right edge so it
+   * overlaps the ring's top border only, leaving the corner clean.
+   *
+   * No z-index. `.selectable` is position: relative with none of its own,
+   * so it opens no stacking context and this badge and the ring's ::after
+   * are siblings in the same one — a value here above the ring's 1 would
+   * paint the badge in front of it, which is the defect the overlay exists
+   * to avoid. Stacking at auto is what lets the ring pass in front.
+   */
+  inset-block-start: 0;
+  inset-inline-end: var(--space-4);
+  padding-inline: var(--space-1);
+  background-color: var(--input-bg);
+}
