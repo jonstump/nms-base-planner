@@ -19,3 +19,8 @@ testdata/saves/
 
 # Agent worktrees created by /sdd:work — local scratch, never committed.
 .claude/worktrees/
+
+# Frontend build artifacts and dependencies (web/).
+web/node_modules/
+web/dist/
+web/node_modules/.tmp/

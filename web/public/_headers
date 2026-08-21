@@ -1,0 +1,16 @@
+# Deployment headers for a static host (Netlify / Cloudflare Pages format).
+#
+# Governing: SPEC-0005 Security Requirements → Security Headers
+#
+# No deploy target is chosen yet. This file is the artifact a static host
+# reads; vite.config.ts carries the same policy for `vite preview`. If the
+# eventual host uses a different mechanism, the policy moves — the values do
+# not.
+#
+# 'wasm-unsafe-eval' permits WebAssembly compilation without permitting
+# eval() of JavaScript. connect-src is the origin only: the Tier 1 artifact
+# ships with the app and no cross-origin call is legitimate.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

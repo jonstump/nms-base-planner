@@ -14,6 +14,7 @@ permissions:
 
 env:
   GO_VERSION: "1.26.6"
+  NODE_VERSION: "24"
 
 # Each job is independent so a formatting failure and a test failure surface
 # separately rather than one masking the other.
@@ -67,3 +68,103 @@ jobs:
         # install must skip, not fail. See SPEC-0003 REQ "Real-Archive
         # Verification".
         run: go test -race ./...
+
+  # ---------------------------------------------------------------------
+  # Frontend (web/). SPEC-0005 is purely frontend, so the backend quality
+  # jobs above do not cover it — these are its equivalents. Each is
+  # independent for the same reason the Go jobs are: a formatting failure
+  # and a type error should surface separately rather than one masking the
+  # other.
+  #
+  # These deliberately carry no path filter. Gating them on web/ having
+  # changed would save one cheap install on Go-only changes, at the cost of
+  # a check that can silently stop running.
+  # ---------------------------------------------------------------------
+
+  web-format:
+    name: Frontend formatting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: prettier --check
+        run: npm run format:check
+
+  web-typecheck:
+    name: Frontend typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: tsc
+        run: npm run typecheck
+
+  web-lint:
+    name: Frontend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: eslint
+        run: npm run lint
+      - name: stylelint
+        # Enforces SPEC-0005 REQ "Token Discipline" (no colour literal
+        # outside the token file) and REQ "Component Styling Discipline"
+        # (no inset box-shadow) mechanically rather than by review.
+        run: npm run lint:css
+      - name: colour literals outside the token file
+        # Covers .ts/.tsx, where an inline style attribute can carry a
+        # literal and stylelint does not look.
+        run: npm run check:tokens
+
+  web-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: vite build
+        run: npm run build
+      - name: no inline script in the built HTML
+        # SPEC-0005 Security Requirements → Security Headers forbids inline
+        # script. The CSP is only honest if the build output can live under
+        # it, so this asserts the output rather than the policy.
+        run: |
+          if grep -qE '<script[^>]*>[^<]+</script>' dist/index.html; then
+            echo "dist/index.html contains an inline script, which the CSP forbids:"
+            grep -nE '<script[^>]*>[^<]+</script>' dist/index.html
+            exit 1
+          fi
+          echo "No inline script in the built HTML."

@@ -1,0 +1,164 @@
+/*
+ * The single global token file.
+ *
+ * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Token Discipline"
+ *
+ * Every value here is recreated from docs/design/theme/handoff.md, not
+ * reinterpreted from it. The design reference computes its own WCAG contrast
+ * and colour-blindness validation tables from these hexes at render time, so
+ * it cannot drift from its own math — but a copy can drift from the
+ * reference. Where a comment records a measured figure, that figure is the
+ * reference's, quoted so a future edit that changes a hex is visibly also
+ * changing a number somebody measured.
+ *
+ * This is the only file in the project permitted to contain a colour
+ * literal. Stylelint enforces that (see .stylelintrc.json); it is not a
+ * convention held by discipline alone.
+ */
+
+:root {
+  /* ---- Backgrounds & chrome (gruvbox canon values) ---- */
+  --bg: #282828; /* bg0 · app background */
+  --bg-canvas: #1d2021; /* bg0_h · tree canvas + meter tracks */
+  --panel: #32302f; /* bg0_s · panels, base cards */
+  --panel-raised: #3c3836; /* bg1 · rows/cards on panels */
+  --input-bg: #45403d; /* fields, segmented controls */
+  --border: #504945; /* bg2 · default 1px border */
+  --border-soft: #453f3c; /* quiet borders */
+  --divider: #3a3634; /* hairlines */
+
+  /* ----
+   * Text. The three figures on each line are the reference's measured
+   * contrast against #282828 / #32302f / #3c3836 respectively.
+   * ---- */
+  --text: #ebdbb2; /* fg1 · 10.75 / 9.57 / 8.45 */
+  --text-bright: #fbf1c7; /* fg0 · headings, values · 12.99+ */
+  --text-muted: #a89984; /* gray · 5.30 / 4.72 / 4.17 — see the rule below */
+  --text-dim: #7c6f64; /* bg4 · 3.03 / 2.70 / 2.38 — decorative only */
+
+  /* ----
+   * Conditional constraints on the two low-contrast text tokens, restated
+   * here because SPEC-0005 REQ "Token Discipline" names them:
+   *
+   *   --text-muted is 4.17:1 on --panel-raised, below AA for normal text.
+   *   Against that surface, use it only at 17px or larger, or use --text.
+   *
+   *   --text-dim is decorative at 18px or larger only, and must never be
+   *   the sole carrier of information available nowhere else.
+   *
+   * These are usage rules, not values, so nothing here can enforce them.
+   * They are stated at the token rather than left to a contrast table so a
+   * surface inherits them by name.
+   * ---- */
+
+  /* ---- Accent & state ---- */
+  --accent: #fe8019; /* bright orange · interactive ONLY · 5.20:1 on --panel */
+  --accent-hover: #ffa347;
+  --accent-border: #af3a03;
+  --accent-on: #1d2021; /* dark text on orange buttons · 6.49:1 */
+  --danger: #fb4934; /* bright red · deficit/destructive · 3.82:1 on --panel */
+  --ok: #8ec07c; /* bright aqua · ok, links, selection ring · 6.24:1 */
+  --ok-dim: #689d6a;
+  --warn: #d79921; /* neutral yellow · unassigned warnings · 5.29:1 */
+
+  /* ----
+   * Base accent palette (categorical, 6). 3px identity frames.
+   *
+   * Measured against the three frame surfaces #1d2021 / #282828 / #32302f.
+   * All clear 3:1 for SC 1.4.11; purple is the floor at 3.12. Minimum
+   * pairwise CIELAB ΔE76 under protanopia/deuteranopia simulation is 21
+   * (gray x purple); every other pair is 23 or better.
+   *
+   * Bright green #b8bb26 is deliberately excluded: it collapses into yellow
+   * under deuteranopia at ΔE 5. Orange and red are spent on interactive and
+   * danger. Sand and gray fill those slots.
+   *
+   * A base's name is its primary identity everywhere (SC 1.4.1); these
+   * reinforce it and never carry it alone.
+   * ---- */
+  --base-1: #fabd2f; /* yellow · 9.67 / 8.69 / 7.74 */
+  --base-2: #e6d9c0; /* sand   · 11.75 / 10.57 / 9.41 */
+  --base-3: #e8543a; /* copper · 4.50 / 4.04 / 3.60 */
+  --base-4: #93b4d1; /* blue   · 7.57 / 6.80 / 6.06 */
+  --base-5: #a08f78; /* gray   · 5.23 / 4.70 / 4.19 */
+  --base-6: #b3618a; /* purple · 3.90 / 3.51 / 3.12 */
+
+  /* ----
+   * Type families.
+   *
+   * The font files are not shipped by this story — nothing loads a webfont
+   * yet, and the CSP below forbids a cross-origin fetch that would. Each
+   * stack therefore falls back to a system face of the same character until
+   * a font-hosting decision is made. The families are named here so a
+   * component references the token rather than guessing.
+   * ---- */
+  --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  /* ---- Type scale ---- */
+  --text-label: 11.5px; /* mono, ls .12em, caps */
+  --text-meta: 13px;
+  --text-body: 15px;
+  --text-emphasis: 17px;
+  --text-h3: 20px;
+  --text-h2: 26px;
+  --text-display: 34px;
+  --display-floor: 13px; /* Chakra Petch never renders below this */
+  --label-tracking: 0.12em;
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* ---- Radius ---- */
+  --radius-control: 2px;
+  --radius-panel: 4px;
+
+  /* ----
+   * One control scale (the-outfitter #134 discipline). A row never mixes
+   * the two steps — SPEC-0005 REQ "Component Styling Discipline" makes that
+   * normative, and .control-row below is the affordance for holding to it.
+   *
+   * 40px = 10 + 10 padding + 18 line + 2 border, at 15px.
+   * 30px =  6 +  6 padding + 16 line + 2 border, at 13px.
+   * ---- */
+  --control-height: 40px;
+  --control-pad-y: 10px;
+  --control-font: 15px;
+  --control-height-sm: 30px;
+  --control-pad-y-sm: 6px;
+  --control-font-sm: 13px;
+  --target-coarse: 44px;
+
+  /* ---- Border weights. 3px is identity and nothing else. ---- */
+  --border-width: 1px;
+  --border-width-identity: 3px;
+
+  /* ---- Interaction states ---- */
+  --hover-brightness: 1.12;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --selection-ring-width: 2px;
+
+  /* ----
+   * Texture, decorative only.
+   *
+   * The rgba values restate --text-bright and --text at very low alpha.
+   * They are written as literals because a colour token cannot be given an
+   * alpha inside a gradient without color-mix(), and the reference states
+   * these exact strings.
+   * ---- */
+  --texture-scanline: repeating-linear-gradient(
+    0deg,
+    rgb(251 241 199 / 1.8%) 0 1px,
+    transparent 1px 3px
+  );
+  --texture-grid-color: rgb(235 219 178 / 4%);
+  --texture-grid-size: 24px;
+}

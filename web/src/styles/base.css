@@ -1,0 +1,253 @@
+/*
+ * Global base styles and the interaction-state primitives.
+ *
+ * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Token Discipline",
+ * REQ "Component Styling Discipline"
+ *
+ * Every colour here resolves through a custom property from tokens.css.
+ * There is no colour literal in this file and stylelint will reject one.
+ *
+ * The three interaction states are primitives rather than per-component
+ * styles because each was chosen to avoid a rendering defect rather than for
+ * appearance, and a defect avoided in one component and re-introduced in the
+ * next is not avoided.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  background-image: var(--texture-scanline);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+h2 {
+  font-size: var(--text-h2);
+}
+
+h3 {
+  font-size: var(--text-h3);
+}
+
+/* Every quantity, time and micro-label is mono with tabular figures. */
+.numeral,
+.label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: var(--text-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The canvas surface carries the 24px grid rather than the scanline. */
+.canvas {
+  background-color: var(--bg-canvas);
+  background-image:
+    linear-gradient(to right, var(--texture-grid-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--texture-grid-color) 1px, transparent 1px);
+  background-size: var(--texture-grid-size) var(--texture-grid-size);
+}
+
+.panel {
+  background-color: var(--panel);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: var(--space-4);
+}
+
+.panel-raised {
+  background-color: var(--panel-raised);
+  border-radius: var(--radius-panel);
+}
+
+/* ----------------------------------------------------------------------
+ * Identity frames.
+ *
+ * A 3px border denotes which base something belongs to, and nothing else
+ * may write to a border. That is why hover, focus and selection below all
+ * use something other than border — not for variety, but because the
+ * border is spoken for.
+ * ------------------------------------------------------------------- */
+
+.identity {
+  border: var(--border-width-identity) solid var(--border);
+}
+
+.identity-1 {
+  border-color: var(--base-1);
+}
+
+.identity-2 {
+  border-color: var(--base-2);
+}
+
+.identity-3 {
+  border-color: var(--base-3);
+}
+
+.identity-4 {
+  border-color: var(--base-4);
+}
+
+.identity-5 {
+  border-color: var(--base-5);
+}
+
+.identity-6 {
+  border-color: var(--base-6);
+}
+
+/* Unassigned: dashed frame AND a warning dot, never the frame alone. */
+.identity-unassigned {
+  border-style: dashed;
+  border-color: var(--border);
+}
+
+/* ----------------------------------------------------------------------
+ * The three interaction states.
+ * ------------------------------------------------------------------- */
+
+/* Hover is a filter, so it tints the whole element without touching the
+ * border that carries identity. */
+.interactive:hover {
+  filter: brightness(var(--hover-brightness));
+}
+
+/* Focus is an outline, outboard. Not a border, and not a box-shadow —
+ * outline sits outside the box and never participates in layout. */
+.interactive:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ok);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * Selection is a ring drawn inboard by an overlay element.
+ *
+ * `inset box-shadow` is the obvious way to do this and is forbidden
+ * (SPEC-0005 REQ "Component Styling Discipline"): it paints beneath
+ * positioned children, so a selected card containing an absolutely
+ * positioned badge loses its ring behind that badge. An overlay
+ * pseudo-element with its own stacking position paints above them instead.
+ *
+ * pointer-events: none so the overlay never eats a click meant for the
+ * content underneath.
+ */
+.selectable {
+  position: relative;
+}
+
+.selectable[aria-selected="true"]::after,
+.selectable[data-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: var(--selection-ring-width) solid var(--ok);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------------
+ * Control scale. One row, one step.
+ * ------------------------------------------------------------------- */
+
+.control {
+  height: var(--control-height);
+  padding: var(--control-pad-y) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--control-font);
+  background-color: var(--input-bg);
+  color: var(--text);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.control-sm {
+  height: var(--control-height-sm);
+  padding: var(--control-pad-y-sm) var(--space-2);
+  font-size: var(--control-font-sm);
+}
+
+.control-primary {
+  background-color: var(--accent);
+  border-color: var(--accent-border);
+  color: var(--accent-on);
+}
+
+.control-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+/*
+ * A row sets the scale for every control in it, so mixing steps inside one
+ * row takes a deliberate override rather than an oversight. Both halves of
+ * the pair are declared here so the row's own class is what decides.
+ */
+.control-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.control-row > .control {
+  height: var(--control-height);
+  padding: var(--control-pad-y) var(--space-3);
+  font-size: var(--control-font);
+}
+
+.control-row-sm > .control {
+  height: var(--control-height-sm);
+  padding: var(--control-pad-y-sm) var(--space-2);
+  font-size: var(--control-font-sm);
+}
+
+/*
+ * Coarse pointers get larger square targets. Applied by pointer capability
+ * rather than by viewport width: a touch laptop is coarse at desktop size,
+ * and a stylus is fine on a small screen.
+ */
+@media (pointer: coarse) {
+  .control,
+  .control-row > .control,
+  .control-row-sm > .control {
+    min-height: var(--target-coarse);
+    min-width: var(--target-coarse);
+  }
+}
+
+/* Respect a reduced-motion preference for anything added later. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
