@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Boundary client fixture</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0005 REQ "Module Loading"
+
+      Content, so the page has something to paint before the module is asked
+      for, and a control that works without it.
+    -->
+    <h2>Boundary fixture</h2>
+    <button id="counter" type="button" class="control interactive">clicked 0</button>
+    <script type="module" src="./boundary-harness.ts"></script>
+  </body>
+</html>
