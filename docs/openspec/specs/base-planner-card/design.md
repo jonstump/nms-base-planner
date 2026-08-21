@@ -6,7 +6,9 @@ The base planner card is where the plan stops being a graph and becomes instruct
 
 Its upstream is unusually complete. SPEC-0001's stages 2 and 3 are merged and cover every producer type the design draws — farm, extractor, ranch and kitchen — along with byproduct offsets, supply depots, per-base nutrient processors and pellet feeders, growth and cycle and fill durations, generation and draw, batteries for solar night coverage, and the additional-generator count that turns a deficit into an action. Very little of what this card displays needs new domain work.
 
-What it needs is a boundary. `Module.Rollup` and `Module.Power` are reserved stubs returning a not-implemented envelope, so none of stage 2 or stage 3 currently crosses into JavaScript. Issue #64 covers wiring them. Unlike the tree canvas, where the dependency blocks one interaction, here it blocks the entire surface: a card with no rollup payload has nothing to show.
+What it needed was a boundary, and it has one. When this spec was drafted, `Module.Rollup` and `Module.Power` were reserved stubs returning a not-implemented envelope, and nothing this card renders could cross into JavaScript at all — unlike the tree canvas, where that dependency blocked one interaction, here it blocked the whole surface. Issue #64 wired both, so stage 2 and stage 3 payloads now cross.
+
+Two of this spec's requirements are better supported than they were written to be. The boundary carries electromagnetic generator count, class and solar panel count as independent values, so REQ "Power Configuration Supports Mixed Sources" describes a configuration the wire actually accepts rather than one it might. And `fixUnsized` crosses as its own field, so REQ "Deficit Is an Action, Including When It Cannot Be Sized" has a real signal to read rather than a state a view would have to infer from a zero.
 
 The design references are two prototypes rather than one. `Base Planner.dc.html` is the checklist, power and environment reference. `Base Planner v2.dc.html` is a manager view, adding a checkable build list with a progress bar, a storage tracker, an environment strip with biome and sentinel and economy detail, collapsible sections, a mini power-grid diagram, notes with tags, a screenshot slot, a target switcher, and an 8-bit restyle that squares every corner and swaps the display font. The handoff is explicit that its numbers are illustrative and production reads game data, so no figure in it is treated as normative here.
 
@@ -32,6 +34,7 @@ The design references are two prototypes rather than one. `Base Planner.dc.html`
 
 - The panel around the cards: header strip, route bar, target switcher, unassigned bin, atlas link. Shell furniture, and the shell has no spec
 - The base atlas surface, and the tree canvas (SPEC-0006)
+- The freighter and settlement cards. ADR-0006 and ADR-0007 both chose a dedicated card variant over a base card with sections hidden or substituted, each for the same reason — a card defined by what it suppresses accumulates a conditional at every future change to this one. Both are `proposed` and each wants its own spec; what they inherit from this one is the card's composition rules, not its producer sections
 - Save-file import (ADR-0002), which is where base environment data would come from
 - Deciding where durable player data lives. This spec establishes that it has no home and constrains the card accordingly; choosing one is an architectural decision, not a view requirement
 - Choosing between the v1 and v2 visual treatments
@@ -102,8 +105,8 @@ flowchart LR
     end
 
     subgraph bridge["WASM adapter (SPEC-0002)"]
-        RB["rollup — RESERVED"]
-        PB["power — RESERVED"]
+        RB["rollup<br/>wired (#69)"]
+        PB["power<br/>wired (#69)"]
     end
 
     subgraph view["React view (SPEC-0005)"]
@@ -133,15 +136,11 @@ flowchart LR
     META -.->|"omitted, never faked"| CARD
     DUR -.->|"no control offered"| CARD
 
-    style RB stroke-dasharray: 5 5
-    style PB stroke-dasharray: 5 5
     style META stroke-dasharray: 5 5
     style DUR stroke-dasharray: 5 5
 ```
 
 ## Risks / Trade-offs
-
-- **The whole surface is blocked on issue #64.** Both payloads it renders cross reserved entry points. Unlike the tree canvas, where the dependency blocks one interaction, here nothing can be built first. → #64 is small and well-scoped, and should land before this spec is planned into stories.
 
 - **The prototype is more finished than the data.** v2 is a convincing manager view, and most of what makes it convincing has no source. The pressure during implementation will be to fill the gaps with something plausible. → REQ "Absent Data Is Absent" is written as a prohibition for that reason, and its scenarios test for the placeholder rather than for the feature.
 
@@ -153,9 +152,9 @@ flowchart LR
 
 ## Migration Plan
 
-Greenfield, and gated on one prerequisite.
+Greenfield. The prerequisite this plan was written around — issue #64, wiring `rollup` and `power` into the boundary — has landed, so step 1 below is done and the surface is startable.
 
-1. Issue #64 wires `rollup` and `power` into the boundary. Nothing here starts without it.
+1. ~~Issue #64 wires `rollup` and `power` into the boundary.~~ Done.
 2. Static card: identity, producer sections, byproduct rows, and the build footer, rendered from a payload with no controls. This exercises the composition and the no-arithmetic rule first.
 3. The power block, including the deficit action and both the unsized and solar-deficit cases, which are the states most easily missed.
 4. Site and power configuration controls, with recompute through the boundary and the focus-stability behaviour.
