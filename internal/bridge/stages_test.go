@@ -503,3 +503,50 @@ func TestUnassignedLeavesAreReported(t *testing.T) {
 		t.Errorf("unassigned = %+v, want gas_a totalling 30", build.Unassigned[0])
 	}
 }
+
+// SPEC-0001 REQ "Provenance Propagation", crossing the boundary.
+//
+// The stage-2 payload previously carried no provenance at all: the domain
+// computed it for the leaf demand and the producer rows dropped it, so a
+// view had nothing to mark. Both halves cross now — the row's own flag and
+// the base-level answer.
+func TestProducerProvenanceCrossesTheBoundary(t *testing.T) {
+	m := stagesModule(t)
+
+	// No verified dates: every constant is unconfirmed, which is the true
+	// state of this project's curated set today.
+	_, unverified := callOK(t, m, "rollup", rollupRequest(curatedJSON))
+	base := unverified.Data.Build.Bases[0]
+	if base.Farms[0].Verified {
+		t.Error("farm row crossed as verified with no constant dates supplied")
+	}
+	if base.Extractors[0].Verified {
+		t.Error("extractor row crossed as verified with no constant dates supplied")
+	}
+	if base.Verified {
+		t.Error("base crossed as verified with no constant dates supplied")
+	}
+
+	// The same plan with dates supplied crosses verified, so the flag
+	// tracks the input rather than being hardcoded either way.
+	dated := `{
+	  "biodomeCropSlots":"16","faunaYieldPerCycle":"12","faunaCycleSeconds":"1800",
+	  "stepsPerProcessor":"2","depotThreshold":"1000","processSeconds":"30",
+	  "panelsPerBattery":"2",
+	  "resourceHotspots":{"gas_a":"Gas"},
+	  "verifiedOn":{
+	    "biodome crop slots":"2026-08-20","depot threshold":"2026-08-20",
+	    "fauna yield per cycle":"2026-08-20","fauna cycle seconds":"2026-08-20",
+	    "steps per processor":"2026-08-20","process seconds":"2026-08-20",
+	    "panels per battery":"2026-08-20"
+	  }}`
+	_, verified := callOK(t, m, "rollup", rollupRequest(dated))
+	base = verified.Data.Build.Bases[0]
+	if !base.Farms[0].Verified || !base.Extractors[0].Verified {
+		t.Errorf("a row crossed unverified with every date supplied: farm=%v extractor=%v",
+			base.Farms[0].Verified, base.Extractors[0].Verified)
+	}
+	if !base.Verified {
+		t.Error("base crossed unverified with every date supplied")
+	}
+}

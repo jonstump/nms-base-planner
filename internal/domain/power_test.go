@@ -439,3 +439,67 @@ func constantsFrom(t *testing.T, economy, version string) *Constants {
 	}
 	return c
 }
+
+// SPEC-0001 REQ "Provenance Propagation", applied to the power stage:
+// a battery count is derived entirely from a curated constant, so it
+// carries that constant's provenance.
+//
+// The selectivity case matters as much as the positive one. Batteries are
+// the only figure in this stage that reads a curated constant, so a base
+// running no solar panels must not be tainted by it — generation from
+// electromagnetic generators reads the artifact's part rate and hotspot
+// strength, neither of which is curated.
+func TestPanelsPerBatteryProvenanceReachesThePowerBudget(t *testing.T) {
+	const econ = `{
+	  "parts":[
+	    {"id":"U_SOLAR_S","primary":{"network":"power","rate":50}},
+	    {"id":"U_GENERATOR_S","primary":{"network":"power","rate":1},"hotspot":"Power"},
+	    {"id":"U_BATTERY_S","primary":{"network":"power","rate":0,"storage":45000}}
+	  ],
+	  "hotspots":[{"category":"Power","strengths":{"c":150,"b":220,"a":250,"s":300},"weightings":{"c":1,"b":1,"a":1,"s":1}}],
+	  "crops":[]}`
+	a1 := producerArtifact(t, econ)
+
+	budgetFor := func(t *testing.T, dated bool, cfg PowerConfig) PowerBudget {
+		t.Helper()
+		curated := baseCurated()
+		if dated {
+			curated.VerifiedOn = map[string]string{ConstantPanelsPerBattery: "2026-08-20"}
+		}
+		c := constantsFor(t, a1, curated)
+		budgets, err := ComputePower(c, PowerInput{
+			Config: map[BaseID]PowerConfig{"base": cfg},
+		})
+		if err != nil {
+			t.Fatalf("ComputePower: %v", err)
+		}
+		return budgets[0]
+	}
+
+	t.Run("solar with no verified date is unverified", func(t *testing.T) {
+		b := budgetFor(t, false, PowerConfig{SolarPanels: 4})
+		if b.Batteries != 2 {
+			t.Fatalf("batteries = %d, want 2", b.Batteries)
+		}
+		if b.Verified {
+			t.Error("a battery count derived from an unverified constant reported itself verified")
+		}
+	})
+
+	t.Run("solar with a verified date is verified", func(t *testing.T) {
+		b := budgetFor(t, true, PowerConfig{SolarPanels: 4})
+		if !b.Verified {
+			t.Error("budget unverified with the constant's date supplied")
+		}
+	})
+
+	t.Run("a base with no panels is not tainted by the constant", func(t *testing.T) {
+		b := budgetFor(t, false, PowerConfig{EMGenerators: 1, EMClass: ClassB})
+		if b.Batteries != 0 {
+			t.Fatalf("batteries = %d, want 0 with no panels", b.Batteries)
+		}
+		if !b.Verified {
+			t.Error("a base running no panels was tainted by a constant it never read")
+		}
+	})
+}

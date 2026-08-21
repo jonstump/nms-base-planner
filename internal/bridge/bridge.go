@@ -38,7 +38,11 @@ import (
 // backward compatible in shape — but the result payload is part of what a
 // consumer parses, and leaving two different payloads claiming one version
 // is the drift the requirement exists to prevent.
-const ContractVersion = "1.1.0"
+//
+// 1.2.0 added provenance to every producer row and to each base, and the
+// verified-dates map to the request. Same reasoning: additive, but a
+// consumer that branches on provenance needs to know it is there.
+const ContractVersion = "1.2.0"
 
 // Quantity is an exact quantity on the wire.
 //
