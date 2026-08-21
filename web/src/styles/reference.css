@@ -45,12 +45,19 @@
 
 .reference-badge {
   position: absolute;
-  inset-block-start: var(--space-1);
-  inset-inline-end: var(--space-1);
+
+  /* Flush with the top edge so the badge crosses the ring's border box
+   * rather than sitting inside it. Offset from the right edge so it
+   * overlaps the ring's top border only, leaving the corner clean.
+   *
+   * No z-index. `.selectable` is position: relative with none of its own,
+   * so it opens no stacking context and this badge and the ring's ::after
+   * are siblings in the same one — a value here above the ring's 1 would
+   * paint the badge in front of it, which is the defect the overlay exists
+   * to avoid. Stacking at auto is what lets the ring pass in front.
+   */
+  inset-block-start: 0;
+  inset-inline-end: var(--space-4);
   padding-inline: var(--space-1);
   background-color: var(--input-bg);
-
-  /* Above the selection ring's overlay, so the ring visibly crosses in
-   * front of a child that is itself stacked. */
-  z-index: 2;
 }
