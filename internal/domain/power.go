@@ -58,7 +58,10 @@ type PowerBudget struct {
 	// see.
 	FixUnsized bool
 
-	// Verified is false when any contributing figure is.
+	// Verified is false when any contributing figure is: the caller
+	// declared this base unverified, or a curated constant this budget's
+	// arithmetic read has no verified date.
+	//
 	// Governing: SPEC-0001 REQ "Provenance Propagation".
 	Verified bool
 
@@ -193,6 +196,17 @@ func powerFor(base BaseID, c *Constants, in PowerInput) (PowerBudget, error) {
 				ErrMissingConstant, perBattery)
 		}
 		budget.Batteries = ceilRat(big.NewRat(cfg.SolarPanels, perBattery))
+
+		// The battery count is derived entirely from a curated constant, so
+		// it carries that constant's provenance. Applied inside the solar
+		// branch rather than beside the base's own flag: a base running no
+		// panels never reads this constant, and tainting it there would be
+		// the blanket behaviour the producer rows deliberately avoid.
+		//
+		// Governing: SPEC-0001 REQ "Provenance Propagation" — "Where any
+		// contributing node or constant is marked unverified in the source
+		// data, the derived figure MUST be marked unverified."
+		budget.Verified = budget.Verified && c.allVerified(ConstantPanelsPerBattery)
 	}
 
 	// Draw: every part's power dependency, times how many are built.
