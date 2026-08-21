@@ -3,7 +3,7 @@ status: accepted
 date: 2026-08-18
 decision-makers: [Jon Stump]
 extends: [ADR-0001]
-governs: [SPEC-0001, SPEC-0004]
+governs: [SPEC-0001, SPEC-0004, SPEC-0006]
 ---
 
 # ADR-0005: Multiple recipes per output, with explicit yields and player selection
@@ -153,4 +153,4 @@ Sodium Nitrate is the readable example — 26 refine recipes including `2x Sodiu
 
 **On the plan-state cost.** ADR-0002 and the design handoffs put plan state in the URL hash. Adding a per-node recipe choice grows it, and the hash is already size-sensitive. The mitigation is that the default is deterministic: a node using its default recipe encodes nothing, so only deliberate overrides cost bytes.
 
-**Related.** ADR-0001 (two-tier ingestion — this extends its Tier 1 half), SPEC-0001 (rollup engine), SPEC-0004 (Tier 1 normalizer).
+**Related.** ADR-0001 (two-tier ingestion — this extends its Tier 1 half), SPEC-0001 (rollup engine), SPEC-0004 (Tier 1 normalizer), SPEC-0006 (tree canvas — the surface that carries out this decision's instruction to the view, offering a node's recipe alternatives rather than presenting one route as though it were the only one).
