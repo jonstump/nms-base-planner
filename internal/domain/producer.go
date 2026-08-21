@@ -347,7 +347,7 @@ func farmRow(d LeafDemand, c *Constants) (FarmRow, error) {
 	// and the failure mode is a farm that never fills the order.
 	perPlant := crop.Yield.Min
 	if perPlant <= 0 {
-		return FarmRow{}, fmt.Errorf("%w: crop %q yields %d per plant", ErrInvalidArtifact, crop.ID, perPlant)
+		return FarmRow{}, fmt.Errorf("%w: crop %q yields %d per plant", ErrMissingConstant, crop.ID, perPlant)
 	}
 
 	plants := ceilRat(new(big.Rat).Quo(d.Total(), new(big.Rat).SetInt64(perPlant)))

@@ -383,8 +383,8 @@ func TestCuratedConstantsMustBeSupplied(t *testing.T) {
 			curated := full
 			clear(&curated)
 			c, err := NewConstants(a1, curated)
-			if !errors.Is(err, ErrInvalidArtifact) {
-				t.Fatalf("error = %v, want ErrInvalidArtifact", err)
+			if !errors.Is(err, ErrMissingConstant) {
+				t.Fatalf("error = %v, want ErrMissingConstant", err)
 			}
 			if c != nil {
 				t.Error("constants were returned alongside an error")
@@ -465,5 +465,127 @@ func TestStageOneNeedsNoRollupConfiguration(t *testing.T) {
 	}
 	if len(grouping.Groups) != 1 || !grouping.Groups[0].IsUnassigned() {
 		t.Errorf("groups = %+v, want one unassigned group", grouping.Groups)
+	}
+}
+
+// SPEC-0001 REQ "Error Handling Standards" — Scenario "Missing constant is
+// distinguishable":
+// WHEN a Tier 2 constant required by a producer calculation is absent
+// THEN the engine returns an error matching the missing-constant sentinel,
+// naming the constant.
+//
+// One case per kind of absence the stages can meet, because the sentinel's
+// value is the distinction it draws: each of these is the caller or the
+// artifact failing to supply a figure, and none of them is the artifact
+// being structurally wrong. A test per site is what stops the next one
+// added from quietly reaching for ErrInvalidArtifact again.
+func TestAbsentTier2ConstantMatchesTheMissingConstantSentinel(t *testing.T) {
+	const econ = `{
+	  "parts":[
+	    {"id":"U_EXTRACTOR_S","primary":{"network":"resources","rate":0,"storage":360000},"hotspot":"Mineral"},
+	    {"id":"U_SILO_S","primary":{"network":"resources","rate":0,"storage":0}},
+	    {"id":"U_GENERATOR_S","primary":{"network":"power","rate":0},"hotspot":"Power"},
+	    {"id":"U_SOLAR_S","primary":{"network":"power","rate":0}}
+	  ],
+	  "hotspots":[
+	    {"category":"Mineral","strengths":{"c":1,"b":1,"a":2,"s":2.5},"weightings":{"c":1,"b":1,"a":1,"s":1}},
+	    {"category":"Power","strengths":{"c":150,"b":220,"a":250,"s":300},"weightings":{"c":1,"b":1,"a":1,"s":1}},
+	    {"category":"Thin","strengths":{"c":1,"a":2,"s":2.5},"weightings":{"c":1,"b":1,"a":1,"s":1}}
+	  ],
+	  "crops":[{"id":"PLANT_Z","substance":"crop_z","yield":{"min":0,"max":0},"growth_seconds":60}]
+	}`
+	a1 := producerArtifact(t, econ, `{"id":"crop_z","name":"Crop Z","raw_obtainable":true,"default_method":"raw"}`)
+
+	for _, tc := range []struct {
+		name  string
+		names string
+		run   func(*Constants) error
+	}{
+		{
+			name:  "curated scalar not supplied",
+			names: "panels per battery",
+			run: func(*Constants) error {
+				_, err := NewConstants(a1, Curated{
+					BiodomeCropSlots: 16, FaunaYieldPerCycle: 12, FaunaCycleSeconds: 1800,
+					StepsPerProcessor: 2, DepotThreshold: 1000, ProcessSeconds: 30,
+				})
+				return err
+			},
+		},
+		{
+			name:  "no hotspot category configured for a resource",
+			names: "gas_a",
+			run: func(c *Constants) error {
+				_, err := c.ExtractorRate("gas_a", ClassB)
+				return err
+			},
+		},
+		{
+			name:  "part states no extraction rate",
+			names: PartExtractorMineral,
+			run: func(c *Constants) error {
+				_, err := c.ExtractorRate("crop_z", ClassB)
+				return err
+			},
+		},
+		{
+			name:  "depot states no storage buffer",
+			names: PartSupplyDepot,
+			run: func(c *Constants) error {
+				_, err := c.DepotCapacity()
+				return err
+			},
+		},
+		{
+			// "Thin" states c, a and s but not b — the field decodes to
+			// zero, which is what an absent source value looks like.
+			name:  "hotspot class strength is absent",
+			names: "Thin class B strength",
+			run: func(c *Constants) error {
+				_, err := c.ClassStrength("Thin", ClassB)
+				return err
+			},
+		},
+		{
+			name:  "generator states no output",
+			names: PartGenerator,
+			run: func(c *Constants) error {
+				_, err := ComputePower(c, PowerInput{
+					Config: map[BaseID]PowerConfig{"a": {EMGenerators: 1, EMClass: ClassB}},
+				})
+				return err
+			},
+		},
+		{
+			name:  "crop states no yield",
+			names: "PLANT_Z",
+			run: func(c *Constants) error {
+				_, err := RollupProducers(
+					demandOf("a", SiteConfig{ExtractorClass: ClassB, FillSeconds: 3600},
+						map[string]int64{"crop_z": 10}),
+					a1, c, ProducerInput{})
+				return err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			curated := baseCurated()
+			curated.ResourceHotspots = map[string]string{"crop_z": "Mineral"}
+			c := constantsFor(t, a1, curated)
+
+			err := tc.run(c)
+			if err == nil {
+				t.Fatal("no error for an absent Tier 2 constant")
+			}
+			if !errors.Is(err, ErrMissingConstant) {
+				t.Errorf("error = %v, want ErrMissingConstant", err)
+			}
+			if errors.Is(err, ErrInvalidArtifact) {
+				t.Errorf("error also matches ErrInvalidArtifact, which erases the distinction: %v", err)
+			}
+			if !strings.Contains(err.Error(), tc.names) {
+				t.Errorf("error %q does not name the constant at fault (%q)", err, tc.names)
+			}
+		})
 	}
 }

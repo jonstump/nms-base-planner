@@ -159,7 +159,7 @@ func (c Curated) validate() error {
 	} {
 		if f.v <= 0 {
 			return fmt.Errorf("%w: curated constant %q is %d; it must be supplied, not defaulted",
-				ErrInvalidArtifact, f.name, f.v)
+				ErrMissingConstant, f.name, f.v)
 		}
 	}
 	return nil
@@ -263,7 +263,7 @@ func (c *Constants) ExtractorRate(itemID string, class HotspotClass) (*big.Rat, 
 	category, ok := c.curated.ResourceHotspots[itemID]
 	if !ok {
 		return nil, fmt.Errorf("%w: no hotspot category is configured for %q, so no extractor can be sized for it",
-			ErrUnknownItem, itemID)
+			ErrMissingConstant, itemID)
 	}
 	part := PartExtractorMineral
 	if category == "Gas" {
@@ -274,7 +274,7 @@ func (c *Constants) ExtractorRate(itemID string, class HotspotClass) (*big.Rat, 
 		return nil, err
 	}
 	if p.Primary.Rate <= 0 {
-		return nil, fmt.Errorf("%w: %s states no extraction rate", ErrInvalidArtifact, part)
+		return nil, fmt.Errorf("%w: %s states no extraction rate", ErrMissingConstant, part)
 	}
 	strength, err := c.ClassStrength(category, class)
 	if err != nil {
@@ -319,7 +319,7 @@ func (c *Constants) DepotCapacity() (int64, error) {
 		return 0, err
 	}
 	if p.Primary.Storage <= 0 {
-		return 0, fmt.Errorf("%w: %s states no storage buffer", ErrInvalidArtifact, PartSupplyDepot)
+		return 0, fmt.Errorf("%w: %s states no storage buffer", ErrMissingConstant, PartSupplyDepot)
 	}
 	return p.Primary.Storage, nil
 }
@@ -333,7 +333,7 @@ func (c *Constants) BatteryCapacity() (int64, error) {
 		return 0, err
 	}
 	if p.Primary.Storage <= 0 {
-		return 0, fmt.Errorf("%w: %s states no storage buffer", ErrInvalidArtifact, PartBattery)
+		return 0, fmt.Errorf("%w: %s states no storage buffer", ErrMissingConstant, PartBattery)
 	}
 	return p.Primary.Storage, nil
 }
@@ -375,7 +375,13 @@ func (c *Constants) ClassStrength(category string, class HotspotClass) (*big.Rat
 		return nil, fmt.Errorf("%w: %s class %s strength is not a finite number", ErrInvalidArtifact, category, class)
 	}
 	if r.Sign() <= 0 {
-		return nil, fmt.Errorf("%w: %s class %s strength is %v", ErrInvalidArtifact, category, class, v)
+		// Zero is what an absent strength decodes to — Strengths is a
+		// struct, so the field is always present and a missing source value
+		// is indistinguishable from a stated zero. Same shape as a part
+		// stating no rate or no storage buffer, and classified the same
+		// way. A non-finite strength above is different: that is data the
+		// artifact has and got wrong.
+		return nil, fmt.Errorf("%w: %s class %s strength is %v", ErrMissingConstant, category, class, v)
 	}
 	return r, nil
 }

@@ -363,10 +363,12 @@ func TestMixedGenerationSourcesCross(t *testing.T) {
 // SPEC-0002 REQ "Sentinel Error Preservation":
 // a missing curated constant crosses with a stable code, not UNCLASSIFIED.
 //
-// The code is INVALID_ARTIFACT rather than MISSING_CONSTANT because that is
-// the sentinel the engine raises — see the note in the PR. What this asserts
-// is the property the requirement states: a distinct, stable code, and a
-// message naming the constant so the caller can act on it.
+// MISSING_CONSTANT specifically. When this test was written the engine
+// raised ErrInvalidArtifact for an absent constant and the assertion said
+// so; SPEC-0001 REQ "Error Handling Standards" requires the
+// missing-constant sentinel, and the engine now raises it. The distinction
+// is the point: a view can tell "you did not supply this" from "our
+// artifact is broken".
 func TestMissingCuratedConstantCrossesWithAStableCode(t *testing.T) {
 	m := stagesModule(t)
 	incomplete := `{"biodomeCropSlots":"16","faunaYieldPerCycle":"12"}`
@@ -381,8 +383,8 @@ func TestMissingCuratedConstantCrossesWithAStableCode(t *testing.T) {
 	if env.Error.Code == bridge.CodeUnclassified {
 		t.Error("a missing constant crossed as UNCLASSIFIED")
 	}
-	if env.Error.Code != bridge.CodeInvalidArtifact {
-		t.Errorf("code = %q, want %q", env.Error.Code, bridge.CodeInvalidArtifact)
+	if env.Error.Code != bridge.CodeMissingConstant {
+		t.Errorf("code = %q, want %q", env.Error.Code, bridge.CodeMissingConstant)
 	}
 	if !strings.Contains(env.Error.Message, "fauna cycle seconds") {
 		t.Errorf("message %q does not name the missing constant", env.Error.Message)

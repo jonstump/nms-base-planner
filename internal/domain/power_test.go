@@ -405,8 +405,8 @@ func TestGeneratorWithNoStatedOutputIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("Power accepted a generator stating no output")
 	}
-	if !errors.Is(err, ErrInvalidArtifact) {
-		t.Errorf("error is %v, want ErrInvalidArtifact", err)
+	if !errors.Is(err, ErrMissingConstant) {
+		t.Errorf("error is %v, want ErrMissingConstant", err)
 	}
 	if !strings.Contains(err.Error(), PartGenerator) {
 		t.Errorf("error %q does not name the part at fault", err)

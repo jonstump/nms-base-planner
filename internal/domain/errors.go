@@ -28,9 +28,20 @@ var (
 	// ancestor.
 	ErrCycleDetected = errors.New("cycle detected")
 
-	// ErrMissingConstant reports an absent Tier 2 economy constant. Stage 1
-	// never returns it; it is defined here so the sentinel set is complete
-	// and stable across stages.
+	// ErrMissingConstant reports an absent Tier 2 economy constant — a
+	// curated scalar the caller did not supply, or an economy value the
+	// artifact carries no usable figure for.
+	//
+	// Governing: SPEC-0001 REQ "Error Handling Standards" — Scenario
+	// "Missing constant is distinguishable".
+	//
+	// Distinct from ErrUnknownItem, which reports a looked-up name that does
+	// not exist, and from ErrInvalidArtifact, which reports data that is
+	// structurally wrong. The distinction is what lets a caller tell "you
+	// did not configure this" from "our artifact is broken" — the same
+	// classification-by-context the boundary's Load path preserves.
+	//
+	// Stage 1 never returns it; stages 2 and 3 do.
 	ErrMissingConstant = errors.New("missing constant")
 
 	// ErrInvalidArtifact reports a Tier 1 artifact that failed structural

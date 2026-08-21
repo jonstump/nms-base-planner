@@ -163,7 +163,7 @@ func powerFor(base BaseID, c *Constants, in PowerInput) (PowerBudget, error) {
 			return PowerBudget{}, fmt.Errorf("base %q: %w", base, err)
 		}
 		if gen.Primary.Rate <= 0 {
-			return PowerBudget{}, fmt.Errorf("%w: %s states no output", ErrInvalidArtifact, PartGenerator)
+			return PowerBudget{}, fmt.Errorf("%w: %s states no output", ErrMissingConstant, PartGenerator)
 		}
 		strength, err := c.ClassStrength("Power", cfg.EMClass)
 		if err != nil {
@@ -182,7 +182,7 @@ func powerFor(base BaseID, c *Constants, in PowerInput) (PowerBudget, error) {
 			return PowerBudget{}, fmt.Errorf("base %q: %w", base, err)
 		}
 		if panel.Primary.Rate <= 0 {
-			return PowerBudget{}, fmt.Errorf("%w: %s states no output", ErrInvalidArtifact, PartSolar)
+			return PowerBudget{}, fmt.Errorf("%w: %s states no output", ErrMissingConstant, PartSolar)
 		}
 		budget.generation.Add(budget.generation,
 			new(big.Rat).Mul(new(big.Rat).SetInt64(panel.Primary.Rate), new(big.Rat).SetInt64(cfg.SolarPanels)))
@@ -190,7 +190,7 @@ func powerFor(base BaseID, c *Constants, in PowerInput) (PowerBudget, error) {
 		perBattery := c.Curated().PanelsPerBattery
 		if perBattery <= 0 {
 			return PowerBudget{}, fmt.Errorf("%w: panels per battery is %d; it must be supplied",
-				ErrInvalidArtifact, perBattery)
+				ErrMissingConstant, perBattery)
 		}
 		budget.Batteries = ceilRat(big.NewRat(cfg.SolarPanels, perBattery))
 	}
