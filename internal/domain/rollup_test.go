@@ -489,7 +489,8 @@ func TestAbsentTier2ConstantMatchesTheMissingConstantSentinel(t *testing.T) {
 	  ],
 	  "hotspots":[
 	    {"category":"Mineral","strengths":{"c":1,"b":1,"a":2,"s":2.5},"weightings":{"c":1,"b":1,"a":1,"s":1}},
-	    {"category":"Power","strengths":{"c":150,"b":220,"a":250,"s":300},"weightings":{"c":1,"b":1,"a":1,"s":1}}
+	    {"category":"Power","strengths":{"c":150,"b":220,"a":250,"s":300},"weightings":{"c":1,"b":1,"a":1,"s":1}},
+	    {"category":"Thin","strengths":{"c":1,"a":2,"s":2.5},"weightings":{"c":1,"b":1,"a":1,"s":1}}
 	  ],
 	  "crops":[{"id":"PLANT_Z","substance":"crop_z","yield":{"min":0,"max":0},"growth_seconds":60}]
 	}`
@@ -532,6 +533,16 @@ func TestAbsentTier2ConstantMatchesTheMissingConstantSentinel(t *testing.T) {
 			names: PartSupplyDepot,
 			run: func(c *Constants) error {
 				_, err := c.DepotCapacity()
+				return err
+			},
+		},
+		{
+			// "Thin" states c, a and s but not b — the field decodes to
+			// zero, which is what an absent source value looks like.
+			name:  "hotspot class strength is absent",
+			names: "Thin class B strength",
+			run: func(c *Constants) error {
+				_, err := c.ClassStrength("Thin", ClassB)
 				return err
 			},
 		},

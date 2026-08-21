@@ -375,7 +375,13 @@ func (c *Constants) ClassStrength(category string, class HotspotClass) (*big.Rat
 		return nil, fmt.Errorf("%w: %s class %s strength is not a finite number", ErrInvalidArtifact, category, class)
 	}
 	if r.Sign() <= 0 {
-		return nil, fmt.Errorf("%w: %s class %s strength is %v", ErrInvalidArtifact, category, class, v)
+		// Zero is what an absent strength decodes to — Strengths is a
+		// struct, so the field is always present and a missing source value
+		// is indistinguishable from a stated zero. Same shape as a part
+		// stating no rate or no storage buffer, and classified the same
+		// way. A non-finite strength above is different: that is data the
+		// artifact has and got wrong.
+		return nil, fmt.Errorf("%w: %s class %s strength is %v", ErrMissingConstant, category, class, v)
 	}
 	return r, nil
 }
