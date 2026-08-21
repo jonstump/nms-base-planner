@@ -20,5 +20,8 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo"
   },
-  "include": ["tests", "playwright.config.ts"]
+  // src/boundary as well as tests: the specs import it directly, and it is
+  // the one part of src/ with no JSX and no vite/client types, so it
+  // typechecks under this project's settings unchanged.
+  "include": ["tests", "playwright.config.ts", "src/boundary"]
 }
