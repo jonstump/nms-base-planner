@@ -210,12 +210,26 @@ The card MUST NOT convert a duration into a different unit by arithmetic of its 
 
 Where a figure the card displays is reported as not verified, the card MUST mark it, using the same treatment as elsewhere in the view and without styling it as an error.
 
-Several of this card's figures rest on constants that are planner policy or community-sourced rather than read from the game tables. Where the payload reports provenance for such a figure, the card MUST surface it. Where the payload reports no provenance for a figure whose derivation includes such a constant, the card MUST NOT present that figure as verified by displaying it unmarked alongside marked ones in a way that implies the distinction was checked.
+Every producer row and each base carries its own provenance, and the card MUST surface both: a row's marker reports that row, and the base's reports whether everything contributing to that base's instructions was confirmed. The card MUST NOT substitute one for the other — a base marked verified says nothing about a row, and a single marked row does not make the base's own figures suspect.
+
+The card MUST NOT compute provenance. A row's flag is the domain's answer about the demand and the constants that row's own arithmetic read, and re-deriving it in the view would be the arithmetic SPEC-0005 forbids applied to a boolean.
+
+**This marker will be common, not rare.** Several of this card's figures rest on constants that are planner policy or community-sourced rather than read from the game tables — biodome capacity, fauna yield and cycle length, steps per processor, the depot threshold, panels per battery, processing time — and none of them carries a verified date today. A card rendered against the current constant set marks every producer row. The design tuned this treatment against two subtle chips in a prototype; a surface implementing it MUST remain legible when the marker is on everything, and MUST NOT rely on rarity for its restraint.
+
+#### Scenario: Row and base provenance are both surfaced
+
+- **WHEN** the payload reports a base as verified and one of its rows as not
+- **THEN** the card marks that row, and does not mark the base's own figures as suspect
 
 #### Scenario: An unverified figure is marked
 
 - **WHEN** the payload reports a base's power budget as not verified
 - **THEN** the card marks it, and does not style it as an error condition
+
+#### Scenario: Every row marked is still legible
+
+- **WHEN** no curated constant carries a verified date, so every producer row is unverified
+- **THEN** the card remains readable, and the marker does not depend on being rare to stay unobtrusive
 
 ### Requirement: Absent Data Is Absent
 
