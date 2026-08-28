@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
-# Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling Discipline"
+# Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling
+# Discipline", Accessibility Requirements
 #
 # "Each test fails against a deliberately broken stylesheet, checked by
 #  breaking it rather than assumed." (issue #61)
+#
+# "Every focus-return route is tested separately — a single 'close the
+#  popover' test would pass while two of the three routes are broken."
+#  (issue #62)
+#
+# #61 covered the stylesheet. #62 extends the same treatment to the
+# accessibility primitives, because the same argument applies and more
+# sharply: a focus trap that has stopped restoring focus looks identical on
+# screen to one that works.
 #
 # A passing suite proves the stylesheet is not broken in the ways the suite
 # knows how to look for. It does not prove the suite can see anything at all —
@@ -20,8 +30,15 @@ cd "$(dirname "$0")/.."
 
 BASE="src/styles/base.css"
 TOKENS="src/styles/tokens.css"
+TRAP="src/a11y/useFocusTrap.ts"
+LIVE="src/a11y/useLiveRegion.ts"
+SHELL="src/shell/AppShell.tsx"
+BADGE="src/shell/StatusBadge.tsx"
 
-restore() { git checkout -- "$BASE" "$TOKENS" 2>/dev/null || true; }
+MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE"
+
+# shellcheck disable=SC2086
+restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
 trap restore EXIT
 
 # mutate <file> <python-expression-safe-old> <new>
@@ -136,6 +153,71 @@ check "the coarse-pointer target shrinks below 44px" \
   tests/control-scale.spec.ts "$BASE" \
   "    min-height: var(--target-coarse);" \
   "    min-height: 40px;"
+
+# ----------------------------------------------------------------------
+# Accessibility primitives.
+#
+# The focus-trap mutations are the ones worth reading. "Escape-only restore"
+# is not a strawman — it is the natural way to write it, and it leaves the
+# Escape test green while the backdrop and close-control tests go red. That
+# is the whole reason issue #62 words the criterion around routes.
+# ----------------------------------------------------------------------
+
+check "focus is never returned on close" \
+  tests/shell/a11y-primitives.spec.ts "$TRAP" \
+  "      if (target?.isConnected) target.focus();" \
+  "      void target;"
+
+check "focus is restored only by the Escape handler" \
+  tests/shell/a11y-primitives.spec.ts "$TRAP" \
+  "      if (target?.isConnected) target.focus();" \
+  "      void target;
+      // the Escape-only implementation restores here instead"
+
+check "the focus trap stops containing Tab" \
+  tests/shell/a11y-primitives.spec.ts "$TRAP" \
+  "      if (event.key !== \"Tab\") return;" \
+  "      if (event.key !== \"Tab\") return;
+      return;"
+
+check "the live region announces on first render too" \
+  tests/shell/a11y-primitives.spec.ts "$LIVE" \
+  "    if (first || !changed || token === null) return;" \
+  "    if (!changed) return;"
+
+check "the live region announces on every render" \
+  tests/shell/a11y-primitives.spec.ts "$LIVE" \
+  "    if (first || !changed || token === null) return;" \
+  "    if (false) return;"
+
+check "a landmark goes missing" \
+  tests/shell/shell.spec.ts "$SHELL" \
+  '      <footer className="shell-footer">' \
+  '      <div className="shell-footer">'
+
+check "the navigation landmark loses its name" \
+  tests/shell/shell.spec.ts "$SHELL" \
+  '      <nav className="shell-nav" aria-label="Surfaces">' \
+  '      <nav className="shell-nav">'
+
+check "a status loses the word beside its colour" \
+  tests/shell/a11y-baseline.spec.ts "$BADGE" \
+  '  ok: { tokenClass: "status-ok", glyph: "✓", label: "OK" },' \
+  '  ok: { tokenClass: "status-ok", glyph: "✓", label: "" },'
+
+check "two statuses become indistinguishable without colour" \
+  tests/shell/a11y-baseline.spec.ts "$BADGE" \
+  '  unverified: { tokenClass: "status-unverified", glyph: "?", label: "Unverified" },' \
+  '  unverified: { tokenClass: "status-unverified", glyph: "?", label: "Pending" },'
+
+check "a control is named only by a glyph" \
+  tests/shell/a11y-baseline.spec.ts "$SHELL" \
+  '        <button type="submit" className="control control-primary interactive">
+          Recompute
+        </button>' \
+  '        <button type="submit" className="control control-primary interactive">
+          →
+        </button>'
 
 echo
 if [ "$failures" -gt 0 ]; then
