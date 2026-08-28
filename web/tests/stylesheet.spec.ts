@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { expect, test } from "@playwright/test";
@@ -23,12 +23,31 @@ import {
 const STYLES = path.join(import.meta.dirname, "..", "src", "styles");
 const TOKEN_FILE = "tokens.css";
 
-/** Every stylesheet the token rules apply to: all of them but the token file. */
-const COMPONENT_FILES = ["base.css", "reference.css"];
+/*
+ * Discovered rather than listed.
+ *
+ * A hard-coded list goes stale in the direction that matters: a stylesheet
+ * added and not listed is simply never checked, and nothing fails. #60
+ * deleted reference.css and added shell.css, which a list would have
+ * survived by quietly checking one fewer file than exists.
+ */
+const COMPONENT_FILES = readdirSync(STYLES)
+  .filter((name) => name.endsWith(".css") && name !== TOKEN_FILE)
+  .sort();
 
 function read(name: string): string {
   return readFileSync(path.join(STYLES, name), "utf8");
 }
+
+test("there is more than one stylesheet to check", () => {
+  /*
+   * Every per-file assertion below is vacuously satisfied by an empty list.
+   * This is what separates "no stylesheet has a literal" from "no stylesheet
+   * was looked at".
+   */
+  expect(COMPONENT_FILES.length).toBeGreaterThan(0);
+  expect(COMPONENT_FILES).toContain("base.css");
+});
 
 test.describe("token discipline", () => {
   for (const name of COMPONENT_FILES) {
