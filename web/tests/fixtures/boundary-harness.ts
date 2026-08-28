@@ -25,6 +25,8 @@ declare global {
       peek: () => ReturnType<BoundaryClient["peek"]>;
       start: () => Promise<void>;
       resolve: (plan: unknown) => Promise<unknown>;
+      rollup: (request: unknown) => Promise<unknown>;
+      power: (request: unknown) => Promise<unknown>;
       /** Issue a resolve without awaiting it, so a test can observe pending. */
       resolveLater: (plan: unknown) => void;
       settled: () => unknown;
@@ -64,6 +66,8 @@ window.__boundary = {
   peek: () => client.peek(),
   start: () => client.start(),
   resolve: async (value) => client.resolve(plan(value)),
+  rollup: async (request) => client.rollup(request as never),
+  power: async (request) => client.power(request as never),
   resolveLater: (value) => {
     pending = client.resolve(plan(value)).then((outcome) => {
       settled = outcome;

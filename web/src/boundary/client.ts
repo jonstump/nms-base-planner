@@ -21,7 +21,15 @@
 
 import type { PlannerModule } from "./contract";
 import { decodeEnvelope, isNotReady, type Outcome } from "./envelope";
+import { selectBuild, type Build } from "./build";
 import { selectGraph, type ResolvedGraph } from "./graph";
+import { selectPower, type Power } from "./power";
+import {
+  powerToWire,
+  rollupToWire,
+  type PowerRequest,
+  type RollupRequest,
+} from "./requests";
 import {
   BoundaryModule,
   DEFAULT_PATHS,
@@ -96,6 +104,29 @@ export class BoundaryClient {
   /** Resolve a plan into a graph. */
   async resolve(plan: Plan): Promise<Outcome<ResolvedGraph>> {
     return this.#call((planner) => planner.resolve(planToWire(plan)), selectGraph);
+  }
+
+  /**
+   * Stage 2: a plan plus curated constants into construction instructions.
+   *
+   * Takes the plan rather than a resolved graph. SPEC-0002 REQ "Boundary
+   * Surface" requires one call to perform one complete stage, and a caller
+   * obliged to hand back a graph it received would be assembling the stage
+   * out of two crossings.
+   */
+  async rollup(request: RollupRequest): Promise<Outcome<Build>> {
+    return this.#call((planner) => planner.rollup(rollupToWire(request)), selectBuild);
+  }
+
+  /**
+   * Stage 3: generation and draw into a power position.
+   *
+   * Takes no plan. The domain's power stage costs a base sketched by hand
+   * exactly as it costs one a rollup produced, and requiring a plan here
+   * would invent a coupling the engine does not have.
+   */
+  async power(request: PowerRequest): Promise<Outcome<Power>> {
+    return this.#call((planner) => planner.power(powerToWire(request)), selectPower);
   }
 
   /**

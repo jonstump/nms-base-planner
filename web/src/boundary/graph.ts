@@ -11,6 +11,7 @@
  * less than it does.
  */
 
+import { list, object, optionalQuantity, text, textList } from "./decode";
 import { asQuantity, type Quantity } from "./quantity";
 
 export interface ResolvedEdge {
@@ -42,38 +43,6 @@ export interface ResolvedGraph {
   readonly nodes: readonly ResolvedNode[];
 }
 
-type Raw = Record<string, unknown>;
-
-function object(value: unknown): Raw | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Raw)
-    : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function textList(value: unknown): readonly string[] | null {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) return null;
-  const out: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "string") return null;
-    out.push(entry);
-  }
-  return out;
-}
-
-/** An omitempty field: absent is fine, present-and-wrong is not. */
-function optionalQuantity(
-  value: unknown,
-): { ok: true; value: Quantity | null } | { ok: false } {
-  if (value === undefined || value === "") return { ok: true, value: null };
-  const quantity = asQuantity(value);
-  return quantity === null ? { ok: false } : { ok: true, value: quantity };
-}
-
 function decodeEdge(value: unknown): ResolvedEdge | null {
   const raw = object(value);
   if (!raw) return null;
@@ -103,16 +72,8 @@ function decodeNode(value: unknown): ResolvedNode | null {
   const applications = optionalQuantity(raw["applications"]);
   if (!yieldValue.ok || !applications.ok) return null;
 
-  const children: ResolvedEdge[] = [];
-  const rawChildren = raw["children"];
-  if (rawChildren !== undefined) {
-    if (!Array.isArray(rawChildren)) return null;
-    for (const entry of rawChildren) {
-      const edge = decodeEdge(entry);
-      if (edge === null) return null;
-      children.push(edge);
-    }
-  }
+  const children = list(raw["children"], decodeEdge);
+  if (children === null) return null;
 
   return {
     itemId,
@@ -141,15 +102,9 @@ export function selectGraph(data: unknown): ResolvedGraph | null {
   const gameVersion = text(raw["gameVersion"]);
   if (target === null || quantity === null || gameVersion === null) return null;
 
-  const rawNodes = raw["nodes"];
-  if (!Array.isArray(rawNodes)) return null;
-
-  const nodes: ResolvedNode[] = [];
-  for (const entry of rawNodes) {
-    const node = decodeNode(entry);
-    if (node === null) return null;
-    nodes.push(node);
-  }
+  if (!Array.isArray(raw["nodes"])) return null;
+  const nodes = list(raw["nodes"], decodeNode);
+  if (nodes === null) return null;
 
   return { target, quantity, gameVersion, nodes };
 }
