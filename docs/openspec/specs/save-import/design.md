@@ -24,7 +24,7 @@ The upstream half is genuinely ready. SPEC-0004's artifact carries the 108-entry
 - Writing saves. There is no such code path and the spec forbids one
 - Container inventories. ADR-0002 marks the field unconfirmed; the spec forbids specifying it until reachability is recorded
 - Choosing the file size limit. The spec requires one and requires it be measured; there is nothing in the repo to measure
-- Persisting imported records. That is ADR-0008 (`proposed` in PR #91, not yet merged). Until it lands, import is session-scoped and says so
+- Persisting imported records. That is [ADR-0008](../../../adrs/ADR-0008-durable-user-data-store.md), accepted but not yet specified or built. Until its stage 1 store exists, import is session-scoped and says so
 - Deciding whether WASM was the right call. ADR-0002 records that as a judgment call weighted by project goals, with TypeScript an acceptable fallback; nothing here re-opens it
 
 ## Decisions
@@ -95,7 +95,7 @@ flowchart TD
         CAT[("Parts catalog<br/>SPEC-0004 artifact")]
         REC["Extracted records<br/>stage 1 identity<br/>stage 2 built inventory"]
         SURF["Import surface<br/>inherits SPEC-0005"]
-        STORE[("Durable store<br/>ADR-0008 — proposed")]
+        STORE[("Durable store<br/>ADR-0008 — accepted, unbuilt")]
     end
 
     NET(["Any network"])
@@ -132,7 +132,7 @@ The parse is a single crossing. The file goes in as bytes, one envelope comes ba
 
 Greenfield. No existing import path, no data to migrate, nothing to roll back.
 
-The staging is ADR-0002's: stage 1 (identity) ships alone and delivers most of the onboarding benefit; stage 2 (built inventory) follows and depends only on the SPEC-0004 parts catalog, which already exists. Neither stage depends on ADR-0008 being accepted — import is session-scoped and says so until the store exists.
+The staging is ADR-0002's: stage 1 (identity) ships alone and delivers most of the onboarding benefit; stage 2 (built inventory) follows and depends only on the SPEC-0004 parts catalog, which already exists. Neither stage depends on ADR-0008's store existing — import is session-scoped and says so until it does.
 
 ## Open Questions
 

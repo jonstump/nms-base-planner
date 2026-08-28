@@ -189,7 +189,7 @@ ADR-0002 names the reason: console players cannot readily extract save files, so
 
 Import MUST state where its results go, and MUST NOT imply a persistence it does not have.
 
-Until ADR-0008 (durable user data store — `proposed` in PR #91, not yet merged) is accepted and its stage 1 store exists, imported records are session-scoped: they populate the current session and do not survive a reload. The surface MUST say so plainly, and MUST NOT present a control whose effect would be to save them — the same standard SPEC-0007 REQ "Absent Data Is Absent" already sets.
+Until [ADR-0008](../../../adrs/ADR-0008-durable-user-data-store.md)'s stage 1 store exists, imported records are session-scoped: they populate the current session and do not survive a reload. The surface MUST say so plainly, and MUST NOT present a control whose effect would be to save them — the same standard SPEC-0007 REQ "Absent Data Is Absent" already sets.
 
 Once the durable store exists, import MUST write into it as an ordinary authored edit, and MUST NOT mark the resulting records for synchronization. ADR-0008's compatibility line is that nothing derived from a save reaches a server unless the player deliberately shared the place it belongs to; an import that opted its own output into sync would overturn ADR-0002 by default rather than by decision.
 
