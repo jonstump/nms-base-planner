@@ -23,6 +23,30 @@ export {
 } from "./contract";
 export type { Failure, Outcome } from "./envelope";
 export type { ResolvedEdge, ResolvedGraph, ResolvedNode } from "./graph";
+export type {
+  BaseBuild,
+  Build,
+  Demand,
+  ExtractorRow,
+  FarmRow,
+  KitchenInput,
+  KitchenStep,
+  NoBuildRow,
+  RanchRow,
+  Site,
+  YieldRange,
+} from "./build";
+export type { Power, PowerBudget } from "./power";
+export type {
+  ByproductSource,
+  Curated,
+  KitchenStepRequest,
+  PowerGeneration,
+  PowerRequest,
+  PowerUnit,
+  RollupRequest,
+  SiteConfig,
+} from "./requests";
 export {
   EMPTY_PLAN,
   isEmptyPlan,
