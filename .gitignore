@@ -24,3 +24,12 @@ testdata/saves/
 web/node_modules/
 web/dist/
 web/node_modules/.tmp/
+# Built by web/scripts/build-wasm.sh from cmd/planner, the Go toolchain and
+# data/tier1.json. wasm_exec.js in particular belongs to whichever toolchain
+# compiled the module — a committed copy drifts and fails at instantiation.
+web/public/planner.wasm
+web/public/wasm_exec.js
+web/public/tier1.json
+
+web/playwright-report/
+web/test-results/
