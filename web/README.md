@@ -57,3 +57,27 @@ thing it protects and teach everyone to disable it. Dev is not a deployment.
 `build.modulePreload.polyfill` is off because Vite injects that polyfill as
 an inline script. A CI step asserts the built HTML contains no inline script,
 so the policy is checked against the output rather than merely declared.
+
+## State management: useReducer plus context
+
+ADR-0004 chose React and deliberately left the state library open, recommending
+`useReducer` plus context or Zustand, with Redux Toolkit reserved for a concrete
+need. Story #60 was asked to settle it on the evidence of the first working
+slice. It is **`useReducer` plus context** (`src/state/`).
+
+The reason is that the interesting state is not in the view. Every domain value
+lives in Go and arrives through one boundary call, so what React holds is a
+selection, some collapse flags, two form fields and two preferences — a handful
+of scalars with no cross-cutting async, no normalised entity graph and no
+derived-selector layer. That is the problem Zustand and Redux Toolkit exist to
+solve, and it is not the problem here.
+
+The one argument for Redux that ADR-0004 flagged as worth keeping in view — that
+time-travel devtools help when debugging a boundary you cannot step through —
+does not apply. The boundary is a pure function of the plan: replaying an action
+sequence tells you nothing that re-issuing one `resolve` with the same plan does
+not, and the plan is already in the URL hash.
+
+Reconsider if a surface grows a normalised cache; the bases map is the candidate.
+Components read through `useViewState` / `useViewDispatch` and none of them knows
+what is behind those, so the swap is contained.

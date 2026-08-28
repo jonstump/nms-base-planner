@@ -41,6 +41,16 @@ export type Outcome<T> =
       readonly message: string;
     };
 
+/**
+ * Everything an Outcome can be other than success.
+ *
+ * `Outcome<never>` is not that type: it still carries the `ok` arm with a
+ * `never` payload, so narrowing on it leaves a branch a caller has to handle
+ * and cannot ever reach. This is what a component switching on a failure
+ * actually has.
+ */
+export type Failure = Exclude<Outcome<never>, { kind: "ok" }>;
+
 export function failure(code: FailureCode, message: string): Outcome<never> {
   return { kind: "failed", code, message };
 }

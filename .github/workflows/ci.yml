@@ -154,6 +154,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          # web/package.json's predev and prebuild hooks compile cmd/planner
+          # for js/wasm — the frontend cannot be served or built without the
+          # Go toolchain that produces the module and its loader shim.
+          go-version: ${{ env.GO_VERSION }}
       - run: npm ci
       - name: install chromium
         # --with-deps pulls the shared libraries the headless build needs;
@@ -190,6 +196,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
       - run: npm ci
       - name: vite build
         run: npm run build
