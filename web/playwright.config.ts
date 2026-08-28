@@ -41,7 +41,17 @@ export default defineConfig({
     // readiness probe uses the literal URL below, so the two have to agree.
     command: "npm run dev -- --host 127.0.0.1 --port 5174 --strictPort",
     url: "http://127.0.0.1:5174/tests/fixtures/discipline.html",
-    reuseExistingServer: !process.env.CI,
+    /*
+     * Never reuse. The obvious setting is `!process.env.CI`, and it is wrong
+     * here: this repo is worked in git worktrees, so a dev server left
+     * running from a sibling branch answers on the same port with that
+     * branch's files. Vite then serves index.html for every path it does not
+     * recognise, with a 200, so the suite runs green-ish against the wrong
+     * tree and fails in ways that read as application bugs. It cost two
+     * debugging detours before it was diagnosed. A cold start is two
+     * seconds.
+     */
+    reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",
   },

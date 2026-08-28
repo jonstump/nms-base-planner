@@ -1,0 +1,126 @@
+/*
+ * The application shell.
+ *
+ * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Token Discipline",
+ * Accessibility Requirements
+ *
+ * Every colour resolves through a custom property; there is no literal here
+ * and stylelint rejects one. The status classes below carry colour only —
+ * the glyph and the word that make each distinction survive without colour
+ * are in src/shell/StatusBadge.tsx, where they cannot be omitted.
+ */
+
+.shell {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100vh;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.shell-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shell-nav ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shell-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.shell-footer {
+  padding-block-start: var(--space-3);
+  border-block-start: var(--border-width) solid var(--divider);
+}
+
+.plan-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.figure-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.figure-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+
+/* ----------------------------------------------------------------------
+ * Popover.
+ * ------------------------------------------------------------------- */
+
+.popover-backdrop {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  border: 0;
+  opacity: 0.7;
+}
+
+.popover {
+  position: fixed;
+  inset-block-start: 20%;
+  inset-inline-start: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(90vw, 420px);
+  translate: -50% 0;
+}
+
+/* ----------------------------------------------------------------------
+ * Status.
+ *
+ * Colour only. The second carrier is in the component.
+ * ------------------------------------------------------------------- */
+
+.status-badge {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.status-glyph {
+  font-family: var(--font-mono);
+}
+
+.status-ok {
+  color: var(--ok);
+}
+
+.status-warning {
+  color: var(--warn);
+}
+
+.status-danger {
+  color: var(--danger);
+}
+
+.status-unverified {
+  color: var(--text-muted);
+}
+
+.status-pending {
+  color: var(--text-muted);
+}

@@ -21,7 +21,7 @@ export {
   type FailureCode,
   type ModuleErrorCode,
 } from "./contract";
-export type { Outcome } from "./envelope";
+export type { Failure, Outcome } from "./envelope";
 export type { ResolvedEdge, ResolvedGraph, ResolvedNode } from "./graph";
 export {
   EMPTY_PLAN,
