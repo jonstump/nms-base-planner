@@ -85,7 +85,7 @@ SPEC-0005 § Authentication says the application *"MUST NOT collect credentials.
 * Bad, because tokens live in the browser, which is a weaker position than a BFF and is accepted deliberately rather than overlooked
 * Bad, because `connect-src` is no longer the origin alone, and the reasoning in `web/public/_headers`, `web/vite.config.ts` and SPEC-0005 § Security Headers must be rewritten rather than deleted
 * Bad, because no refresh-token persistence means signing in again after every reload — a real friction cost, taken over persisting session material in a store this project has promised holds only player data
-* Neutral, because who may hold an account remains the issuer's concern; whether a *share recipient* needs one at all is ADR-0010's, and this ADR deliberately does not answer it
+* Neutral, because who may hold an account remains the issuer's concern; whether a *share recipient* needs one at all is ADR-0014's, and this ADR deliberately does not answer it
 
 ### Confirmation
 
@@ -125,7 +125,7 @@ Keep `ownerId` null, ship no sync, revisit when sharing forces the question.
 
 * Good, because it is the cheapest option today and forecloses nothing
 * Good, because stage 1 is genuinely complete without it, which is ADR-0008's whole design
-* Bad, because ADR-0010 (sharing) cannot be specified without knowing what owns a share
+* Bad, because ADR-0014 (sharing) cannot be specified without knowing what owns a share
 * Bad, because the risk is not that the decision is late but that it is made implicitly — the first line of sign-in code written without this ADR will use `sub`, because `sub` is what the tutorial uses
 * Neutral, because the schema is already prepared, so deferring costs nothing structurally — it costs only the guarantee that the next person gets `ownerId` right
 
@@ -192,7 +192,7 @@ The `/sdd:adr` edge pre-search (SKILL.md step 1a) queries the `nms-base-planner-
 
 * **ADR-0008** reserved this number, put `ownerId` in the schema nullable at version 1, and set the confirmations this decision must survive
 * **ADR-0002** established the platform-reach rule invoked here for the third time
-* **ADR-0010** (sharing and permissions, not yet written) is constrained by this one: whether a share recipient needs an account at all is its question, but a share requiring an account on a private issuer is not meaningfully shareable
+* **ADR-0014** (sharing and permissions, not yet written) is constrained by this one: whether a share recipient needs an account at all is its question, but a share requiring an account on a private issuer is not meaningfully shareable
 * The **hosting decision** has no ADR. This one deliberately avoids making it by declining the BFF option, and should be revisited if a server component is introduced for another reason
 
 ### Out of scope
