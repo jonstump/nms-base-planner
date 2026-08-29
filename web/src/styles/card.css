@@ -1,0 +1,135 @@
+/*
+ * The base planner card.
+ *
+ * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Token Discipline",
+ * REQ "Component Styling Discipline", SPEC-0007 REQ "Base Identity and
+ * Selection"
+ *
+ * Nothing here writes to `border`. The 3px identity frame is the base's, and
+ * `.identity` in base.css owns it; selection is the inboard overlay ring on
+ * `.selectable`, and focus is the outboard outline on `.interactive`. All
+ * three already exist — this stylesheet lays the card out and styles nothing
+ * that carries a state.
+ *
+ * Every colour resolves through a custom property. There is no literal here,
+ * stylelint rejects one, and tests/stylesheet.spec.ts checks this file
+ * without being told it exists.
+ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--panel);
+  border-radius: var(--radius-panel);
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.card-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+}
+
+/*
+ * The button carries the name, so it must not look like a control bolted
+ * next to one. It is transparent and inherits its type — but it is still a
+ * button, which is the half that matters to a screen reader.
+ */
+.card-select {
+  padding: 0;
+  font: inherit;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.card-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.card-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding-bottom: var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: var(--border-width) solid var(--divider);
+}
+
+.card-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.card-row-name {
+  color: var(--text);
+}
+
+.card-row-class {
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+}
+
+.card-row-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.card-figure {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.card-figure-label {
+  font-size: var(--text-meta);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.card-figure-value {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A word, because a colour alone would not survive being unable to see it. */
+.card-nothing-to-build {
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+}
