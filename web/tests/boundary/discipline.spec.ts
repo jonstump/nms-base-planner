@@ -24,6 +24,15 @@ import {
  */
 
 const BOUNDARY = path.join(import.meta.dirname, "..", "..", "src", "boundary");
+
+/*
+ * The store holds the same discipline for the same reason. SPEC-0009 REQ
+ * "Error Handling Standards" requires its sentinels be "selectable by
+ * identity rather than by message text", which is the boundary's rule with
+ * a different set of codes — so it is checked by the same checker rather
+ * than by a second copy of it.
+ */
+const STORE = path.join(import.meta.dirname, "..", "..", "src", "store");
 const TESTS = import.meta.dirname;
 
 function sourcesIn(directory: string): { file: string; source: string }[] {
@@ -46,6 +55,30 @@ test("the boundary sources exist and were actually read", () => {
 test("no boundary source branches on an error message", () => {
   for (const { file, source } of sourcesIn(BOUNDARY)) {
     expect(messageInspections(file, source), `${file} inspects a message`).toEqual([]);
+  }
+});
+
+test("no store source branches on an error message either", () => {
+  const sources = sourcesIn(STORE);
+  expect(sources.length, "the store sources were not found").toBeGreaterThanOrEqual(4);
+  for (const { file, source } of sources) {
+    expect(messageInspections(file, source), `store/${file} inspects a message`).toEqual(
+      [],
+    );
+  }
+});
+
+test("no store source turns a stored quantity into a number", () => {
+  /*
+   * Stocked quantities are exact strings for the same reason node totals
+   * are. A store that parsed one to compare it would have left the
+   * exactness contract at the point the value is most durable.
+   */
+  for (const { file, source } of sourcesIn(STORE)) {
+    expect(
+      numericConversions(file, source),
+      `store/${file} converts to a number`,
+    ).toEqual([]);
   }
 });
 
