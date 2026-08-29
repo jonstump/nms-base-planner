@@ -73,7 +73,15 @@ check() {
     return
   fi
 
-  if npx playwright test "$spec" --reporter=dot >/dev/null 2>&1; then
+  # --timeout is far below the 30s default because every run here is expected
+  # to go red, and the two ways a mutation goes red cost very different
+  # amounts. Breaking a computed value — a colour literal, an inset shadow, a
+  # control step — fails its assertion the moment it is evaluated. Breaking an
+  # element's identity leaves a locator waiting for something that will never
+  # appear, at 30s a test. 8s is generous against a full suite that runs in
+  # ~54s across two workers, and a mutation needing longer than that is worth
+  # discovering rather than absorbing.
+  if npx playwright test "$spec" --timeout=8000 --reporter=dot >/dev/null 2>&1; then
     echo "FAIL  $name — the suite still passed, so no test is watching this"
     failures=$((failures + 1))
   else
@@ -198,10 +206,25 @@ check "the live region announces on every render" \
   "    if (first || !changed || token === null) return;" \
   "    if (false) return;"
 
+# Both tags are renamed, not just the opening one. Renaming `<footer>` alone
+# leaves `</footer>` unmatched, which is a syntax error (TS17002) rather than a
+# missing landmark: AppShell.tsx stops compiling, the page never renders, and
+# every locator in the spec waits out its timeout. That went red for the wrong
+# reason — it would have gone red with no landmark assertion in the suite at
+# all, which is precisely the thing this script exists to rule out — and it
+# cost ~70s of CI on each of two observed runs while proving nothing.
 check "a landmark goes missing" \
   tests/shell/shell.spec.ts "$SHELL" \
-  '      <footer className="shell-footer">' \
-  '      <div className="shell-footer">'
+  '      <footer className="shell-footer">
+        <p className="label">
+          Figures come from the planner module. Nothing on this page is computed here.
+        </p>
+      </footer>' \
+  '      <div className="shell-footer">
+        <p className="label">
+          Figures come from the planner module. Nothing on this page is computed here.
+        </p>
+      </div>'
 
 check "the navigation landmark loses its name" \
   tests/shell/shell.spec.ts "$SHELL" \
