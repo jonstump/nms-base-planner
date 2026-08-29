@@ -1,10 +1,13 @@
 {
   "extraKnownMarketplaces": {
-    "joestump": {
-      "source": { "source": "github", "repo": "joestump/claude-plugin-sdd" }
+    "claude-plugin-sdd": {
+      "source": {
+        "source": "github",
+        "repo": "joestump/claude-plugin-sdd"
+      }
     }
   },
   "enabledPlugins": {
-    "sdd@joestump": true
+    "sdd@claude-plugin-sdd": true
   }
 }
