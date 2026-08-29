@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Base planner card fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0007 REQ "Card Composition From the Build Payload",
+      REQ "Base Identity and Selection", REQ "Producer Sections",
+      REQ "Byproducts Are Shown, Not Omitted"
+
+      Two bases through the real component: one carrying all four producer
+      groups, three kitchen steps and a byproduct-covered demand, and one
+      carrying a single group and no identity slot. The second is what
+      separates "an absent group is absent" from "an absent group renders
+      empty", which no assertion on the first base can distinguish.
+    -->
+    <div id="root"></div>
+    <script type="module" src="./card-harness.tsx"></script>
+  </body>
+</html>
