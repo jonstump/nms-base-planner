@@ -25,18 +25,56 @@ import type { PlaceRecord } from "../../src/store";
  * empty per test and the reload is a real one within that context.
  */
 
-/**
- * Wait for a preference write to settle before navigating away.
- *
- * Not politeness. The write is asynchronous, and a reload issued while the
- * IndexedDB transaction is still open loses it — which is a real defect
- * rather than a test artifact, and is what `data-saving` exists to expose.
- */
-async function settled(page: Page): Promise<void> {
-  await expect(page.getByRole("region", { name: "Preferences" })).toHaveAttribute(
-    "data-saving",
-    "false",
+/** The preferences as they actually sit in IndexedDB. */
+async function storedPreferences(page: Page): Promise<Record<string, unknown>> {
+  return page.evaluate(
+    (database) =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        const opening = indexedDB.open(database);
+        opening.onsuccess = () => {
+          const db = opening.result;
+          if (!db.objectStoreNames.contains("workspace")) {
+            db.close();
+            resolve({});
+            return;
+          }
+          const read = db.transaction("workspace", "readonly");
+          const got = read.objectStore("workspace").get("self");
+          got.onsuccess = () => {
+            db.close();
+            const record = got.result as { preferences?: Record<string, unknown> };
+            resolve(record?.preferences ?? {});
+          };
+          got.onerror = () => {
+            db.close();
+            resolve({});
+          };
+        };
+        opening.onerror = () => {
+          resolve({});
+        };
+      }),
+    DATABASE,
   );
+}
+
+/**
+ * Wait until the write has actually reached the store.
+ *
+ * Not politeness, and deliberately not a poll on `data-saving`. That
+ * attribute is false before the write effect runs as well as after it
+ * finishes, so waiting for false can be satisfied by the state *preceding*
+ * the write — which is what the first version did. It passed locally on
+ * timing luck and failed in CI, twice, which is exactly the failure mode a
+ * flag-based wait has.
+ *
+ * Polling the record itself has no such window: it is the thing the
+ * requirement is about.
+ */
+async function persisted(page: Page, expected: Record<string, unknown>): Promise<void> {
+  await expect
+    .poll(async () => storedPreferences(page), { timeout: 10_000 })
+    .toMatchObject(expected);
 }
 
 /** The database AppShell uses when no store is injected. */
@@ -188,7 +226,7 @@ test("a preference set, then reloaded, is as the player left it", async ({ page 
   await expect(group).toBeChecked();
   await group.uncheck();
   await expect(group).not.toBeChecked();
-  await settled(page);
+  await persisted(page, { groupSeparator: "" });
 
   /*
    * A real reload. The whole requirement is that the value survives the
@@ -206,7 +244,7 @@ test("both preferences survive, not just the one that was changed last", async (
   await page.goto("/");
   await page.getByLabel("Group digits").uncheck();
   await page.getByLabel("Show unverified").uncheck();
-  await settled(page);
+  await persisted(page, { groupSeparator: "", showUnverified: false });
 
   await page.reload();
 

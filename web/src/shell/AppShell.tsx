@@ -252,9 +252,15 @@ function Chrome({
           `data-saving` reports whether a preference write is still in
           flight. It carries no user-facing claim — SPEC-0009 REQ "Storage
           Is Evictable" governs what may be *said* about stored data, and
-          that indication is #114's to build. This is the hook for it, and
-          in the meantime it is what lets a test wait for a write to settle
-          rather than sleeping and hoping.
+          that indication belongs to the data-custody story rather than
+          here.
+
+          Issue numbers are spelled without the leading hash in this file.
+          check-tokens.sh matches a hash followed by three to eight hex
+          digits, and plenty of issue numbers are exactly that — so the
+          reference reads as a colour literal and fails the gate. Caught in
+          CI after passing locally, and then again by the comment written to
+          explain it, which had quoted the offending form.
         */}
         <section
           className="panel"
