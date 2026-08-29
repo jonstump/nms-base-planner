@@ -141,9 +141,61 @@ jobs:
         # literal and stylelint does not look.
         run: npm run check:tokens
 
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff below needs the base commit present, not just the tip.
+          fetch-depth: 0
+      - id: filter
+        env:
+          # Empty on a push event; the branch below keys off that.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          # Push to main always runs everything. A push has no single obvious
+          # base to diff against — a force-push or a new branch leaves
+          # github.event.before unusable — and main is the branch whose green
+          # is load-bearing, so it is not the place to economise.
+          if [ -z "${BASE_SHA:-}" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "push event — running everything"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "$BASE_SHA" HEAD)
+          echo "changed files:"
+          echo "$changed" | sed 's/^/  /'
+
+          # `code` is true when ANY changed file falls outside the documentation
+          # set. The test is deliberately this way round: a path nobody thought
+          # about counts as code and runs the suite. Adding a directory here is
+          # a decision to stop testing changes to it.
+          if printf '%s\n' "$changed" | grep -qvE '^(docs/|[^/]+\.md$|LICENSE$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "-> code changed, running the frontend suite"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "-> documentation only, skipping the frontend suite"
+          fi
+
   web-test:
     name: Frontend tests
     runs-on: ubuntu-latest
+    # The frontend suite plus its mutation check is the long pole in CI —
+    # 8-11 minutes against 15-40s for every other job — and a change confined
+    # to docs/ cannot alter its outcome. Gated on `changes` rather than a
+    # workflow-level paths-ignore: a job skipped by `if` still reports a
+    # conclusion, which a required status check accepts, whereas a workflow
+    # that never triggers leaves that check pending and the pull request
+    # unmergeable.
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     defaults:
       run:
         working-directory: web
