@@ -14,6 +14,24 @@ async function resolveAPlan(page: Page, target = "ANTIMATTER"): Promise<void> {
   await page.getByLabel("Target").fill(target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });
+
+  /*
+   * And the canvas, which is the rest of the populated state.
+   *
+   * The figure list is behind the WASM module; the canvas is behind a lazy
+   * chunk and then a layout, so it arrives later than the heading and the
+   * audit below would otherwise analyse a document the canvas is not in
+   * yet. That is not a slow test made fast — it is an audit of the wrong
+   * page: React Flow's attribution link fails WCAG AA against this surface
+   * and is restyled in canvas.css, and with this wait removed the audit
+   * passes with the restyle removed too.
+   *
+   * Waiting here rather than in the audit so that every test built on the
+   * populated state gets the whole of it.
+   */
+  await expect(
+    page.getByRole("region", { name: "Dependency tree" }).locator(".node-card").first(),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 test.beforeEach(async ({ page }) => {

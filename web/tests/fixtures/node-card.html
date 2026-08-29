@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Node card fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0006 REQ "Node Card", REQ "Yield and Application
+      Display", REQ "Provenance Display"
+
+      The node card in the states the shipped artifact will not produce: a
+      leaf in each of the six base slots, an unassigned leaf, a yield of
+      exactly 1 that must not be shown, a fractional application count, and
+      a three-node unverified span rather than an isolated chip.
+
+      The real application covers the rest. What it cannot cover is any of
+      the above — it resolves 36 nodes with 0 unverified, and nothing can
+      assign a leaf until the assignment story lands.
+    -->
+    <div id="root"></div>
+    <script type="module" src="./node-card-harness.tsx"></script>
+  </body>
+</html>

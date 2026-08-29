@@ -1,0 +1,279 @@
+/*
+ * The tree canvas.
+ *
+ * Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling
+ * Discipline", SPEC-0006 REQ "Edge Rendering", REQ "Node Card"
+ *
+ * Every colour resolves through a token. React Flow's own theme is not
+ * imported — only its base.css, which is positioning and transforms — so
+ * the literals in its stylesheet never reach this surface.
+ *
+ * No inset box-shadow anywhere, per SPEC-0005: it paints under positioned
+ * children, and a node card is nothing but positioned children.
+ */
+
+.tree-canvas {
+  block-size: clamp(320px, 60vh, 720px);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--bg-canvas);
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+/*
+ * The card.
+ *
+ * The background is `--panel`, and the choice is load-bearing rather than
+ * cosmetic. SPEC-0006 gives an assigned leaf a 3px border in its base's
+ * colour token, so that border is the sole carrier of base identity and
+ * owes SC 1.4.11's 3:1 against the colours either side of it. tokens.css
+ * states the palette was measured against three frame surfaces — #1d2021,
+ * #282828 and #32302f — and `--panel-raised` is not one of them. Recomputed
+ * against it, purple lands at 2.76:1 and fails; on `--panel` it is 3.12 and
+ * the whole palette clears. Same reasoning tokens.css already applies to
+ * `--text-muted` on `--input-bg`: a surface the design never measured is
+ * out of range, not a value to extrapolate.
+ *
+ * The move pays twice. `--text-muted` is 4.72 on `--panel` against 4.17 on
+ * `--panel-raised`, so the provenance chip the design drew in that token is
+ * above AA here and would have been below it there.
+ *
+ * Every colour figure below is against `--panel` unless stated.
+ */
+.node-card {
+  display: flex;
+
+  /*
+   * The card is a hit target, which it was not.
+   *
+   * React Flow turns pointer events off across the node layer when nodes
+   * are neither draggable, selectable nor connectable — all three of which
+   * this canvas sets false, for reasons that have nothing to do with
+   * pointing at a card. The result was that `elementsFromPoint` over a node
+   * returned the pane: `:hover` never matched, and a `<button>` could not
+   * be clicked.
+   *
+   * SPEC-0006 REQ "Node Card" requires hover be expressed as a brightness
+   * filter on the card, and its scenario has a leaf hovered, focused and
+   * selected at once — none of which is reachable while the pane is
+   * swallowing the pointer. Overriding it here rather than by making nodes
+   * draggable: the requirement is about pointing at a card, not about
+   * rewiring a crafting tree by dragging one.
+   */
+  pointer-events: auto;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background-color: var(--panel);
+  block-size: 100%;
+  color: var(--text); /* 9.57 */
+  font-family: var(--font-body);
+  font-size: var(--text-meta);
+  gap: var(--space-1);
+  inline-size: 100%;
+  text-align: start;
+}
+
+/*
+ * A non-leaf's 1px neutral border.
+ *
+ * On its own class rather than on `.node-card`, because `.identity` in
+ * base.css is also a single-class selector and canvas.css is loaded after
+ * it — a `border` shorthand on `.node-card` would win the cascade and
+ * quietly flatten every identity frame to 1px. The three border states are
+ * mutually exclusive and none of them is a default.
+ */
+.node-card-plain {
+  border: var(--border-width) solid var(--border);
+}
+
+.node-name {
+  color: var(--text-bright); /* 11.57 */
+  font-size: var(--text-body);
+  line-height: 1.2;
+}
+
+.node-total {
+  color: var(--text-bright);
+  font-size: var(--text-emphasis);
+  line-height: 1.1;
+}
+
+/* Method, yield and applications on one line. */
+.node-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/*
+ * The method badge: a glyph and a word.
+ *
+ * SPEC-0006 REQ "Node Card" requires both, and REQ "Edge Rendering"
+ * requires every fact an edge's appearance conveys also be available as
+ * text on the node it connects to. The edge's stroke treatment says
+ * "refine"; this is where that same fact is a word.
+ *
+ * `--text` on `--input-bg` is 7.45. The design draws this chip on that
+ * surface and the text token is the one thing changed: `--text-muted`
+ * would be 3.68 there, which tokens.css names as out of range outright.
+ */
+.node-method {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-control);
+  background-color: var(--input-bg);
+  color: var(--text); /* 7.45 on --input-bg */
+}
+
+.node-method-glyph {
+  font-family: var(--font-mono);
+}
+
+/* Yield and applications. Muted, because the total is the headline. */
+.node-figure-label {
+  color: var(--text-muted); /* 4.72 */
+}
+
+.node-figure-value {
+  color: var(--text);
+}
+
+/*
+ * Unassigned: the dashed frame, a dot, and the word.
+ *
+ * SPEC-0006 requires "a dashed border and a warning dot, and the state is
+ * legible without colour perception". The dashed frame is one non-colour
+ * carrier, the word is another, and the dot is the reinforcement the
+ * requirement names — not the fact itself, which is why it is aria-hidden
+ * in the component.
+ */
+.node-unassigned {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.node-warning-dot {
+  display: inline-block;
+  border-radius: 50%;
+  background-color: var(--warn); /* 5.29, non-text needs 3.0 */
+  block-size: 0.5em;
+  inline-size: 0.5em;
+}
+
+/*
+ * Provenance, styled as neither warning nor deficit.
+ *
+ * SPEC-0006 REQ "Provenance Display": legible without alarm, and not the
+ * treatment reserved for something the player must resolve. The chip is a
+ * dashed 1px hairline in `--text-muted` with `StatusBadge`'s own muted
+ * colour inside it — the dashed edge is what the design drew to say
+ * "provisional" without spending a status colour on it.
+ *
+ * SPEC-0001 propagates the flag to every ancestor, so this appears on a
+ * connected span up to the target rather than on isolated nodes. That is
+ * the reason it has no fill and no status colour: thirty-six of these must
+ * still read as a tree.
+ */
+.node-provenance {
+  padding: 0 var(--space-1);
+  border: var(--border-width) dashed var(--text-muted); /* 4.72, non-text needs 3.0 */
+  border-radius: var(--radius-control);
+}
+
+/*
+ * Edges.
+ *
+ * Decorative reinforcement only. The dash pattern distinguishes the edges
+ * feeding a refine step from those feeding a crafted one, and nothing is
+ * carried by it alone: the same word is on the label's title and on the
+ * card the edge points at.
+ */
+.tree-edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.tree-edge[data-method="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}
+
+.edge-label {
+  position: absolute;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--border-soft);
+  border-radius: var(--radius-control);
+  background-color: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+  pointer-events: all;
+}
+
+.edge-label[data-method="refine"] {
+  color: var(--text); /* 9.57 on --panel */
+}
+
+/*
+ * The canvas saying it could not lay the tree out.
+ *
+ * Body text on the panel, not a status colour. The layout engine failing to
+ * load is not a fact about the plan, and borrowing the deficit or warning
+ * token would say it was.
+ */
+.tree-canvas-empty {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  block-size: auto;
+}
+
+.layout-unavailable {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--panel);
+  color: var(--text); /* 9.57 */
+}
+
+/*
+ * React Flow's attribution, made legible.
+ *
+ * Governing: SPEC-0005 Accessibility Requirements (WCAG 2.1 AA), SPEC-0006
+ * Accessibility Requirements
+ *
+ * The library ships this link in a mid grey on its own translucent backing,
+ * which computes to a contrast ratio of 1.12 against this surface — an
+ * outright WCAG AA failure, found by the axe audit that already runs on the
+ * shell. The literal value is not quoted here because check-tokens.sh scans
+ * comments as well as declarations, unlike the stylesheet checker in
+ * tests/helpers/css-checks.ts, which strips them.
+ *
+ * The link stays. React Flow is MIT-licensed and `hideAttribution` exists,
+ * but removing the credit is what xyflow asks people to buy a subscription
+ * for, and doing it to fix a contrast score would be using an
+ * accessibility finding as cover for a licensing decision. Restyling keeps
+ * the attribution and makes it readable, which is what the credit was for.
+ *
+ * This is the one place the stylesheet names a third-party class. React
+ * Flow exposes no prop for this element, so the alternative is shipping the
+ * failure.
+ */
+/* stylelint-disable-next-line selector-class-pattern */
+.tree-canvas .react-flow__attribution {
+  background-color: var(--panel);
+}
+
+/* stylelint-disable-next-line selector-class-pattern */
+.tree-canvas .react-flow__attribution a {
+  color: var(--text); /* 9.57 on the --panel backing above */
+}

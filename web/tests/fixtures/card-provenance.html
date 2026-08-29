@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Base planner card provenance fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0007 REQ "Provenance on Displayed Figures",
+      REQ "Duration Display", REQ "Absent Data Is Absent"
+
+      Two bases. `everything` is the real condition today — no curated
+      constant carries a verified date, so every producer row and the base
+      itself are unverified. `mixed` is a verified base with one unverified
+      row, which is the only arrangement where substituting one marker for
+      the other is visible.
+    -->
+    <div id="root"></div>
+    <script type="module" src="./card-provenance-harness.tsx"></script>
+  </body>
+</html>

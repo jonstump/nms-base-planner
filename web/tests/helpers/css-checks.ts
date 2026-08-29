@@ -12,9 +12,13 @@
  * catches that.
  *
  * stylelint and scripts/check-tokens.sh enforce the same two rules in CI.
- * These exist because the shell script has no negative control: it has never
- * been observed to reject anything, so nothing distinguishes "the stylesheet
- * is clean" from "the pattern no longer matches".
+ * These began as the only one of the three with a negative control — the
+ * shell script had never been observed to reject anything, so nothing
+ * distinguished "the stylesheet is clean" from "the pattern no longer
+ * matches". It carries its own self-checks now, and strips comments as these
+ * do, so the two no longer disagree about a colour named in prose. They stay
+ * separate because a checker written as a pure function over a string can be
+ * run against a broken stylesheet from a test, and a CI gate cannot.
  */
 
 export interface Finding {

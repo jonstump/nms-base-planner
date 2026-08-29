@@ -1,0 +1,258 @@
+/*
+ * The base planner card.
+ *
+ * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Token Discipline",
+ * REQ "Component Styling Discipline", SPEC-0007 REQ "Base Identity and
+ * Selection"
+ *
+ * Nothing here writes to `border`. The 3px identity frame is the base's, and
+ * `.identity` in base.css owns it; selection is the inboard overlay ring on
+ * `.selectable`, and focus is the outboard outline on `.interactive`. All
+ * three already exist — this stylesheet lays the card out and styles nothing
+ * that carries a state.
+ *
+ * Every colour resolves through a custom property. There is no literal here,
+ * stylelint rejects one, and tests/stylesheet.spec.ts checks this file
+ * without being told it exists.
+ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--panel);
+  border-radius: var(--radius-panel);
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.card-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+}
+
+/*
+ * The button carries the name, so it must not look like a control bolted
+ * next to one. It is transparent and inherits its type — but it is still a
+ * button, which is the half that matters to a screen reader.
+ */
+.card-select {
+  padding: 0;
+  font: inherit;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.card-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.card-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding-bottom: var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: var(--border-width) solid var(--divider);
+}
+
+.card-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.card-row-name {
+  color: var(--text);
+}
+
+.card-row-class {
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+}
+
+.card-row-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.card-figure {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.card-figure-label {
+  font-size: var(--text-meta);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.card-figure-value {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A word, because a colour alone would not survive being unable to see it. */
+.card-nothing-to-build {
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+}
+
+/* ----------------------------------------------------------------------
+ * Configuration.
+ *
+ * Governing: SPEC-0007 REQ "Site Configuration", REQ "Power Configuration
+ * Supports Mixed Sources"
+ *
+ * Two fieldsets, laid out and nothing more. The controls inside carry
+ * `.control` for the scale step and `.interactive` for hover and focus, both
+ * from base.css — nothing here writes a state.
+ * ------------------------------------------------------------------- */
+
+.card-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.card-fieldset {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: var(--border-width) solid var(--border-soft);
+  border-radius: var(--radius-control);
+}
+
+.card-fieldset legend {
+  padding: 0 var(--space-1);
+  color: var(--text-muted);
+}
+
+/* The number entries share a width so the two fieldsets read as one grid. */
+.card-entry {
+  width: 8ch;
+}
+
+.card-batteries {
+  margin: var(--space-1) 0 0;
+}
+
+/* ----------------------------------------------------------------------
+ * Power position and the build rollup.
+ *
+ * Governing: SPEC-0007 REQ "Power Position", REQ "Deficit Is an Action,
+ * Including When It Cannot Be Sized", REQ "Build Rollup Footer"
+ *
+ * No meter and no progress bar, and both absences are requirements rather
+ * than omissions: a meter's proportion would be arithmetic on two figures
+ * the card may only display, and a completion bar would be drawn against
+ * durable state that does not exist.
+ *
+ * The deficit and pending treatments are laid out here; the words that
+ * carry them without colour are in PowerBlock.tsx and BuildFooter.tsx,
+ * where they cannot be dropped by a stylesheet change.
+ * ------------------------------------------------------------------- */
+
+.card-power {
+  gap: var(--space-2);
+}
+
+.card-deficit,
+.card-surplus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.card-fix {
+  margin: 0;
+  font-size: var(--text-meta);
+  color: var(--text);
+  max-width: 60ch;
+}
+
+.card-fix-position {
+  color: var(--text-muted);
+}
+
+.card-build-state {
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+}
+
+.card-row[data-state="pending"] .card-build-state {
+  color: var(--warn);
+}
+
+/* ----------------------------------------------------------------------
+ * Provenance and estimated durations.
+ *
+ * Governing: SPEC-0007 REQ "Provenance on Displayed Figures",
+ * REQ "Duration Display", SPEC-0005 Accessibility Requirements
+ *
+ * The row marker is restrained because it is on every row, not because
+ * unverified figures are rare — no curated constant carries a verified date
+ * today, so this is the ordinary state of the card rather than an exception.
+ * A treatment sized for the occasional row would be thirty loud chips here.
+ *
+ * `status-unverified` comes from shell.css and is the same token the rest of
+ * the view uses. It is not an error treatment, and it is not restyled into
+ * one here.
+ * ------------------------------------------------------------------- */
+
+.card-unverified {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid currentcolor;
+  border-radius: var(--radius-control);
+  cursor: help;
+}
+
+.card-estimate {
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+}
