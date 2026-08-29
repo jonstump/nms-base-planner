@@ -15,6 +15,7 @@ import { usePlanResolution, type Resolution } from "../state/usePlanResolution";
 import { useStoredData } from "../state/useStoredData";
 import { DurableStore } from "../store";
 import { StatusBadge } from "./StatusBadge";
+import { DataCustody } from "./DataCustody";
 import { StoredPlaces } from "./StoredPlaces";
 import { ViewPreferences } from "./ViewPreferences";
 
@@ -246,6 +247,10 @@ function Chrome({
 
         <section className="panel" aria-label="Saved places">
           <StoredPlaces data={stored} target={state.inputs.target} />
+        </section>
+
+        <section className="panel" aria-label="Your data">
+          <DataCustody data={stored} />
         </section>
 
         {/*
