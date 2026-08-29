@@ -26,9 +26,13 @@ test.beforeEach(async ({ page }) => {
 test("all four producer groups render when the payload carries all four", async ({
   page,
 }) => {
-  const sections = page.locator(`${FULL} .card-section[data-section]`);
-  await expect(sections).toHaveCount(5); // four producers + byproducts
-  for (const kind of ["farm", "extractor", "ranch", "kitchen"]) {
+  /*
+   * Named rather than counted. A total over every `data-section` made this
+   * assertion fail when #98 added the power block and the build footer —
+   * sections this test has no opinion about. What it is checking is that
+   * all four producer groups render, plus the byproducts one.
+   */
+  for (const kind of ["farm", "extractor", "ranch", "kitchen", "no-build"]) {
     await expect(page.locator(`${FULL} [data-section="${kind}"]`)).toHaveCount(1);
   }
 });

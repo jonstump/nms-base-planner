@@ -13,8 +13,11 @@ import {
 } from "../boundary";
 import { StatusBadge } from "../shell/StatusBadge";
 
+import { BuildFooter } from "./BuildFooter";
+import { buildItems } from "./build-items";
 import { CardControls } from "./CardControls";
 import type { CardConfiguration } from "./configuration";
+import { PowerBlock } from "./PowerBlock";
 import { PRODUCER_HEADING, presentKinds, type ProducerKind } from "./sections";
 
 /*
@@ -250,6 +253,10 @@ export function BasePlannerCard({
         </section>
       ))}
 
+      {budget !== undefined ? (
+        <PowerBlock budget={budget} emClass={configuration?.power.emClass} />
+      ) : null}
+
       {base.noBuild.length > 0 ? (
         <section className="card-section" data-section="no-build">
           <h4 className="card-section-head">Covered by byproduct</h4>
@@ -260,6 +267,25 @@ export function BasePlannerCard({
           </ul>
         </section>
       ) : null}
+
+      {/*
+        The footer is last because it is a rollup of what is above it. Its
+        pending row exists only where the domain reported a deficit it could
+        size — an unsized fix has no count to carry into the footer, and
+        inventing one there would be the same error as offering it as an
+        action.
+      */}
+      <BuildFooter
+        items={buildItems(
+          base,
+          budget !== undefined && budget.inDeficit && !budget.fixUnsized
+            ? {
+                count: budget.additionalGenerators,
+                unitType: "Electromagnetic generators",
+              }
+            : undefined,
+        )}
+      />
     </article>
   );
 }

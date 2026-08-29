@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Base planner card power fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0007 REQ "Power Position", REQ "Deficit Is an Action,
+      Including When It Cannot Be Sized", REQ "Build Rollup Footer"
+
+      Three power states, because two of them look identical to a wrong
+      implementation: a deficit the domain sized, a deficit it could not size
+      (fixUnsized, additionalGenerators zero — the state design.md warns
+      reads as "nothing to show"), and a surplus.
+    -->
+    <div id="root"></div>
+    <script type="module" src="./card-power-harness.tsx"></script>
+  </body>
+</html>
