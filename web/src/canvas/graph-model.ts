@@ -45,6 +45,24 @@ export interface CanvasNode {
   readonly applications: Quantity | null;
   readonly terminal: boolean;
   readonly verified: boolean;
+
+  /**
+   * The methods the domain reports as legal for this node.
+   *
+   * Carried verbatim. SPEC-0006 REQ "Method Selection" forbids the canvas
+   * computing which methods are legal, so this is the only thing the
+   * control consults — see canvas/methods.ts.
+   */
+  readonly legalMethods: readonly string[];
+
+  /**
+   * What this node consumes, named, for the control's consequence line.
+   *
+   * Built from the node's own `children` — the same source the edges come
+   * from — so the control states the current route in the domain's terms
+   * without a second crossing.
+   */
+  readonly inputs: readonly { readonly name: string; readonly perUnit: Quantity }[];
 }
 
 export interface CanvasEdge {
@@ -76,6 +94,14 @@ export function toCanvasModel(graph: ResolvedGraph): CanvasModel {
   const nodes: CanvasNode[] = [];
   const edges: CanvasEdge[] = [];
 
+  /*
+   * Names for the control's consequence line. A plain lookup over the same
+   * payload — not a second source, and not an ordering: the iteration below
+   * still walks `graph.nodes` in the payload's order and nothing is sorted.
+   */
+  const nameOf = new Map<string, string>();
+  for (const node of graph.nodes) nameOf.set(node.itemId, node.name);
+
   for (const node of graph.nodes) {
     nodes.push({
       id: node.itemId,
@@ -86,6 +112,11 @@ export function toCanvasModel(graph: ResolvedGraph): CanvasModel {
       applications: node.applications,
       terminal: node.terminal,
       verified: node.verified,
+      legalMethods: node.legalMethods,
+      inputs: node.children.map((child) => ({
+        name: nameOf.get(child.to) ?? child.to,
+        perUnit: child.perUnit,
+      })),
     });
 
     /*

@@ -277,3 +277,73 @@
 .tree-canvas .react-flow__attribution a {
   color: var(--text); /* 9.57 on the --panel backing above */
 }
+
+/*
+ * The node control.
+ *
+ * Governing: SPEC-0006 REQ "Method Selection", SPEC-0005 REQ "Token
+ * Discipline", REQ "Component Styling Discipline"
+ *
+ * Rendered inside the shell's Popover, so the dialog frame, the backdrop
+ * and the close control are already styled by shell.css. What is here is
+ * the control's own content.
+ */
+.node-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 18rem;
+}
+
+.node-control-title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-h3);
+}
+
+.node-control-now {
+  margin: 0;
+  color: var(--text);
+}
+
+.node-control-method {
+  color: var(--text-bright);
+  text-transform: uppercase;
+}
+
+.node-control-inputs {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+}
+
+.node-control-methods {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/*
+ * An unavailable method is present and inert, never hidden — SPEC-0006:
+ * "A hidden option cannot be distinguished from one that does not exist."
+ * The disabled treatment is a dimmed label and a removed pointer, not a
+ * removed element, and the reason is rendered as text below rather than
+ * hidden in a title attribute a keyboard user cannot reach.
+ */
+.node-method-option:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.node-method-reason {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+}
+
+.node-control-effect {
+  margin: 0;
+  padding-block-start: var(--space-2);
+  border-block-start: var(--border-width) solid var(--divider);
+  color: var(--text-muted);
+}

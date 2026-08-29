@@ -58,6 +58,15 @@ export interface NodeCardData extends Record<string, unknown> {
   readonly display: string;
   /** The recipe's yield, when it is not 1. Absent otherwise. */
   readonly yieldDisplay: string | null;
+  /**
+   * Open this node's control.
+   *
+   * SPEC-0006 REQ "Method Selection": "Clicking or pressing Enter on a node
+   * MUST open a control". The card is a `<button>`, so Enter and Space
+   * already arrive here as clicks — there is no key handler, which is what
+   * keeps the pointer and keyboard routes from being able to disagree.
+   */
+  readonly onOpen: (nodeId: string) => void;
   /** The application count, exact and unrounded. Absent for a terminal. */
   readonly applicationsDisplay: string | null;
   /**
@@ -113,7 +122,7 @@ function Figure({
 }
 
 export function NodeCard({ data }: NodeProps): ReactNode {
-  const { node, display, yieldDisplay, applicationsDisplay, identity } =
+  const { node, display, yieldDisplay, applicationsDisplay, identity, onOpen } =
     data as unknown as NodeCardData;
 
   /*
@@ -149,6 +158,10 @@ export function NodeCard({ data }: NodeProps): ReactNode {
         type="button"
         className={`node-card interactive selectable ${frame}`}
         data-method={node.method}
+        aria-haspopup="dialog"
+        onClick={() => {
+          onOpen(node.id);
+        }}
         /* Only a leaf can be assigned, so only a leaf carries the attribute.
          * A non-leaf marked "unassigned" would be describing a state it
          * cannot be in. */
