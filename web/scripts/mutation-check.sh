@@ -35,8 +35,12 @@ LIVE="src/a11y/useLiveRegion.ts"
 SHELL="src/shell/AppShell.tsx"
 BADGE="src/shell/StatusBadge.tsx"
 STORE="src/store/durable-store.ts"
+MODEL="src/canvas/graph-model.ts"
+EDGE="src/canvas/TreeEdge.tsx"
+CARD="src/canvas/NodeCard.tsx"
+CANVAS="src/styles/canvas.css"
 
-MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE"
+MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANVAS"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -267,6 +271,63 @@ check "a written place is pre-marked as synced" \
         ...place,
         synced: false,
         schemaVersion: SCHEMA_VERSION,"
+
+# ----------------------------------------------------------------------
+# The tree canvas.
+#
+# SPEC-0006 carves layout out of SPEC-0005's no-arithmetic rule and draws
+# the line at what the engine may read. design.md is explicit that the line
+# exists so the argument does not have to be had at review time on every
+# surface — which only works if something is watching it.
+#
+# The ordering mutation is the one worth reading. A payload that arrived
+# already sorted would satisfy every ordering assertion against a canvas
+# that sorted it again, so the source scan and the rendered order are both
+# needed and this breaks both at once.
+# ----------------------------------------------------------------------
+
+check "the canvas sorts the nodes it was given" \
+  tests/canvas/rendering.spec.ts "$MODEL" \
+  "  for (const node of graph.nodes) {" \
+  "  for (const node of [...graph.nodes].sort((a, b) => a.name.localeCompare(b.name))) {"
+
+check "a total reaches the layout engine" \
+  tests/canvas/layout.spec.ts "$MODEL" \
+  "    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      width: NODE_WIDTH," \
+  "    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      total: node.total,
+      width: NODE_WIDTH,"
+
+check "node width is derived from the total" \
+  tests/canvas/layout.spec.ts "$MODEL" \
+  "      width: NODE_WIDTH," \
+  "      width: NODE_WIDTH + node.total.length * 3,"
+
+check "an edge stops showing its per-unit quantity" \
+  tests/canvas/edges.spec.ts "$EDGE" \
+  "          {perUnit}" \
+  '          {""}'
+
+check "edge styling stops distinguishing a refine step" \
+  tests/canvas/edges.spec.ts "$CANVAS" \
+  '.tree-edge[data-method="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}' \
+  '.tree-edge[data-never-matches="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}'
+
+# The other half of "no fact lives only in an edge": if the card stops
+# naming the method, the edge's stroke becomes the sole carrier of it.
+check "the node card stops naming its method" \
+  tests/canvas/edges.spec.ts "$CARD" \
+  '<span className="node-method">{node.method}</span>' \
+  '<span className="node-method" />'
 
 echo
 if [ "$failures" -gt 0 ]; then

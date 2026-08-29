@@ -4,6 +4,7 @@ import { BoundaryClient } from "./boundary";
 import { AppShell } from "./shell/AppShell";
 
 import "./styles/shell.css";
+import "./styles/canvas.css";
 
 /*
  * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Module Loading"

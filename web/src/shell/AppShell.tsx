@@ -1,4 +1,4 @@
-import { useCallback, useId, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useId, useState, type ReactNode } from "react";
 
 import {
   formatQuantity,
@@ -15,6 +15,25 @@ import { usePlanResolution, type Resolution } from "../state/usePlanResolution";
 import { useStoredData } from "../state/useStoredData";
 import { DurableStore } from "../store";
 import { StatusBadge } from "./StatusBadge";
+
+/*
+ * The canvas arrives when there is a graph to draw.
+ *
+ * Governing: SPEC-0005 REQ "Module Loading"
+ *
+ * The same argument the WASM binary gets, applied to the two dependencies
+ * SPEC-0006 brings. Statically imported, React Flow and elkjs take the
+ * initial bundle from 222 kB to 1,864 kB raw (69 kB to 575 kB gzipped) —
+ * paid on first paint by every player, including one who has not resolved
+ * anything. Split out, first paint is back to 232 kB raw / 71 kB gzipped
+ * and the canvas is fetched when a plan first resolves.
+ *
+ * elkjs splits again inside layout.ts: it is 1.6 MB on its own and is not
+ * needed until something is actually laid out.
+ */
+const TreeCanvas = lazy(async () => ({
+  default: (await import("../canvas/TreeCanvas")).TreeCanvas,
+}));
 import { DataCustody } from "./DataCustody";
 import { StoredPlaces } from "./StoredPlaces";
 import { ViewPreferences } from "./ViewPreferences";
@@ -244,6 +263,30 @@ function Chrome({
         <section className="panel" aria-label="Figures">
           <Figures resolution={resolution} />
         </section>
+
+        {/*
+          The canvas sits beside the figure list rather than replacing it,
+          for one story.
+
+          SPEC-0006 puts the canvas where the flat list is, and that is
+          where it will end up. But the list's rows are currently what the
+          SPEC-0005 accessibility suite drives — the focus trap, the
+          selection ring and the live region's invoker are all tested
+          through `.figure-row` — and the canvas card has no control to open
+          until the method-selection story lands. Removing the list now
+          would leave those requirements untested in between, which is a
+          worse trade than a surface that shows its figures twice for a
+          release or two.
+        */}
+        {resolution.status === "resolved" && (
+          <section className="panel" aria-label="Tree">
+            <Suspense
+              fallback={<StatusBadge status="pending" detail="loading the canvas" />}
+            >
+              <TreeCanvas graph={resolution.graph} />
+            </Suspense>
+          </section>
+        )}
 
         <section className="panel" aria-label="Saved places">
           <StoredPlaces data={stored} target={state.inputs.target} />
