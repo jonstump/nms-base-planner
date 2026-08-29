@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Durable store fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0009
+
+      The store runs in a browser because IndexedDB only exists in one.
+      Nothing here styles anything: the store has no surface, and its one
+      presentation requirement constrains consumers rather than rendering.
+    -->
+    <script type="module" src="./store-harness.ts"></script>
+  </body>
+</html>
