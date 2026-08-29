@@ -1,5 +1,10 @@
 .sdd/
 
+# qmd's local hybrid-search index (ADR-0024 makes qmd a hard dependency).
+# A machine-local sqlite database plus embeddings, rebuilt by /sdd:index —
+# committed, it is megabytes of binary that is stale the next commit.
+.qmd/
+
 # Local Claude Code settings — machine-specific, not shared.
 .claude/settings.local.json
 
