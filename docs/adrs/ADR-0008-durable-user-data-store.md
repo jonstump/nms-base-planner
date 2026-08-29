@@ -214,7 +214,7 @@ graph TD
     subgraph Server["Optional — stage 2+"]
         AUTH["Identity<br/>ADR-0009"]
         STORE[("Synced workspace<br/>ownerId")]
-        SHARE["Read-only place shares<br/>ADR-0010"]
+        SHARE["Read-only place shares<br/>ADR-0014"]
     end
 
     UI -->|resolve / rollup / power| WASM
@@ -239,10 +239,16 @@ graph TD
 | ADR | Subject |
 |---|---|
 | ADR-0009 | Identity provider and the sign-in flow |
-| ADR-0010 | Sharing and permission model — the unit is fixed here; the permissions are not |
+| ADR-0010 | Places are authored first, and a plan assigns to places that exist — makes this ADR's place record the application's spine |
 | ADR-0011 | Server hosting, retention and deletion operations |
 | ADR-0012 | Multi-device sync and conflict resolution — schema room is reserved here (`updatedAt`, `revision`) |
 | ADR-0013 | Screenshot and blob storage |
+| ADR-0014 | Sharing and permission model — the unit is fixed here; the permissions are not |
+
+ADR-0010 was reserved for the sharing model when this table was written. It was
+taken by the places decision instead, so sharing moved to the next free number
+rather than displacing three reservations this table and SPEC-0009's design.md
+both already point at.
 
 ### Next step
 
