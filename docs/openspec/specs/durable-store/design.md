@@ -22,7 +22,7 @@ There is a smaller gap that bites sooner. SPEC-0005 permits the view to hold "vi
 ### Non-Goals
 
 - Accounts, identity, sign-in. ADR-0008 stage 2; ADR-0009's subject
-- Sharing and permissions. Stage 3; ADR-0010's subject
+- Sharing and permissions. Stage 3; ADR-0014's subject
 - Multi-device sync and conflict resolution. ADR-0012's subject — `updatedAt` and `revision` are reserved here, and nothing reads them yet
 - Blob and screenshot storage. ADR-0013's subject. Stage 1 may hold an image locally; sharing or syncing one is out
 - Server hosting, retention operations. ADR-0011's subject. The *deletion* story is owed at stage 1 and is in scope; the *retention* story is not, because there is nothing retaining anything
