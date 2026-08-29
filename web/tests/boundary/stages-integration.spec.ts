@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import type { Curated } from "../../src/boundary/requests";
+
 /*
  * Governing: ADR-0003 (Go domain, thin adapter), ADR-0004 (React view
  * layer), SPEC-0002 REQ "Boundary Surface"
@@ -186,4 +188,100 @@ test("both stages return the same outcome shape as resolve", async ({ page }) =>
   }, CONSTANTS);
 
   expect(new Set(shapes).size, `outcome shapes differ: ${shapes.join(" | ")}`).toBe(1);
+});
+
+/*
+ * The provenance round trip, against the real engine.
+ *
+ * Governing: SPEC-0001 REQ "Provenance Propagation", SPEC-0007 REQ
+ * "Provenance on Displayed Figures"
+ *
+ * Every other test in this file exercises provenance's false branch by
+ * accident — no request carries verified dates, so everything comes back
+ * unverified and a client that could not send them at all would look
+ * identical. That was the gap: `verifiedOn` was absent from the request
+ * type, so the flag the decoders read carefully was permanently false and
+ * the view had no way to say otherwise.
+ *
+ * A solar base is the cheapest true case. Its battery count is derived
+ * entirely from `panels per battery`, so the budget's provenance is that one
+ * constant's — no assignments, no hotspot configuration, no producer rows
+ * needed to reach it.
+ *
+ * The three cases together are what make this meaningful. Asserting only the
+ * true case would pass against a decoder that hardcoded `true`; asserting
+ * only the pair would pass against one that tainted every base whenever any
+ * date was missing.
+ */
+/*
+ * The compile-time half of the guarantee.
+ *
+ * `callPower` takes `unknown` and the encoder is `JSON.stringify`, so at
+ * runtime a caller could always put `verifiedOn` on the wire whether or not
+ * the interface declared it — the field crossed fine before this change.
+ * What was missing was the type: no one writing against `Curated` could see
+ * the field existed, and a properly-typed call site would have been rejected
+ * for using it.
+ *
+ * So the guard is a type assertion rather than an assertion in a test body.
+ * `Pick<Curated, "verifiedOn">` does not compile if `Curated` has no such
+ * key, which makes `npm run typecheck` fail the moment the field is removed.
+ * The runtime tests below cannot do that job, and it is worth being precise
+ * about which half each one covers.
+ */
+const VERIFIED_ON_IS_SENDABLE: Pick<Curated, "verifiedOn"> = {
+  verifiedOn: { "panels per battery": "2026-08-28" },
+};
+
+test("a supplied verified date crosses and marks the budget verified", async ({
+  page,
+}) => {
+  const solar = { sources: { A: { solarPanels: "4" } }, draws: {} };
+
+  const withoutDates = await callPower(page, {
+    ...solar,
+    constants: CONSTANTS,
+  });
+  expect(withoutDates.kind, `power failed: ${withoutDates.code ?? ""}`).toBe("ok");
+  const unverified = (withoutDates.value as { bases: { verified: boolean }[] }).bases[0];
+  expect(
+    unverified?.verified,
+    "a battery count derived from an undated constant reported itself verified",
+  ).toBe(false);
+
+  const withDates = await callPower(page, {
+    ...solar,
+    constants: { ...CONSTANTS, ...VERIFIED_ON_IS_SENDABLE },
+  });
+  expect(withDates.kind, `power failed: ${withDates.code ?? ""}`).toBe("ok");
+  const verified = (withDates.value as { bases: { verified: boolean }[] }).bases[0];
+  expect(
+    verified?.verified,
+    "the supplied date did not reach the engine — verifiedOn is not crossing",
+  ).toBe(true);
+});
+
+test("a base that reads no curated constant is not tainted by an absent date", async ({
+  page,
+}) => {
+  /*
+   * Electromagnetic generation reads the artifact's part rate and hotspot
+   * strength, neither of which is curated. Without this case the pair above
+   * is satisfied by an engine that taints every base whenever any date is
+   * missing, which would make the flag useless rather than wrong.
+   */
+  const outcome = await callPower(page, {
+    sources: { A: { emGenerators: "1", emClass: "B" } },
+    draws: {},
+    constants: CONSTANTS,
+  });
+
+  expect(outcome.kind, `power failed: ${outcome.code ?? ""}`).toBe("ok");
+  const budget = (outcome.value as { bases: { verified: boolean; batteries: string }[] })
+    .bases[0];
+  expect(budget?.batteries).toBe("0");
+  expect(
+    budget?.verified,
+    "a base running no panels was tainted by a constant it never reads",
+  ).toBe(true);
 });

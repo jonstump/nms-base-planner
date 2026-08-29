@@ -31,6 +31,28 @@ export interface Curated {
   readonly faunaProducts?: readonly string[];
   /** Which hotspot category each extracted resource sits on. */
   readonly resourceHotspots?: Readonly<Record<string, string>>;
+
+  /*
+   * The date each curated constant was confirmed in game, keyed by the
+   * domain's constant names ("biodome crop slots", "panels per battery", and
+   * the five others above).
+   *
+   * Optional, and absence is the meaningful case: the engine reads a
+   * constant as unverified when this map has no entry for it, and taints
+   * every figure derived from it. So omitting this field is not "no
+   * provenance information" — it is the claim that nothing has been
+   * confirmed, which is the honest state of this project's curated set
+   * today and the reason every producer row currently returns
+   * `verified: false`.
+   *
+   * It is here so that state can change. Without it the view can read
+   * provenance and never influence it, which makes the flag it decodes
+   * permanently false rather than merely false for now.
+   *
+   * Governing: SPEC-0001 REQ "Provenance Propagation" — Scenario
+   * "Unverified constant taints producer count".
+   */
+  readonly verifiedOn?: Readonly<Record<string, string>>;
 }
 
 export interface SiteConfig {
