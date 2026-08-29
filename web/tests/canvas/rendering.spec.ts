@@ -182,3 +182,60 @@ test("no comparator exists in the canvas source", async () => {
   expect(COMPARATOR.test("a.name.localeCompare(b.name)")).toBe(true);
   expect(COMPARATOR.test("const model = toCanvasModel(graph);")).toBe(false);
 });
+
+test("the canvas formats totals the way the player asked, like the list beside it", async ({
+  page,
+}) => {
+  /*
+   * SPEC-0009 REQ "View Preferences Survive a Reload" makes `groupSeparator`
+   * outlive the page. Honouring it is what makes that worth doing.
+   *
+   * This PR leaves the flat figure list in place beside the canvas for one
+   * story, so the two are on screen together and a hardcoded separator is
+   * visible as a contradiction rather than as a preference not taking:
+   * the same figure, twice, one grouped and one not, after the player asked
+   * for one of them.
+   *
+   * A large quantity because a figure under a thousand carries no separator
+   * and would satisfy both behaviours.
+   */
+  await page.getByLabel("Quantity").fill("500");
+  await resolve(page, LARGE_TARGET);
+
+  const listFigures = page.locator(".figure-row .numeral");
+  const cardFigures = page.getByRole("region", CANVAS).locator(".node-card .node-total");
+
+  const grouped = (values: string[]): string[] =>
+    values.filter((value) => value.includes(","));
+
+  /* Both grouped to begin with — otherwise the change below proves nothing. */
+  expect(
+    grouped(await listFigures.allInnerTexts()).length,
+    "no figure was large enough to carry a separator",
+  ).toBeGreaterThan(0);
+  expect(grouped(await cardFigures.allInnerTexts()).length).toBeGreaterThan(0);
+
+  await page.getByLabel("Group digits").uncheck();
+
+  await expect
+    .poll(async () => grouped(await listFigures.allInnerTexts()).length)
+    .toBe(0);
+  await expect
+    .poll(async () => grouped(await cardFigures.allInnerTexts()).length, {
+      message: "the canvas kept grouping after the preference was turned off",
+    })
+    .toBe(0);
+
+  /*
+   * And the same figure in both places, so this cannot pass by the canvas
+   * showing something else entirely.
+   */
+  const listValues = await listFigures.allInnerTexts();
+  const cardValues = await cardFigures.allInnerTexts();
+  expect(listValues.length).toBeGreaterThan(0);
+  for (const value of listValues) {
+    expect(cardValues, `the list shows ${value} and the canvas does not`).toContain(
+      value,
+    );
+  }
+});

@@ -5,7 +5,8 @@ import "@xyflow/react/dist/base.css";
 
 import { formatQuantity, type ResolvedGraph } from "../boundary";
 import { StatusBadge } from "../shell/StatusBadge";
-import { toCanvasModel, toLayoutInput } from "./graph-model";
+import { useViewState } from "../state/useViewState";
+import { toCanvasModel, toLayoutInput, type CanvasModel } from "./graph-model";
 import { layoutGraph, NODE_HEIGHT, NODE_WIDTH, type Placement } from "./layout";
 import { NodeCard } from "./NodeCard";
 import { TreeEdge } from "./TreeEdge";
@@ -42,29 +43,74 @@ import { TreeEdge } from "./TreeEdge";
 const NODE_TYPES = { card: NodeCard };
 const EDGE_TYPES = { tree: TreeEdge };
 
+/*
+ * Laying out, laid out, or unable to. Three states and not two: an
+ * unplaced graph draws every card at the same coordinate, so "the engine
+ * failed" cannot share a representation with either "not yet" or "nothing
+ * to place".
+ */
+type LayoutState =
+  | { readonly status: "laying-out" }
+  | {
+      readonly status: "placed";
+      readonly model: CanvasModel;
+      readonly placements: ReadonlyMap<string, Placement>;
+    }
+  | { readonly status: "unavailable"; readonly model: CanvasModel };
+
+const LAYING_OUT: LayoutState = { status: "laying-out" };
+
 export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactNode {
   const model = useMemo(() => toCanvasModel(graph), [graph]);
-  const [placements, setPlacements] = useState<ReadonlyMap<string, Placement> | null>(
-    null,
-  );
+  const [layout, setLayout] = useState<LayoutState>(LAYING_OUT);
+
+  /*
+   * The player's separator, not this file's.
+   *
+   * SPEC-0009 REQ "View Preferences Survive a Reload" makes the preference
+   * outlive the page; honouring it is what makes that worth doing. The flat
+   * figure list reads it from the same hook, and for now the two are on
+   * screen together — a hardcoded separator here would show the same figure
+   * grouped in one list and ungrouped in the other, at the same moment,
+   * after the player asked for one of them.
+   */
+  const { preferences } = useViewState();
 
   useEffect(() => {
     let live = true;
     const { nodes, edges } = toLayoutInput(model);
     void layoutGraph(nodes, edges).then((laid) => {
-      if (live) setPlacements(laid);
+      if (!live) return;
+      setLayout(
+        laid === null
+          ? { status: "unavailable", model }
+          : { status: "placed", model, placements: laid },
+      );
     });
     return () => {
       live = false;
     };
   }, [model]);
 
+  /*
+   * A settled layout belongs to the model it was computed from, and is
+   * disregarded for any other. Derived here rather than reset inside the
+   * effect: a new payload has no placements yet, and holding the previous
+   * one for a frame would place this graph's nodes at the last graph's
+   * coordinates — the pile again, for every id the two do not share.
+   */
+  const layoutOf: LayoutState =
+    layout.status === "laying-out" || layout.model === model ? layout : LAYING_OUT;
+
   const flowNodes = useMemo<Node[]>(
     () =>
       model.nodes.map((node) => ({
         id: node.id,
         type: "card",
-        position: placements?.get(node.id) ?? { x: 0, y: 0 },
+        position:
+          layoutOf.status === "placed"
+            ? (layoutOf.placements.get(node.id) ?? { x: 0, y: 0 })
+            : { x: 0, y: 0 },
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
         draggable: false,
@@ -77,10 +123,12 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
            * parse it, and SPEC-0005 forbids the view doing arithmetic on a
            * quantity anywhere, including here.
            */
-          display: formatQuantity(node.total, { groupSeparator: "," }),
+          display: formatQuantity(node.total, {
+            groupSeparator: preferences.groupSeparator,
+          }),
         },
       })),
-    [model, placements],
+    [model, layoutOf, preferences.groupSeparator],
   );
 
   const flowEdges = useMemo<Edge[]>(
@@ -98,13 +146,40 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
     [model],
   );
 
-  if (!placements) {
+  if (layoutOf.status === "laying-out") {
     /*
      * Pending, never zero, and never a graph drawn at the origin. Every
      * node placed at (0, 0) would render as one pile that resolves into a
      * tree a frame later, which reads as a rendering fault.
      */
     return <StatusBadge status="pending" detail="laying out the tree" />;
+  }
+
+  if (layoutOf.status === "unavailable") {
+    /*
+     * The same reasoning as the pending state, for the case where the tree
+     * never arrives. The figures are still on screen and still correct —
+     * this surface is the one that failed, and it says so and names what a
+     * player can do about it rather than drawing the pile.
+     *
+     * No StatusBadge: every word in that vocabulary is a domain fact about
+     * a plan ("Deficit", "Unassigned", "Unverified"), and a layout engine
+     * that would not load is not a fact about the plan.
+     */
+    return (
+      /*
+       * Inside the labelled region, unlike the pending state above. Pending
+       * resolves in a frame or two; this does not, and a region that
+       * disappears leaves someone navigating by region with nothing where
+       * the tree was — no tree and no account of why.
+       */
+      <section className="tree-canvas tree-canvas-empty" aria-label="Dependency tree">
+        <p className="layout-unavailable" role="status">
+          The tree could not be laid out. The figures above are unaffected — reload to try
+          again.
+        </p>
+      </section>
+    );
   }
 
   return (

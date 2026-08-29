@@ -112,17 +112,29 @@ function loadEngine(): Promise<Engine> {
 }
 
 /**
- * Positions for each node id.
+ * Positions for each node id, or `null` when the engine could not produce
+ * them.
  *
- * Returns an empty map rather than throwing when the engine fails. A canvas
- * that cannot lay out is a canvas that renders nothing useful, and the
- * caller reports that as its own state — a thrown error here would take the
- * whole surface down instead.
+ * `null` rather than an empty map, because the two are different facts and
+ * the caller has to tell them apart. An empty map is a legitimate answer —
+ * a graph with no nodes has no placements — and if failure returned one too
+ * the caller's only options would be to draw an unplaced graph or to refuse
+ * to draw an empty one.
+ *
+ * Drawing an unplaced graph is the specific outcome that matters: every
+ * node falls back to the same coordinate and thirty-six cards render as one
+ * pile at the origin, which reads as a rendering fault rather than as a
+ * failure the player can act on. The engine is a lazily fetched 1.6 MB
+ * chunk in an application that is meant to work offline, so losing it is a
+ * real state and not a theoretical one.
+ *
+ * Still not a throw. A canvas that cannot lay out should report itself, not
+ * take the surface down with it.
  */
 export async function layoutGraph(
   nodes: readonly LayoutNode[],
   edges: readonly LayoutEdge[],
-): Promise<ReadonlyMap<string, Placement>> {
+): Promise<ReadonlyMap<string, Placement> | null> {
   if (nodes.length === 0) return new Map();
 
   const placements = new Map<string, Placement>();
@@ -136,7 +148,15 @@ export async function layoutGraph(
       placements.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
     }
   } catch {
-    return new Map();
+    return null;
   }
+
+  /*
+   * A layout that came back without a placement for every node is a failed
+   * layout, not a partial one — the missing nodes would take the fallback
+   * coordinate and pile up exactly as above.
+   */
+  if (placements.size !== nodes.length) return null;
+
   return placements;
 }

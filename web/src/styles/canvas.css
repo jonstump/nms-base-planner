@@ -106,6 +106,28 @@
 }
 
 /*
+ * The canvas saying it could not lay the tree out.
+ *
+ * Body text on the panel, not a status colour. The layout engine failing to
+ * load is not a fact about the plan, and borrowing the deficit or warning
+ * token would say it was.
+ */
+.tree-canvas-empty {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  block-size: auto;
+}
+
+.layout-unavailable {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--panel);
+  color: var(--text-body);
+}
+
+/*
  * React Flow's attribution, made legible.
  *
  * Governing: SPEC-0005 Accessibility Requirements (WCAG 2.1 AA), SPEC-0006
