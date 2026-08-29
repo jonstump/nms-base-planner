@@ -12,7 +12,11 @@ import { Popover } from "../a11y/Popover";
 import { ViewStateProvider } from "../state/ViewStateProvider";
 import { useViewDispatch, useViewState } from "../state/useViewState";
 import { usePlanResolution, type Resolution } from "../state/usePlanResolution";
+import { useStoredData } from "../state/useStoredData";
+import { DurableStore } from "../store";
 import { StatusBadge } from "./StatusBadge";
+import { StoredPlaces } from "./StoredPlaces";
+import { ViewPreferences } from "./ViewPreferences";
 
 /*
  * The shell every surface mounts into.
@@ -190,9 +194,16 @@ function Figures({ resolution }: { resolution: Resolution }): ReactNode {
   );
 }
 
-function Chrome({ client }: { client: BoundaryClient }): ReactNode {
+function Chrome({
+  client,
+  store,
+}: {
+  readonly client: BoundaryClient;
+  readonly store: DurableStore;
+}): ReactNode {
   const state = useViewState();
   const { resolution, resultToken, recompute } = usePlanResolution(client, state);
+  const stored = useStoredData(store);
 
   /*
    * The announcement is keyed to the result token, which changes exactly when
@@ -232,6 +243,32 @@ function Chrome({ client }: { client: BoundaryClient }): ReactNode {
         <section className="panel" aria-label="Figures">
           <Figures resolution={resolution} />
         </section>
+
+        <section className="panel" aria-label="Saved places">
+          <StoredPlaces data={stored} target={state.inputs.target} />
+        </section>
+
+        {/*
+          `data-saving` reports whether a preference write is still in
+          flight. It carries no user-facing claim — SPEC-0009 REQ "Storage
+          Is Evictable" governs what may be *said* about stored data, and
+          that indication belongs to the data-custody story rather than
+          here.
+
+          Issue numbers are spelled without the leading hash in this file.
+          check-tokens.sh matches a hash followed by three to eight hex
+          digits, and plenty of issue numbers are exactly that — so the
+          reference reads as a colour literal and fails the gate. Caught in
+          CI after passing locally, and then again by the comment written to
+          explain it, which had quoted the offending form.
+        */}
+        <section
+          className="panel"
+          aria-label="Preferences"
+          data-saving={String(stored.saving)}
+        >
+          <ViewPreferences />
+        </section>
       </main>
 
       <footer className="shell-footer">
@@ -243,11 +280,26 @@ function Chrome({ client }: { client: BoundaryClient }): ReactNode {
   );
 }
 
-export function AppShell({ client }: { client: BoundaryClient }): ReactNode {
+/**
+ * `store` is injectable so a test can use its own database.
+ *
+ * Constructed at module scope rather than defaulted in the parameter list,
+ * which would build a new store on every render and reopen the connection
+ * each time.
+ */
+const APP_STORE = new DurableStore();
+
+export function AppShell({
+  client,
+  store = APP_STORE,
+}: {
+  readonly client: BoundaryClient;
+  readonly store?: DurableStore;
+}): ReactNode {
   return (
     <ViewStateProvider>
       <LiveRegionProvider>
-        <Chrome client={client} />
+        <Chrome client={client} store={store} />
       </LiveRegionProvider>
     </ViewStateProvider>
   );
