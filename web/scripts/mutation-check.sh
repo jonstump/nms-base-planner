@@ -46,7 +46,10 @@ MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANV
 METHODS="src/canvas/methods.ts"
 CONTROL="src/canvas/NodeControl.tsx"
 
-MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL"
+ASSIGN="src/canvas/useLeafAssignment.ts"
+BASES="src/canvas/bases.ts"
+
+MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -492,6 +495,40 @@ check "the announcement stops naming what changed" \
   tests/canvas/method-control.spec.ts "$SHELL" \
   "    const change = pendingChange.current;" \
   "    const change: string | null = null;"
+
+# ----------------------------------------------------------------------
+# Leaf assignment.
+#
+# The first mutation is the bug this story actually shipped and a test
+# caught: skipping the dispatch when the map goes empty suppresses the
+# *clear*, which is a real change — a leaf no longer gathered at a base
+# changes that base's totals exactly as reassigning it does.
+# ----------------------------------------------------------------------
+
+check "clearing an assignment stops recomputing" \
+  tests/canvas/assignment.spec.ts "$ASSIGN" \
+  "    if (constants === null) return;" \
+  "    if (constants === null || Object.keys(next).length === 0) return;"
+
+check "the rollup goes out without the assignment on it" \
+  tests/canvas/assignment.spec.ts "$ASSIGN" \
+  "    const request: RollupRequest = { plan, assignments: next, constants };" \
+  "    const request: RollupRequest = { plan, assignments: {}, constants };"
+
+check "a non-leaf is offered a base it cannot be gathered at" \
+  tests/canvas/assignment.spec.ts "$CONTROL" \
+  "      {node.terminal && (" \
+  "      {(node.terminal || true) && ("
+
+check "an assigned leaf stops taking its base colour" \
+  tests/canvas/assignment.spec.ts "$BASES" \
+  "  return BASES.find((base) => base.id === id)?.slot;" \
+  "  return undefined;"
+
+check "the assignment announcement stops naming the base" \
+  tests/canvas/assignment.spec.ts "$SHELL" \
+  "      const label = BASES.find((base) => base.id === baseId)?.label;" \
+  "      const label: string | undefined = undefined;"
 
 echo
 if [ "$failures" -gt 0 ]; then

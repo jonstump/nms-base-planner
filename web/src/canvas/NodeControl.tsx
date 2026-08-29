@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { Quantity } from "../boundary";
+import { BASES } from "./bases";
 import type { CanvasNode } from "./graph-model";
 import { methodOptions } from "./methods";
 
@@ -30,6 +31,14 @@ export interface NodeControlProps {
   readonly node: CanvasNode;
   readonly headingId: string;
   readonly onSelectMethod: (method: string) => void;
+  /**
+   * Assign this leaf to a base, or clear it with null.
+   *
+   * Only a leaf can be assigned, so the control only renders for one.
+   */
+  readonly onAssign: (baseId: string | null) => void;
+  /** The base this leaf is currently assigned to, if any. */
+  readonly assignedTo: string | null;
   /** Grouping only — `formatQuantity` never parses. */
   readonly format: (quantity: Quantity) => string;
 }
@@ -38,6 +47,8 @@ export function NodeControl({
   node,
   headingId,
   onSelectMethod,
+  onAssign,
+  assignedTo,
   format,
 }: NodeControlProps): ReactNode {
   const options = methodOptions(node.legalMethods, node.method, node.name);
@@ -124,9 +135,44 @@ export function NodeControl({
           ))}
       </fieldset>
 
+      {/*
+        Only a leaf is assignable. A non-leaf is produced by the steps below
+        it rather than gathered at a base, and offering the control on one
+        would be describing a state it cannot be in — the same reason the
+        card only carries `data-identity` on a leaf.
+
+        A `<select>` because the design asks for one and because it is
+        operable by keyboard without anything added: SPEC-0006 requires the
+        assignment "be changed and committed without a pointing device", and
+        a bespoke listbox would have to re-earn that.
+      */}
+      {node.terminal && (
+        <p className="node-control-base">
+          <label className="label" htmlFor={`${headingId}-base`}>
+            Gathered at
+          </label>{" "}
+          <select
+            id={`${headingId}-base`}
+            className="control control-sm interactive node-base-select"
+            value={assignedTo ?? ""}
+            onChange={(event) => {
+              onAssign(event.target.value === "" ? null : event.target.value);
+            }}
+          >
+            <option value="">Unassigned</option>
+            {BASES.map((base) => (
+              <option key={base.id} value={base.id}>
+                {base.label}
+              </option>
+            ))}
+          </select>
+        </p>
+      )}
+
       <p className="label node-control-effect">
-        Changing the method re-resolves the plan. Every total below this node is
-        recomputed by the planner.
+        {node.terminal
+          ? "Changing the method or the base recomputes through the planner. No figure is adjusted here."
+          : "Changing the method re-resolves the plan. Every total below this node is recomputed by the planner."}
       </p>
     </div>
   );
