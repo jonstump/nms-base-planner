@@ -133,3 +133,46 @@
   font-size: var(--text-meta);
   color: var(--text-muted);
 }
+
+/* ----------------------------------------------------------------------
+ * Configuration.
+ *
+ * Governing: SPEC-0007 REQ "Site Configuration", REQ "Power Configuration
+ * Supports Mixed Sources"
+ *
+ * Two fieldsets, laid out and nothing more. The controls inside carry
+ * `.control` for the scale step and `.interactive` for hover and focus, both
+ * from base.css — nothing here writes a state.
+ * ------------------------------------------------------------------- */
+
+.card-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.card-fieldset {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: var(--border-width) solid var(--border-soft);
+  border-radius: var(--radius-control);
+}
+
+.card-fieldset legend {
+  padding: 0 var(--space-1);
+  color: var(--text-muted);
+}
+
+/* The number entries share a width so the two fieldsets read as one grid. */
+.card-entry {
+  width: 8ch;
+}
+
+.card-batteries {
+  margin: var(--space-1) 0 0;
+}

@@ -7,11 +7,14 @@ import {
   type FarmRow,
   type KitchenStep,
   type NoBuildRow,
+  type PowerBudget,
   type Quantity,
   type RanchRow,
 } from "../boundary";
 import { StatusBadge } from "../shell/StatusBadge";
 
+import { CardControls } from "./CardControls";
+import type { CardConfiguration } from "./configuration";
 import { PRODUCER_HEADING, presentKinds, type ProducerKind } from "./sections";
 
 /*
@@ -50,6 +53,15 @@ export interface BasePlannerCardProps {
   readonly identity?: IdentitySlot;
   readonly selected?: boolean;
   readonly onSelect?: (base: string) => void;
+  /*
+   * Configuration is optional so the card still renders against a payload
+   * alone. SPEC-0007 REQ "Absent Data Is Absent" requires the card render
+   * "using only the plan payloads and the base identifier", and a card that
+   * needed a configuration to draw would make that false.
+   */
+  readonly configuration?: CardConfiguration;
+  readonly onConfigure?: (next: CardConfiguration) => void;
+  readonly budget?: PowerBudget | undefined;
 }
 
 /** Digits grouped, magnitude untouched. The only formatting SPEC-0005 permits. */
@@ -183,6 +195,9 @@ export function BasePlannerCard({
   identity,
   selected = false,
   onSelect,
+  configuration,
+  onConfigure,
+  budget,
 }: BasePlannerCardProps): ReactNode {
   const kinds = presentKinds(base);
   const identityClass =
@@ -216,6 +231,14 @@ export function BasePlannerCard({
           <StatusBadge status="warning" detail="no identity assigned" />
         ) : null}
       </header>
+
+      {configuration !== undefined && onConfigure !== undefined ? (
+        <CardControls
+          configuration={configuration}
+          onConfigure={onConfigure}
+          budget={budget}
+        />
+      ) : null}
 
       {kinds.map((kind) => (
         <section className="card-section" key={kind} data-section={kind}>
