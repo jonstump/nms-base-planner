@@ -45,9 +45,17 @@ export interface Placement {
   readonly y: number;
 }
 
-/** The card's fixed footprint, in CSS pixels. Not derived from anything. */
+/**
+ * The card's fixed footprint, in CSS pixels. Not derived from anything.
+ *
+ * Taller than the name-and-total card it started as, because SPEC-0006 puts
+ * a method badge, a yield, an application count, an unassigned marker and a
+ * provenance chip on it. Still a constant: sizing a card by its total is
+ * named in the spec as a violation, and a fixed size is what makes "changing
+ * quantity does not move the graph" true by construction.
+ */
 export const NODE_WIDTH = 210;
-export const NODE_HEIGHT = 96;
+export const NODE_HEIGHT = 148;
 
 /*
  * Left to right, layered.

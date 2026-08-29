@@ -34,6 +34,15 @@ export interface CanvasNode {
   readonly name: string;
   readonly total: Quantity;
   readonly method: string;
+  /** The resolved recipe's yield per application. Absent for a terminal. */
+  readonly recipeYield: Quantity | null;
+  /**
+   * How many applications of the recipe the total needs — exact, and not a
+   * whole number of crafting operations. SPEC-0006 forbids rounding it and
+   * SPEC-0001 confines rounding to enumerated physical boundaries, which
+   * this is not one of.
+   */
+  readonly applications: Quantity | null;
   readonly terminal: boolean;
   readonly verified: boolean;
 }
@@ -73,6 +82,8 @@ export function toCanvasModel(graph: ResolvedGraph): CanvasModel {
       name: node.name,
       total: node.total,
       method: node.method,
+      recipeYield: node.yield,
+      applications: node.applications,
       terminal: node.terminal,
       verified: node.verified,
     });

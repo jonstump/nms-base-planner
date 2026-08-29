@@ -327,10 +327,16 @@ check "edge styling stops distinguishing a refine step" \
 
 # The other half of "no fact lives only in an edge": if the card stops
 # naming the method, the edge's stroke becomes the sole carrier of it.
+#
+# The same breakage as "the method badge loses its word" below, named
+# against a different suite on purpose. That one asks whether the badge
+# still carries a word; this one asks whether the fact an edge's stroke
+# conveys is still text somewhere. Two requirements, one way to break both,
+# and a mutation that only named one of the suites would let the other rot.
 check "the node card stops naming its method" \
   tests/canvas/edges.spec.ts "$CARD" \
-  '<span className="node-method">{node.method}</span>' \
-  '<span className="node-method" />'
+  "      <span>{method}</span>" \
+  "      <span />"
 
 # ----------------------------------------------------------------------
 # The three findings from the review of #124.
@@ -373,6 +379,76 @@ check "a failed layout becomes indistinguishable from an empty one" \
   "  } catch {
     return new Map();
   }"
+
+# ----------------------------------------------------------------------
+# The node card: identity, yield and provenance.
+#
+# Three of these break a rule that had no way to fail before this story —
+# the card could not be hovered at all, so "hover is a filter" was kept by
+# nobody; and the artifact marks nothing unverified, so the provenance
+# treatment was unreachable from the application.
+# ----------------------------------------------------------------------
+
+check "the method badge loses its glyph" \
+  tests/canvas/node-card.spec.ts "$CARD" \
+  '  raw: "▽",
+  craft: "⚒",
+  refine: "◇",' \
+  '  raw: "",
+  craft: "",
+  refine: "",'
+
+# The other half: the glyph alone is a colour-and-shape carrier with no word.
+check "the method badge loses its word" \
+  tests/canvas/node-card.spec.ts "$CARD" \
+  "      <span>{method}</span>" \
+  "      <span />"
+
+check "a fractional application count is rounded up to a whole operation" \
+  tests/canvas/node-card.spec.ts "$TREE" \
+  "          applicationsDisplay:
+            node.applications === null
+              ? null" \
+  "          applicationsDisplay:
+            node.applications === null
+              ? null
+              : node.applications.includes(\"/\")
+                ? String(Math.ceil(Number(node.applications.split(\"/\")[0]) / Number(node.applications.split(\"/\")[1])))"
+
+check "the recipe yield stops reaching the card" \
+  tests/canvas/node-card.spec.ts "$TREE" \
+  "          yieldDisplay:
+            node.recipeYield === null || node.recipeYield === \"1\"" \
+  "          yieldDisplay:
+            true || node.recipeYield === null || node.recipeYield === \"1\""
+
+# SPEC-0006: the unassigned state must not rest on the border alone.
+check "an unassigned leaf is left with only its dashed border" \
+  tests/canvas/node-card.spec.ts "$CARD" \
+  "        {node.terminal && identity === undefined && (" \
+  "        {false && node.terminal && identity === undefined && ("
+
+# SPEC-0006: the marker "MUST NOT be styled as an error state".
+check "provenance takes the treatment reserved for something to fix" \
+  tests/canvas/node-card.spec.ts "$CANVAS" \
+  "  border: var(--border-width) dashed var(--text-muted); /* 4.72, non-text needs 3.0 */" \
+  "  border: var(--border-width) solid var(--danger);"
+
+# The card was unreachable by pointer until this story; nothing noticed.
+check "the pane goes back to swallowing the pointer" \
+  tests/canvas/node-card.spec.ts "$CANVAS" \
+  "  pointer-events: auto;" \
+  "  pointer-events: none;"
+
+# The border is base identity's and nothing else may write to it.
+check "something other than base identity writes to the card border" \
+  tests/canvas/node-card.spec.ts "$BASE" \
+  ".identity {
+  border: var(--border-width-identity) solid var(--border);
+}" \
+  ".identity {
+  border: var(--border-width) solid var(--border);
+}"
 
 echo
 if [ "$failures" -gt 0 ]; then

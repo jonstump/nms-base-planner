@@ -126,6 +126,31 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
           display: formatQuantity(node.total, {
             groupSeparator: preferences.groupSeparator,
           }),
+          /*
+           * SPEC-0006: a yield "other than 1" must be visible. A yield of
+           * exactly 1 is the absence of the fact, not a fact worth a line
+           * on every card — the domain sends reduced rationals, so the
+           * comparison is against the one string that can mean it.
+           */
+          yieldDisplay:
+            node.recipeYield === null || node.recipeYield === "1"
+              ? null
+              : formatQuantity(node.recipeYield, {
+                  groupSeparator: preferences.groupSeparator,
+                }),
+          /*
+           * Exact and unrounded. `formatQuantity` keeps the `a/b` form for
+           * a non-integral quantity and never produces a decimal, which is
+           * what SPEC-0005's display rule requires of a rational with no
+           * terminating decimal — and `5/6` is one the shipped artifact
+           * really produces.
+           */
+          applicationsDisplay:
+            node.applications === null
+              ? null
+              : formatQuantity(node.applications, {
+                  groupSeparator: preferences.groupSeparator,
+                }),
         },
       })),
     [model, layoutOf, preferences.groupSeparator],
