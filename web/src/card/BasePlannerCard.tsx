@@ -16,8 +16,10 @@ import { StatusBadge } from "../shell/StatusBadge";
 import { BuildFooter } from "./BuildFooter";
 import { buildItems } from "./build-items";
 import { CardControls } from "./CardControls";
+import { Duration } from "./Duration";
 import type { CardConfiguration } from "./configuration";
 import { PowerBlock } from "./PowerBlock";
+import { BaseProvenance, RowProvenance } from "./Provenance";
 import { PRODUCER_HEADING, presentKinds, type ProducerKind } from "./sections";
 
 /*
@@ -99,7 +101,8 @@ function FarmRowView({ row }: { row: FarmRow }): ReactNode {
           label="Yield/plant"
           value={`${q(row.yieldPerPlant.min)}–${q(row.yieldPerPlant.max)}`}
         />
-        <Figure label="Growth (s)" value={q(row.growthSeconds)} />
+        <Duration label="Growth (s)" seconds={row.growthSeconds} />
+        <RowProvenance verified={row.verified} />
       </span>
     </li>
   );
@@ -116,7 +119,8 @@ function ExtractorRowView({ row }: { row: ExtractorRow }): ReactNode {
         <Figure label="Extractors" value={q(row.extractorCount)} />
         <Figure label="Depots" value={q(row.depots)} />
         <Figure label="Rate/s" value={q(row.ratePerSecond)} />
-        <Figure label="Fill (s)" value={q(row.fillSeconds)} />
+        <Duration label="Fill (s)" seconds={row.fillSeconds} />
+        <RowProvenance verified={row.verified} />
       </span>
     </li>
   );
@@ -129,7 +133,8 @@ function RanchRowView({ row }: { row: RanchRow }): ReactNode {
       <span className="card-row-figures">
         <Figure label="Required" value={q(row.required)} />
         <Figure label="Fauna" value={q(row.fauna)} />
-        <Figure label="Cycle (s)" value={q(row.cycleSeconds)} />
+        <Duration label="Cycle (s)" seconds={row.cycleSeconds} />
+        <RowProvenance verified={row.verified} />
       </span>
     </li>
   );
@@ -143,7 +148,8 @@ function KitchenRowView({ row }: { row: KitchenStep }): ReactNode {
       </span>
       <span className="card-row-figures">
         <Figure label="Required" value={q(row.required)} />
-        <Figure label="Process (s)" value={q(row.processSeconds)} />
+        <Duration label="Process (s)" seconds={row.processSeconds} />
+        <RowProvenance verified={row.verified} />
       </span>
     </li>
   );
@@ -162,6 +168,7 @@ function NoBuildRowView({ row }: { row: NoBuildRow }): ReactNode {
           greyed out is indistinguishable to anyone not seeing the grey.
         */}
         <span className="card-nothing-to-build">Nothing to build</span>
+        <RowProvenance verified={row.verified} />
       </span>
     </li>
   );
@@ -233,6 +240,12 @@ export function BasePlannerCard({
         {identity === undefined ? (
           <StatusBadge status="warning" detail="no identity assigned" />
         ) : null}
+        {/*
+          The base's own provenance, not a summary of the rows'. The payload
+          carries the two separately and the requirement forbids either
+          standing in for the other.
+        */}
+        <BaseProvenance verified={base.verified} />
       </header>
 
       {configuration !== undefined && onConfigure !== undefined ? (
