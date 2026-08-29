@@ -43,7 +43,10 @@ LAYOUT="src/canvas/layout.ts"
 TREE="src/canvas/TreeCanvas.tsx"
 
 MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANVAS"
-MUTABLE="$MUTABLE $LAYOUT $TREE"
+METHODS="src/canvas/methods.ts"
+CONTROL="src/canvas/NodeControl.tsx"
+
+MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -449,6 +452,46 @@ check "something other than base identity writes to the card border" \
   ".identity {
   border: var(--border-width) solid var(--border);
 }"
+
+# ----------------------------------------------------------------------
+# The node's method control.
+#
+# SPEC-0006 REQ "Method Selection" is two claims that a behavioural test
+# cannot separate on its own: the options come from the payload, and an
+# unavailable one is present-and-inert rather than absent. A canvas that
+# computed legality and happened to agree with the payload passes every
+# rendering assertion, so the first mutation makes it disagree.
+# ----------------------------------------------------------------------
+
+check "the control decides legality instead of reading it" \
+  tests/canvas/method-control.spec.ts "$METHODS" \
+  "    const available = legal.has(method);" \
+  "    const available = true;"
+
+check "an unavailable method is hidden rather than rendered inert" \
+  tests/canvas/method-control.spec.ts "$CONTROL" \
+  "          {options.map((option) => (" \
+  "          {options.filter((shown) => shown.available).map((option) => ("
+
+check "an inert option stops saying why" \
+  tests/canvas/method-control.spec.ts "$CONTROL" \
+  "          .filter((option) => option.reason !== null)" \
+  "          .filter(() => false)"
+
+check "the card stops opening its control" \
+  tests/canvas/method-control.spec.ts "$CARD" \
+  "          onOpen(node.id);" \
+  "          void node.id;"
+
+check "a method change stops recomputing through the boundary" \
+  tests/canvas/method-control.spec.ts "$SHELL" \
+  "      recomputeWith(next);" \
+  "      void next;"
+
+check "the announcement stops naming what changed" \
+  tests/canvas/method-control.spec.ts "$SHELL" \
+  "    const change = pendingChange.current;" \
+  "    const change: string | null = null;"
 
 echo
 if [ "$failures" -gt 0 ]; then

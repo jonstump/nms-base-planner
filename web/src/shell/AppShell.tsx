@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useId, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   formatQuantity,
@@ -68,6 +76,24 @@ function failureSummary(outcome: Failure): string {
     ? `contract ${outcome.received}, expected ${outcome.expected}`
     : outcome.code;
 }
+
+/**
+ * Method overrides, carried with the target they were chosen against.
+ *
+ * Plan state, not view state — SPEC-0005 keeps the plan out of `ViewState`
+ * and ADR-0002 puts its permanent home in the URL hash, which is not wired
+ * yet (SPEC-0005 records the decode-on-load path as an open question). Held
+ * here beside the crossing that consumes them, the way the result cache is.
+ */
+interface MethodOverrides {
+  readonly target: string;
+  readonly methods: Readonly<Record<string, string>>;
+}
+
+const NO_OVERRIDES: MethodOverrides = Object.freeze({
+  target: "",
+  methods: Object.freeze({}),
+});
 
 function describeResolution(resolution: Resolution, groupSeparator: string): string {
   switch (resolution.status) {
@@ -222,7 +248,34 @@ function Chrome({
   readonly store: DurableStore;
 }): ReactNode {
   const state = useViewState();
-  const { resolution, resultToken, recompute } = usePlanResolution(client, state);
+
+  /*
+   * Per-node method overrides: plan state, held here rather than in
+   * `ViewState`.
+   *
+   * SPEC-0005 REQ "View State Boundaries" keeps the plan out of view state,
+   * and ADR-0002 puts its permanent home in the URL hash. `encodePlanToHash`
+   * exists and nothing calls it — SPEC-0005 records the decode-on-load path
+   * as an open question — so until that lands these live beside the
+   * crossing that consumes them, the way the result cache does.
+   */
+  const [override, setOverride] = useState<MethodOverrides>(NO_OVERRIDES);
+
+  /*
+   * Overrides belong to the target they were chosen against, so they are
+   * stored with it and *derived* away when it changes rather than cleared
+   * by an effect. An effect calling setState here would be a cascading
+   * render, and the derivation says the same thing more directly: an
+   * override keyed by an item id from the previous tree is not an override
+   * for this one.
+   */
+  const methods =
+    override.target === state.inputs.target ? override.methods : NO_OVERRIDES.methods;
+  const { resolution, resultToken, recompute, recomputeWith } = usePlanResolution(
+    client,
+    state,
+    methods,
+  );
   const stored = useStoredData(store);
 
   /*
@@ -230,8 +283,41 @@ function Chrome({
    * a crossing produces a new answer — not on render, not on a preference
    * change, not on a re-render caused by a parent.
    */
-  useAnnounceOnChange(resultToken, () =>
-    describeResolution(resolution, state.preferences.groupSeparator),
+  /*
+   * What changed, for the announcement.
+   *
+   * SPEC-0006 Accessibility Requirements: a method change "MUST be
+   * announced through an aria-live='polite' region naming what changed and
+   * that totals updated". The existing description says totals updated; it
+   * cannot say what caused it, so the cause is recorded here and consumed
+   * by the next announcement.
+   *
+   * Held in a ref and read at announce time rather than announced on the
+   * click: "totals updated" said before the crossing returns is a claim
+   * about a recompute that has not happened.
+   */
+  const pendingChange = useRef<string | null>(null);
+
+  useAnnounceOnChange(resultToken, () => {
+    const change = pendingChange.current;
+    pendingChange.current = null;
+    const described = describeResolution(resolution, state.preferences.groupSeparator);
+    return change === null ? described : `${change} ${described}`;
+  });
+
+  const onSelectMethod = useCallback(
+    (nodeId: string, name: string, method: string) => {
+      pendingChange.current = `${name} set to ${method}.`;
+      const next = { ...methods, [nodeId]: method };
+      setOverride({ target: state.inputs.target, methods: next });
+      /*
+       * `recomputeWith`, not `recompute`: `setMethods` has not re-rendered
+       * yet, so `recompute` would cross with the previous overrides and
+       * resolve the plan the player just changed away from.
+       */
+      recomputeWith(next);
+    },
+    [methods, recomputeWith, state.inputs.target],
   );
 
   const onRecompute = useCallback(() => {
@@ -283,7 +369,7 @@ function Chrome({
             <Suspense
               fallback={<StatusBadge status="pending" detail="loading the canvas" />}
             >
-              <TreeCanvas graph={resolution.graph} />
+              <TreeCanvas graph={resolution.graph} onSelectMethod={onSelectMethod} />
             </Suspense>
           </section>
         )}

@@ -1,14 +1,16 @@
 import { ReactFlow, type Edge, type Node } from "@xyflow/react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 import "@xyflow/react/dist/base.css";
 
 import { formatQuantity, type ResolvedGraph } from "../boundary";
+import { Popover } from "../a11y/Popover";
 import { StatusBadge } from "../shell/StatusBadge";
 import { useViewState } from "../state/useViewState";
 import { toCanvasModel, toLayoutInput, type CanvasModel } from "./graph-model";
 import { layoutGraph, NODE_HEIGHT, NODE_WIDTH, type Placement } from "./layout";
 import { NodeCard } from "./NodeCard";
+import { NodeControl } from "./NodeControl";
 import { TreeEdge } from "./TreeEdge";
 
 /*
@@ -60,9 +62,38 @@ type LayoutState =
 
 const LAYING_OUT: LayoutState = { status: "laying-out" };
 
-export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactNode {
+export function TreeCanvas({
+  graph,
+  onSelectMethod,
+}: {
+  readonly graph: ResolvedGraph;
+  /**
+   * A method was chosen for a node.
+   *
+   * The canvas does not hold the override and does not recompute. Both are
+   * the shell's, which owns the crossing — SPEC-0006 requires reassignment
+   * recompute "through the boundary", and a canvas that kept its own copy
+   * of the plan would be the second source of truth SPEC-0005 forbids.
+   */
+  readonly onSelectMethod: (nodeId: string, name: string, method: string) => void;
+}): ReactNode {
   const model = useMemo(() => toCanvasModel(graph), [graph]);
   const [layout, setLayout] = useState<LayoutState>(LAYING_OUT);
+
+  /*
+   * Which node's control is open, by item id rather than by index. A
+   * recompute replaces every node object, and an index would point at a
+   * different node the moment the tree changed shape.
+   */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const controlHeadingId = useId();
+
+  const onOpen = useCallback((nodeId: string) => {
+    setOpenId(nodeId);
+  }, []);
+  const onCloseControl = useCallback(() => {
+    setOpenId(null);
+  }, []);
 
   /*
    * The player's separator, not this file's.
@@ -117,6 +148,7 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
         selectable: false,
         data: {
           node,
+          onOpen,
           /*
            * Grouped for display and not otherwise touched. `formatQuantity`
            * inserts separators into the string the module sent; it does not
@@ -153,7 +185,7 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
                 }),
         },
       })),
-    [model, layoutOf, preferences.groupSeparator],
+    [model, layoutOf, preferences.groupSeparator, onOpen],
   );
 
   const flowEdges = useMemo<Edge[]>(
@@ -207,6 +239,14 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
     );
   }
 
+  /*
+   * `find`, not an index and not a sort. The no-comparator rule this file
+   * is under is about ordering the nodes for render; looking one up by the
+   * id a player just clicked is neither.
+   */
+  const openNode =
+    openId === null ? null : (model.nodes.find((node) => node.id === openId) ?? null);
+
   return (
     <section className="tree-canvas" aria-label="Dependency tree">
       <ReactFlow
@@ -224,6 +264,32 @@ export function TreeCanvas({ graph }: { readonly graph: ResolvedGraph }): ReactN
         fitView
         proOptions={{ hideAttribution: false }}
       />
+
+      {/*
+        The shell's Popover, not a bespoke dialog. Its trap restores focus
+        in the effect cleanup, so Escape, the backdrop and the close control
+        all converge on one restore — SPEC-0006's Focus Management
+        requirement names the return, and a dialog written here would have
+        to reimplement it and would get one of the three routes wrong.
+      */}
+      <Popover
+        open={openNode !== null}
+        onClose={onCloseControl}
+        labelledBy={controlHeadingId}
+      >
+        {openNode !== null && (
+          <NodeControl
+            node={openNode}
+            headingId={controlHeadingId}
+            format={(quantity) =>
+              formatQuantity(quantity, { groupSeparator: preferences.groupSeparator })
+            }
+            onSelectMethod={(method) => {
+              onSelectMethod(openNode.id, openNode.name, method);
+            }}
+          />
+        )}
+      </Popover>
     </section>
   );
 }

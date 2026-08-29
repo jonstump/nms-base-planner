@@ -34,6 +34,15 @@ export type Resolution =
   /** The inputs are not a plan yet — an empty target, a half-typed quantity. */
   | { readonly status: "unusable"; readonly reason: string };
 
+/**
+ * A stable empty override map.
+ *
+ * A `{}` default in the parameter list would be a new object every render,
+ * which would make the crossing key change every render and reset the
+ * resolution to idle in a loop.
+ */
+const NO_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({});
+
 export interface PlanResolution {
   readonly resolution: Resolution;
   /**
@@ -42,17 +51,42 @@ export interface PlanResolution {
    */
   readonly resultToken: string | null;
   readonly recompute: () => void;
+  /**
+   * Recompute with an override map the caller has just built.
+   *
+   * Separate from `recompute` because the caller that changes a method
+   * holds the next map before React has re-rendered with it. Calling
+   * `recompute` in the same handler would cross with the *previous*
+   * overrides and resolve the plan the player just changed away from.
+   */
+  readonly recomputeWith: (methods: Readonly<Record<string, string>>) => void;
 }
 
 export function usePlanResolution(
   client: BoundaryClient,
   state: ViewState,
+  /**
+   * Per-node method overrides — plan state, not view state.
+   *
+   * SPEC-0005 REQ "View State Boundaries" keeps the plan out of
+   * `ViewState`, and this is why these arrive as an argument rather than
+   * living there. ADR-0002 puts their permanent home in the URL hash;
+   * `encodePlanToHash` exists and nothing calls it yet, which SPEC-0005
+   * records as an open question. Until that path is wired they are held by
+   * the caller that owns the crossing, alongside the result cache.
+   */
+  methods: Readonly<Record<string, string>> = NO_OVERRIDES,
 ): PlanResolution {
   const cache = useRef(new ResultCache<ResolvedGraph>());
   const [resolution, setResolution] = useState<Resolution>({ status: "idle" });
   const [resultToken, setResultToken] = useState<string | null>(null);
 
-  const key = crossingKey(state);
+  /*
+   * The form inputs *and* the overrides. `crossingKey` deliberately covers
+   * only the inputs — a preference change must not discard a good result —
+   * so the override axis is composed on here rather than folded into it.
+   */
+  const key = JSON.stringify([crossingKey(state), methods]);
   const target = state.inputs.target;
   const quantity = state.inputs.quantity;
 
@@ -64,46 +98,49 @@ export function usePlanResolution(
    */
   const latest = useRef(key);
 
-  const run = useCallback(async () => {
-    const validated = validatePlan({ target, quantity });
-    if (!validated.ok) {
-      setResolution({ status: "unusable", reason: validated.reason });
-      setResultToken(null);
-      return;
-    }
+  const run = useCallback(
+    async (overrides: Readonly<Record<string, string>>) => {
+      const validated = validatePlan({ target, quantity, methods: overrides });
+      if (!validated.ok) {
+        setResolution({ status: "unusable", reason: validated.reason });
+        setResultToken(null);
+        return;
+      }
 
-    const requestKey = JSON.stringify([target, quantity]);
-    latest.current = requestKey;
+      const requestKey = JSON.stringify([target, quantity, overrides]);
+      latest.current = requestKey;
 
-    const cached = cache.current.read(requestKey);
-    if (cached) {
-      setResolution({ status: "resolved", graph: cached });
+      const cached = cache.current.read(requestKey);
+      if (cached) {
+        setResolution({ status: "resolved", graph: cached });
+        setResultToken(requestKey);
+        return;
+      }
+
+      setResolution({ status: "pending" });
+
+      const outcome = await client.resolve(validated.plan);
+      if (latest.current !== requestKey) return;
+
+      if (outcome.kind !== "ok") {
+        setResolution({ status: "failed", outcome });
+        setResultToken(null);
+        return;
+      }
+
+      /*
+       * write() returns the frozen value. Using the return rather than the
+       * argument is what stops a component from holding the unfrozen original
+       * and mutating it — which the cache exists to make impossible.
+       */
+      setResolution({
+        status: "resolved",
+        graph: cache.current.write(requestKey, outcome.value),
+      });
       setResultToken(requestKey);
-      return;
-    }
-
-    setResolution({ status: "pending" });
-
-    const outcome = await client.resolve(validated.plan);
-    if (latest.current !== requestKey) return;
-
-    if (outcome.kind !== "ok") {
-      setResolution({ status: "failed", outcome });
-      setResultToken(null);
-      return;
-    }
-
-    /*
-     * write() returns the frozen value. Using the return rather than the
-     * argument is what stops a component from holding the unfrozen original
-     * and mutating it — which the cache exists to make impossible.
-     */
-    setResolution({
-      status: "resolved",
-      graph: cache.current.write(requestKey, outcome.value),
-    });
-    setResultToken(requestKey);
-  }, [client, target, quantity]);
+    },
+    [client, target, quantity],
+  );
 
   /*
    * Not automatic on every keystroke: the target field is typed into a
@@ -113,8 +150,15 @@ export function usePlanResolution(
    * user did.
    */
   const recompute = useCallback(() => {
-    void run();
-  }, [run]);
+    void run(methods);
+  }, [run, methods]);
+
+  const recomputeWith = useCallback(
+    (overrides: Readonly<Record<string, string>>) => {
+      void run(overrides);
+    },
+    [run],
+  );
 
   useEffect(() => {
     /*
@@ -128,5 +172,5 @@ export function usePlanResolution(
     }
   }, [key]);
 
-  return { resolution, resultToken, recompute };
+  return { resolution, resultToken, recompute, recomputeWith };
 }

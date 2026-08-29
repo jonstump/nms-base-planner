@@ -217,6 +217,14 @@ function toNode(spec: Spec, index: number): Node {
     applications: spec.applications === null ? null : exact(spec.applications),
     terminal: spec.terminal,
     verified: spec.verified,
+    /*
+     * The fixture exercises the card, not the method control. Every node
+     * here reports its own resolved method as the only legal one, which is
+     * the shape a terminal really has and keeps the control out of the way
+     * of the card's own assertions.
+     */
+    legalMethods: [spec.method],
+    inputs: [],
   };
 
   /* `identity` is spread rather than assigned, because the project builds
@@ -225,6 +233,14 @@ function toNode(spec: Spec, index: number): Node {
   const data: NodeCardData = {
     ...(spec.identity === undefined ? {} : { identity: spec.identity }),
     node,
+    /*
+     * The card fixture asserts the card. Opening the control is the
+     * canvas's job, exercised against the real application in
+     * tests/canvas/method-control.spec.ts.
+     */
+    onOpen: () => {
+      /* this fixture mounts no control */
+    },
     display: formatQuantity(node.total, { groupSeparator: "," }),
     yieldDisplay:
       node.recipeYield === null || node.recipeYield === "1"
