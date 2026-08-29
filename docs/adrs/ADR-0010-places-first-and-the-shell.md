@@ -182,11 +182,13 @@ The dotted edge is the one that matters: a plan referencing a place that is gone
 
 ## More Information
 
-### A number collision this ADR creates
+### A number collision this ADR created, and how it was settled
 
-**This file takes ADR-0010, which two existing artifacts already promise to something else.** ADR-0008's architecture diagram labels a node `SHARE["Read-only place shares<br/>ADR-0010"]`, and ADR-0009's More Information calls ADR-0010 "sharing and permissions, not yet written". Numerically 0010 was the next free slot and the owner directed its use here; the reservation was prose and a diagram label rather than a file.
+**This file took ADR-0010, which ADR-0008 had reserved for the sharing model.** Numerically 0010 was the next free slot and the owner directed its use here; the reservation was a table row, a diagram label and some prose rather than a file.
 
-Both references are now wrong and should be corrected in a documentation pass, with the sharing model taking the next free number. Recorded here rather than fixed silently, because a stale forward reference in an accepted ADR is exactly the kind of drift that goes unnoticed.
+Settled in the same change that corrected it: **the sharing model is ADR-0014**. It did not take 0011, because ADR-0008's "ADRs that spawn from this one" table already reserves 0011 for server hosting and retention, 0012 for multi-device sync and 0013 for blob storage — and `docs/openspec/specs/durable-store/design.md` points at all three, including inside a Mermaid label. Renumbering sharing into 0011 would have displaced three live reservations to save one number.
+
+Five references were repointed: ADR-0008's diagram node and table row, and three in ADR-0009 (its Consequences, its plan-first pros-and-cons entry, and its Related decisions list). ADR-0008's table also gained a row for this ADR, which extends it and was missing from a table that otherwise ran 0009, 0011, 0012, 0013.
 
 ### A stale sentence in SPEC-0006
 
