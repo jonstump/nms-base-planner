@@ -34,8 +34,9 @@ TRAP="src/a11y/useFocusTrap.ts"
 LIVE="src/a11y/useLiveRegion.ts"
 SHELL="src/shell/AppShell.tsx"
 BADGE="src/shell/StatusBadge.tsx"
+STORE="src/store/durable-store.ts"
 
-MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE"
+MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -218,6 +219,54 @@ check "a control is named only by a glyph" \
   '        <button type="submit" className="control control-primary interactive">
           →
         </button>'
+
+# ----------------------------------------------------------------------
+# The durable store's two absences.
+#
+# SPEC-0009 REQ "Stage 1 Reaches No Network" and REQ "Nothing Is Marked for
+# Synchronization" are both claims that something never happens, and a suite
+# that only exercises the store cannot distinguish "no request was issued"
+# from "no test looked". These two are the ones issue #112 names.
+#
+# Both mutations are type errors the compiler would reject. That is not a
+# gap: vite strips types without checking them, so the mutated store runs,
+# and a rule that only `tsc` enforces is a rule that stops being enforced
+# the moment someone reaches for `as unknown as`.
+# ----------------------------------------------------------------------
+
+check "the store fetches something on write" \
+  tests/store/discipline.spec.ts "$STORE" \
+  '      const now = this.#now();
+      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");' \
+  '      const now = this.#now();
+      await fetch("/api/places", { method: "POST", body: place.id });
+      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");'
+
+# The one that earns the runtime layer its place. Both mutations above trip
+# the source scan *and* the runtime check, so neither shows the runtime check
+# is doing anything. This one is invisible to any regex — verified: with it
+# applied, "no store source reaches for a network primitive" passes and
+# "nothing goes out" fails. Delete the runtime check and this goes green.
+check "the store fetches through a name the source scan cannot see" \
+  tests/store/discipline.spec.ts "$STORE" \
+  '      const now = this.#now();
+      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");' \
+  '      const now = this.#now();
+      const send = (globalThis as Record<string, unknown>)["fet" + "ch"] as (
+        url: string,
+      ) => Promise<unknown>;
+      await send("/api/places");
+      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");'
+
+check "a written place is pre-marked as synced" \
+  tests/store/discipline.spec.ts "$STORE" \
+  "      const record: PlaceRecord = {
+        ...place,
+        schemaVersion: SCHEMA_VERSION," \
+  "      const record: PlaceRecord = {
+        ...place,
+        synced: false,
+        schemaVersion: SCHEMA_VERSION,"
 
 echo
 if [ "$failures" -gt 0 ]; then

@@ -93,3 +93,53 @@ const NAVIGATION =
 export function navigations(file: string, source: string): Finding[] {
   return scan(file, source, NAVIGATION);
 }
+
+/*
+ * Issuing a network request.
+ *
+ * SPEC-0009 REQ "Stage 1 Reaches No Network": nothing in the durable store
+ * "MUST issue a network request", and the absence "MUST be checkable
+ * mechanically rather than by review".
+ *
+ * This is the source half. It is deliberately the weaker of the two checks
+ * and exists because it is the one that names the offending line: a source
+ * scan says `durable-store.ts:212 fetch(...)`, where the runtime check can
+ * only say that something under `src/store` reached the network.
+ *
+ * The runtime half in `tests/store/discipline.spec.ts` is what actually
+ * carries the requirement, because a request can be issued through a
+ * reference this pattern cannot see — `const f = globalThis["fet" + "ch"]`
+ * defeats every regex ever written. Neither check is sufficient alone.
+ *
+ * `new Request(...)` and `new Response(...)` are not matched: constructing
+ * either issues nothing, and a checker that fired on them would be reported
+ * as a false positive and switched off within a week.
+ */
+const NETWORK_CALL =
+  /\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b|\bEventSource\b|\bsendBeacon\s*\(|\bimportScripts\s*\(|\baxios\s*\./;
+
+export function networkCalls(file: string, source: string): Finding[] {
+  return scan(file, source, NETWORK_CALL);
+}
+
+/*
+ * Marking a record as shared, synced, or queued for upload.
+ *
+ * SPEC-0009 REQ "Nothing Is Marked for Synchronization". This is a source
+ * scan over key names and, like the one above, it is the weaker half — the
+ * requirement is about what ends up *written*, and a field set through a
+ * computed key would not appear here. `tests/store/discipline.spec.ts`
+ * asserts on records read back out of IndexedDB for that reason.
+ *
+ * `updatedAt` and `revision` are NOT matched, and that is the point of the
+ * requirement rather than an oversight in the pattern. ADR-0012 reserves
+ * both, SPEC-0009 requires they be "present and unset rather than absent",
+ * and a checker that treated a reserved-and-empty field as a marked one
+ * would be arguing with the schema.
+ */
+const SYNC_MARKER =
+  /\b(?:isShared|shared|isSynced|synced|syncState|syncedAt|pendingUpload|pendingSync|needsUpload|needsSync|uploadedAt|remoteId|publishedAt)\s*[:=]/;
+
+export function syncMarkers(file: string, source: string): Finding[] {
+  return scan(file, source, SYNC_MARKER);
+}

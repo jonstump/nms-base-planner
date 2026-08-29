@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Store discipline fixture</title>
+  </head>
+  <body>
+    <!--
+      Governing: SPEC-0009 REQ "Stage 1 Reaches No Network", REQ "Nothing Is
+      Marked for Synchronization"
+
+      Its own page rather than a reuse of store.html, because the harness
+      here patches fetch, XMLHttpRequest, sendBeacon, WebSocket and
+      EventSource at module scope. Every other store test should run against
+      the real ones.
+    -->
+    <script type="module" src="./store-discipline-harness.ts"></script>
+  </body>
+</html>
