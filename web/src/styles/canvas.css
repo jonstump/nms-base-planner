@@ -1,0 +1,161 @@
+/*
+ * The tree canvas.
+ *
+ * Governing: SPEC-0005 REQ "Token Discipline", REQ "Component Styling
+ * Discipline", SPEC-0006 REQ "Edge Rendering", REQ "Node Card"
+ *
+ * Every colour resolves through a token. React Flow's own theme is not
+ * imported — only its base.css, which is positioning and transforms — so
+ * the literals in its stylesheet never reach this surface.
+ *
+ * No inset box-shadow anywhere, per SPEC-0005: it paints under positioned
+ * children, and a node card is nothing but positioned children.
+ */
+
+.tree-canvas {
+  block-size: clamp(320px, 60vh, 720px);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--bg-canvas);
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+/*
+ * The card.
+ *
+ * A 1px neutral border, which is what SPEC-0006 REQ "Node Card" gives a
+ * non-leaf. Base identity owns the border and there is no assignment yet —
+ * the leaf treatment arrives with the story that adds it, and taking the
+ * border for anything else now would have to be undone then.
+ */
+.node-card {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+  background-color: var(--panel-raised);
+  block-size: 100%;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  gap: var(--space-1);
+  inline-size: 100%;
+  text-align: start;
+}
+
+.node-name {
+  color: var(--text-bright);
+  font-size: var(--text-body);
+  line-height: 1.2;
+}
+
+.node-total {
+  color: var(--text-emphasis);
+  font-size: var(--text-h);
+}
+
+/*
+ * The method, as a word.
+ *
+ * SPEC-0006 REQ "Edge Rendering" requires every fact an edge's appearance
+ * conveys also be available as text on the node it connects to. The edge's
+ * stroke treatment says "refine"; this is where that same fact is text.
+ */
+.node-method {
+  color: var(--text-meta);
+  font-size: var(--text-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+}
+
+/*
+ * Edges.
+ *
+ * Decorative reinforcement only. The dash pattern distinguishes the edges
+ * feeding a refine step from those feeding a crafted one, and nothing is
+ * carried by it alone: the same word is on the label's title and on the
+ * card the edge points at.
+ */
+.tree-edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.tree-edge[data-method="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}
+
+.edge-label {
+  position: absolute;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--border-soft);
+  border-radius: var(--radius-control);
+  background-color: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+  pointer-events: all;
+}
+
+.edge-label[data-method="refine"] {
+  color: var(--text-body);
+}
+
+/*
+ * The canvas saying it could not lay the tree out.
+ *
+ * Body text on the panel, not a status colour. The layout engine failing to
+ * load is not a fact about the plan, and borrowing the deficit or warning
+ * token would say it was.
+ */
+.tree-canvas-empty {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  block-size: auto;
+}
+
+.layout-unavailable {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--panel);
+  color: var(--text-body);
+}
+
+/*
+ * React Flow's attribution, made legible.
+ *
+ * Governing: SPEC-0005 Accessibility Requirements (WCAG 2.1 AA), SPEC-0006
+ * Accessibility Requirements
+ *
+ * The library ships this link in a mid grey on its own translucent backing,
+ * which computes to a contrast ratio of 1.12 against this surface — an
+ * outright WCAG AA failure, found by the axe audit that already runs on the
+ * shell. The literal value is not quoted here because check-tokens.sh scans
+ * comments as well as declarations, unlike the stylesheet checker in
+ * tests/helpers/css-checks.ts, which strips them.
+ *
+ * The link stays. React Flow is MIT-licensed and `hideAttribution` exists,
+ * but removing the credit is what xyflow asks people to buy a subscription
+ * for, and doing it to fix a contrast score would be using an
+ * accessibility finding as cover for a licensing decision. Restyling keeps
+ * the attribution and makes it readable, which is what the credit was for.
+ *
+ * This is the one place the stylesheet names a third-party class. React
+ * Flow exposes no prop for this element, so the alternative is shipping the
+ * failure.
+ */
+/* stylelint-disable-next-line selector-class-pattern */
+.tree-canvas .react-flow__attribution {
+  background-color: var(--panel);
+}
+
+/* stylelint-disable-next-line selector-class-pattern */
+.tree-canvas .react-flow__attribution a {
+  color: var(--text-body);
+}

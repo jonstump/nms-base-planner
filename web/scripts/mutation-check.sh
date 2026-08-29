@@ -35,8 +35,15 @@ LIVE="src/a11y/useLiveRegion.ts"
 SHELL="src/shell/AppShell.tsx"
 BADGE="src/shell/StatusBadge.tsx"
 STORE="src/store/durable-store.ts"
+MODEL="src/canvas/graph-model.ts"
+EDGE="src/canvas/TreeEdge.tsx"
+CARD="src/canvas/NodeCard.tsx"
+CANVAS="src/styles/canvas.css"
+LAYOUT="src/canvas/layout.ts"
+TREE="src/canvas/TreeCanvas.tsx"
 
-MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE"
+MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANVAS"
+MUTABLE="$MUTABLE $LAYOUT $TREE"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -267,6 +274,105 @@ check "a written place is pre-marked as synced" \
         ...place,
         synced: false,
         schemaVersion: SCHEMA_VERSION,"
+
+# ----------------------------------------------------------------------
+# The tree canvas.
+#
+# SPEC-0006 carves layout out of SPEC-0005's no-arithmetic rule and draws
+# the line at what the engine may read. design.md is explicit that the line
+# exists so the argument does not have to be had at review time on every
+# surface — which only works if something is watching it.
+#
+# The ordering mutation is the one worth reading. A payload that arrived
+# already sorted would satisfy every ordering assertion against a canvas
+# that sorted it again, so the source scan and the rendered order are both
+# needed and this breaks both at once.
+# ----------------------------------------------------------------------
+
+check "the canvas sorts the nodes it was given" \
+  tests/canvas/rendering.spec.ts "$MODEL" \
+  "  for (const node of graph.nodes) {" \
+  "  for (const node of [...graph.nodes].sort((a, b) => a.name.localeCompare(b.name))) {"
+
+check "a total reaches the layout engine" \
+  tests/canvas/layout.spec.ts "$MODEL" \
+  "    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      width: NODE_WIDTH," \
+  "    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      total: node.total,
+      width: NODE_WIDTH,"
+
+check "node width is derived from the total" \
+  tests/canvas/layout.spec.ts "$MODEL" \
+  "      width: NODE_WIDTH," \
+  "      width: NODE_WIDTH + node.total.length * 3,"
+
+check "an edge stops showing its per-unit quantity" \
+  tests/canvas/edges.spec.ts "$EDGE" \
+  "          {perUnit}" \
+  '          {""}'
+
+check "edge styling stops distinguishing a refine step" \
+  tests/canvas/edges.spec.ts "$CANVAS" \
+  '.tree-edge[data-method="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}' \
+  '.tree-edge[data-never-matches="refine"] {
+  stroke: var(--accent-border);
+  stroke-dasharray: 6 4;
+}'
+
+# The other half of "no fact lives only in an edge": if the card stops
+# naming the method, the edge's stroke becomes the sole carrier of it.
+check "the node card stops naming its method" \
+  tests/canvas/edges.spec.ts "$CARD" \
+  '<span className="node-method">{node.method}</span>' \
+  '<span className="node-method" />'
+
+# ----------------------------------------------------------------------
+# The three findings from the review of #124.
+#
+# Each was a guard that could not fire, and each was found by breaking the
+# thing it guarded and watching the suite stay green. These are those three
+# breakages, kept.
+# ----------------------------------------------------------------------
+
+# The canvas arrives after the figure list — behind a lazy chunk and then a
+# layout — so an audit that waits only for the list analyses a document the
+# canvas is not in yet. React Flow's attribution fails AA against this
+# surface at 1.12; before the wait in resolveAPlan, removing the restyle
+# left the audit green.
+check "React Flow's attribution goes back to shipping unreadable" \
+  tests/shell/shell.spec.ts "$CANVAS" \
+  '.tree-canvas .react-flow__attribution {
+  background-color: var(--panel);
+}' \
+  '.tree-canvas .react-flow__attribution-unmatched {
+  background-color: var(--panel);
+}'
+
+# SPEC-0009 makes the separator preference outlive the page; the canvas has
+# to honour it, and while the flat list is on screen beside it a hardcoded
+# separator shows the same figure two ways at once.
+check "the canvas hardcodes its digit separator again" \
+  tests/canvas/rendering.spec.ts "$TREE" \
+  "            groupSeparator: preferences.groupSeparator," \
+  '            groupSeparator: ",",'
+
+# An engine that would not load used to return an empty map, which the
+# canvas could not tell from a laid-out graph — so every card took the
+# fallback coordinate and the tree rendered as one pile at the origin.
+check "a failed layout becomes indistinguishable from an empty one" \
+  tests/canvas/degraded.spec.ts "$LAYOUT" \
+  "  } catch {
+    return null;
+  }" \
+  "  } catch {
+    return new Map();
+  }"
 
 echo
 if [ "$failures" -gt 0 ]; then
