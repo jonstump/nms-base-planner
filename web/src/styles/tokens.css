@@ -42,6 +42,10 @@
    *
    *   --text-muted is 4.17:1 on --panel-raised, below AA for normal text.
    *   Against that surface, use it only at 17px or larger, or use --text.
+   *   It is 3.68:1 on --input-bg — worse, and a surface the handoff never
+   *   validates it against, because the three it measures are all darker.
+   *   Treat --input-bg as out of range rather than extrapolating from the
+   *   published figures.
    *
    *   --text-dim is decorative at 18px or larger only, and must never be
    *   the sole carrier of information available nowhere else.

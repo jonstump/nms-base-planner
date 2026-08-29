@@ -129,11 +129,11 @@ test("the checks do not fire on legitimate code", () => {
   expect(networkCalls("x.ts", `const socket = pipe.connect(target);`)).toEqual([]);
 
   /*
-   * The reserved fields. ADR-0012 has `updatedAt` and `revision` written
-   * from version 1 and read by nothing, and SPEC-0009 requires they be
-   * "present and unset rather than absent" — a checker that read a
-   * reserved-and-empty field as a marked one would be arguing with the
-   * schema rather than enforcing it.
+   * The reserved fields. ADR-0008 reserves `updatedAt` and `revision` for
+   * the sync ADR it defers to, and SPEC-0009 requires they be written from
+   * version 1 even though nothing reads them — so a checker that read a
+   * reserved field as a marked one would be arguing with the schema rather
+   * than enforcing it.
    */
   expect(
     syncMarkers("x.ts", `const record = { ...place, updatedAt: now, revision };`),

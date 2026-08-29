@@ -58,11 +58,33 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The micro-label. `--text-muted` at 11.5px, which is safe on every surface
+ * the app currently uses and NOT safe on two it does not:
+ *
+ *   --bg-canvas  5.90     --panel-raised  4.17   below AA for normal text
+ *   --bg         5.30     --input-bg      3.68   below AA, and a surface
+ *   --panel      4.72                            the handoff never measures
+ *
+ * The theme handoff states the `--panel-raised` rule (>=17px there, or use
+ * `--text`). It never measures `--input-bg`, which is lighter than all
+ * three surfaces it does measure and is therefore the worse case.
+ *
+ * Use `.label-strong` on a raised or input surface. This is not enforced
+ * here — the axe audit in tests/shell/shell.spec.ts catches it, verified by
+ * putting a .label on --input-bg and watching both audits fail — so the
+ * note exists to save an author the round trip, not to substitute for it.
+ */
 .label {
   font-size: var(--text-label);
   letter-spacing: var(--label-tracking);
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* A micro-label on a surface where `--text-muted` does not clear AA. */
+.label-strong {
+  color: var(--text);
 }
 
 /* The canvas surface carries the 24px grid rather than the scanline. */
