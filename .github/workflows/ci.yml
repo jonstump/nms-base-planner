@@ -195,7 +195,18 @@ jobs:
     # that never triggers leaves that check pending and the pull request
     # unmergeable.
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    #
+    # The condition is "not explicitly false" rather than "is true", and it uses
+    # a status-check function so it overrides the default skip-on-needs-failure.
+    # That combination is deliberate: if the gate job fails, its output is empty,
+    # empty is not 'false', and the suite runs.
+    #
+    # Without it a failing gate would SKIP this job, and a skipped required
+    # check counts as passing — so a broken detector would look identical to a
+    # green suite. Failing toward running is the same direction the predicate
+    # itself fails in, and it means the safety of this gate does not depend on
+    # branch protection also requiring the gate job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     defaults:
       run:
         working-directory: web
