@@ -327,10 +327,16 @@ check "edge styling stops distinguishing a refine step" \
 
 # The other half of "no fact lives only in an edge": if the card stops
 # naming the method, the edge's stroke becomes the sole carrier of it.
+#
+# The same breakage as "the method badge loses its word" below, named
+# against a different suite on purpose. That one asks whether the badge
+# still carries a word; this one asks whether the fact an edge's stroke
+# conveys is still text somewhere. Two requirements, one way to break both,
+# and a mutation that only named one of the suites would let the other rot.
 check "the node card stops naming its method" \
   tests/canvas/edges.spec.ts "$CARD" \
-  '<span className="node-method">{node.method}</span>' \
-  '<span className="node-method" />'
+  "      <span>{method}</span>" \
+  "      <span />"
 
 # ----------------------------------------------------------------------
 # The three findings from the review of #124.
