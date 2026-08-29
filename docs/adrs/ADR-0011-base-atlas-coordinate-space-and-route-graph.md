@@ -66,6 +66,8 @@ A place with no district is the handoff's "1 ungrouped outpost" — again a firs
 
 A harvest run is a **player-authored record** in the workspace: an ordered list of stops, each stop naming a place, with a travel method per leg.
 
+A stop names a place by the SPEC-0009 place `id` — which ADR-0010 §1 makes the same identifier as `BaseID`, so a run, a plan's assignments and the Atlas all point at one thing. No second key is minted for routing.
+
 It may be **seeded** from a plan's base assignments — that is where the design's two runs matching the planner's two targets comes from, and it is a genuine convenience. But seeding is a one-time copy, not a binding. After it, the run is the player's, and editing the plan does not silently reorder their route.
 
 The reason is that a plan does not contain a run. It contains a set of bases with leaves assigned to them. The order in which a player visits those bases, and whether a given leg is a teleporter or a portal, are facts about the player's base network and their habits, not about the plan. Deriving a run would mean inventing both.
@@ -88,13 +90,33 @@ This is named here rather than left to the spec because it is a shaping constrai
 
 ### (e) Deliberately deferred
 
-* **Whether the Atlas is a top-level surface or a view within bases.** ADR-0010 owns navigation and this ADR must not pre-empt it. What this decision does assert is the constraint ADR-0010 has to satisfy: the Atlas renders *places*, not plans, so it belongs to the place-scoped surface family, and it must be reachable with no plan loaded.
-* **Deep-linking from a run stop to that base's card** — the handoff's second open question. It is a navigation concern and goes to ADR-0010 for the same reason.
+* **~~Whether the Atlas is a top-level surface~~ — now answered, see (f).** This was deferred while ADR-0010 was in flight. It has since merged, and the answer follows from its own criterion rather than from a fresh judgement here.
+* **Deep-linking from a run stop to that base's card** — the handoff's second open question. ADR-0010 §4 settles the mechanism: cross-navigation links like the design's "view planner →" are content links inside `main`, not a second navigation landmark. Whether a run stop carries one is a spec-level question about the run panel, and the mechanism it would use is no longer open.
 * **Whether districts ever become authored rectangles** rather than derived bounding boxes. Deriving is correct while a district is a grouping; if a player ever wants a territory that is not the hull of its members, that is a new decision.
+
+### (f) The Atlas is a surface, on ADR-0010's own criterion
+
+ADR-0010 §4 makes surfaces shell view state — no router, selection held by the shell, and exactly one `role="navigation"` landmark. It enumerates them as "bases, tree, planner — plus the freighter and settlement surfaces ADR-0006 and ADR-0007 add."
+
+**The Atlas is not in that list, and the omission is an artefact of sequencing rather than a decision.** ADR-0010 was written while this one was, at a point when the Atlas was the one designed surface with no ADR behind it — and it quotes the design's "view atlas →" among the cross-navigation links it rules on, so the surface was in view even though it was not enumerated.
+
+It joins the list, and the reason is ADR-0010's own test for the entry surface: the bases surface opens the application because it is "the only surface that renders correctly with no domain call at all". By (a) through (c), so does the Atlas — positions, districts and runs are all authored records in the SPEC-0009 store, and nothing on this surface waits for the module. The Atlas meets the criterion ADR-0010 used to choose what the application opens on.
+
+This adopts ADR-0010's navigation mechanism rather than adding to it. No router, one landmark, and the surface set grows by one.
+
+**What the shell must not do with it:** a run references places, and ADR-0010 §6 puts plan state in the URL hash and player-authored data in the store. Runs and positions are player-authored, so a shared hash MUST NOT carry them. A share that reproduced someone's map arrangement and harvest routes from a link would put durable data inside the mechanism ADR-0008 built specifically to keep it out of.
+
+### (g) A run stop naming a place that no longer exists
+
+ADR-0010 §1 rules that a plan assignment naming a deleted place resolves to unassigned — the leaves reappear in the unassigned group rather than the plan being destroyed or a dangling id being rendered.
+
+A run needs the same rule and cannot use the same mechanism, because a sequence has no unassigned bucket to put a stop in. So: **the stop is retained and rendered as unresolved.** Deleting a place MUST NOT delete a run, MUST NOT silently drop the stop, and MUST NOT renumber the waypoints around the gap.
+
+Dropping it silently would reorder a route the player authored, which is the harvest-run equivalent of destroying their work; renumbering would do it while looking tidy. An unresolved stop is visible, is removable deliberately, and keeps the order the player chose until they change it. This is ADR-0010's principle — never destroy, never lie — applied to the one shape it did not cover.
 
 ### Consequences
 
-* Good, because the strict domain/view boundary survives intact and no new WASM crossing is added — the rollup's three stages remain the whole of the boundary surface.
+* Good, because the strict domain/view boundary survives intact and this decision adds no WASM crossing of its own. ADR-0010 §5 already adds a catalogue call for target search, so the boundary is growing — but it grows for a reason the Atlas does not share, and the Atlas adds nothing to it.
 * Good, because ADR-0006's freighter split is representable rather than special-cased: "route node, no position" falls straight out of position being optional.
 * Good, because positions and runs reuse the SPEC-0009 store, its versioning, and its eviction honesty, instead of adding a second place for durable user data to live.
 * Good, because a district that is the bounding box of its members cannot go stale relative to the places in it.
@@ -102,18 +124,21 @@ This is named here rather than left to the spec because it is a shaping constrai
 * Bad, because the chosen option rests on a premise that could change. If Atlas positions ever mean real in-game distance, or travel acquires a per-leg cost, the "no metric to minimise" argument fails and route optimisation becomes genuine domain work — with the boundary crossing this decision avoided.
 * Bad, because seeded-then-owned runs will drift from the plans that seeded them, and a player who edits a plan and expects their run to follow will be surprised. The alternative is worse, but the surprise is real.
 * Bad, because "no map-only operation" makes repositioning cost more than a drag handle: it requires a non-spatial way to set a position, which the prototype does not have and the design did not consider.
+* Good, because the Atlas satisfies ADR-0010's no-domain-call criterion, so adding it to the surface set costs the shell nothing structurally.
 * Bad, because sharing a place now discloses its Atlas position as well as its notes. The position is arrangement rather than geography, so the disclosure is weak — but it is a new thing leaving the device on a path ADR-0008 built deliberately narrow.
 * Bad, because a `PlaceRecord` schema bump invalidates stored workspaces under SPEC-0009's load-nothing rule. There is no data in the field yet, so the cost is theoretical today and will not be later.
 * Neutral, because holding "one active run" keeps a rendering defect unreachable at the price of a feature nobody has asked for.
 
 ### Confirmation
 
-* **No new boundary crossing appears.** `cmd/planner` still exposes exactly `resolve`, `rollup` and `power`; no Atlas, route, or position call is added. Verified by grep against the bridge surface, since the requirement is an absence.
+* **No Atlas call appears on the boundary.** The bridge surface carries no route, position, district, or distance entry point. Stated as an absence rather than as a count, because ADR-0010 §5 adds a catalogue call and a fixed number would fail for a reason unrelated to this decision.
 * **No Atlas arithmetic in the domain.** `internal/domain` contains no position, distance, or route type — the coordinate space does not exist on the Go side at all.
 * **A place with no position renders.** A freighter and an unpositioned base both appear in the run panel and the place list, and neither appears on the map. Asserted against a fixture carrying both, because ADR-0006 makes the freighter case mandatory rather than incidental.
 * **No position is seeded from the save.** No code path assigns an Atlas position from `GalacticAddress` or `Position` — the same grep-for-absence ADR-0006 already requires of the freighter card.
 * **Every map operation exists in the list.** Enumerated as a test over the surface's operations rather than a review note: for each operation reachable by clicking a building or a waypoint, an equivalent is reachable from the list without a pointer.
 * **Run identity survives colour removal.** The active run is identifiable with every colour stripped from the document — the assertion SPEC-0007's card tests already make, applied to the Atlas.
+* **A shared hash carries no arrangement.** A hash encoded from a workspace with positions and runs decodes to plan state alone — asserted by the same one-path decode test SPEC-0005 already requires, extended to prove the absence.
+* **A deleted place leaves its runs intact.** A test deletes a place that a run stops at, then asserts the run still exists, the stop is present and marked unresolved, and the remaining waypoint numbers are unchanged.
 * **The schema bump is exercised.** A workspace written at the previous `schemaVersion` loads nothing and reports both versions, rather than loading places without positions.
 
 ## Pros and Cons of the Options
@@ -133,7 +158,7 @@ Positions and runs cross into the Go domain; a new boundary stage computes optim
 
 Positions are an optional field on `PlaceRecord`; runs are workspace records seeded from plans and owned by the player; the view renders both and the domain never sees them.
 
-* Good, because it keeps the boundary at three stages and the domain free of view-authored state.
+* Good, because it adds nothing to the boundary and keeps the domain free of view-authored state.
 * Good, because it matches SPEC-0006's existing ruling that layout geometry is the view's and quantities are the domain's, rather than drawing the same line differently on a second surface.
 * Good, because optional position expresses ADR-0006's freighter split directly, with no conditional.
 * Good, because runs survive the plans that seeded them, which is what a route through a player's own base network actually is.
@@ -213,7 +238,7 @@ graph TD
 
 **References.**
 
-* ADR-0010 — the application shell, which this extends; navigation and the place-record-independent-of-plan model
+* ADR-0010 — the application shell this extends: places first, `BaseID` as the place record's `id`, surfaces as shell view state under one navigation landmark, and the hash-owns-the-plan / store-owns-the-player split that puts positions and runs in the store
 * ADR-0006 — the freighter as a route node never given a map position; the constraint (a) and (c) are shaped by
 * ADR-0007 — the Atlas dossier as a summary panel, and why settlement state does not fit in it
 * ADR-0008 / SPEC-0009 — the local-first store, `PlaceRecord`, the schema-version rule, eviction honesty, and the per-place sharing unit a position now travels inside
