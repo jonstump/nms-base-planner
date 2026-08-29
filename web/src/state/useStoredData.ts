@@ -20,12 +20,13 @@
  * quantity, and `ViewState` gains no field.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DurableStore } from "../store";
 import type { PlaceRecord } from "../store";
 import { differ, fromStored, toStored, type Preferences } from "./preferences";
 import { useViewDispatch, useViewState } from "./useViewState";
+import { INITIAL_VIEW_STATE } from "./view-state";
 
 export type StoreStatus =
   /** The first read has not finished. Not empty, and not a failure. */
@@ -56,13 +57,25 @@ export interface StoredData {
    * also exactly what a player does when they set something and leave.
    */
   readonly saving: boolean;
+  /**
+   * Remove everything the store holds.
+   *
+   * Governing: SPEC-0009 REQ "Deletion Is a First-Class Operation". The
+   * confirmation is the caller's — this is the operation, not the prompt.
+   */
+  readonly deleteEverything: () => Promise<void>;
 }
+
+const NOOP = async (): Promise<void> => {
+  /* replaced by the real operation once the hook has run */
+};
 
 const LOADING: StoredData = Object.freeze({
   status: "loading",
   places: Object.freeze([]),
   empty: false,
   saving: false,
+  deleteEverything: NOOP,
 });
 
 export function useStoredData(store: DurableStore): StoredData {
@@ -94,14 +107,26 @@ export function useStoredData(store: DurableStore): StoredData {
       const opened = await store.open();
       if (!live) return;
       if (opened.kind !== "ok") {
-        setData({ status: "unavailable", places: [], empty: false, saving: false });
+        setData({
+          status: "unavailable",
+          places: [],
+          empty: false,
+          saving: false,
+          deleteEverything: NOOP,
+        });
         return;
       }
 
       const loaded = await store.load();
       if (!live) return;
       if (loaded.kind !== "ok") {
-        setData({ status: "unavailable", places: [], empty: false, saving: false });
+        setData({
+          status: "unavailable",
+          places: [],
+          empty: false,
+          saving: false,
+          deleteEverything: NOOP,
+        });
         return;
       }
 
@@ -130,6 +155,7 @@ export function useStoredData(store: DurableStore): StoredData {
         places: loaded.value.places,
         empty: loaded.value.places.length === 0,
         saving: false,
+        deleteEverything: NOOP,
       });
     };
 
@@ -160,5 +186,48 @@ export function useStoredData(store: DurableStore): StoredData {
     });
   }, [store, preferences]);
 
-  return saving === data.saving ? data : { ...data, saving };
+  const deleteEverything = useCallback(async (): Promise<void> => {
+    const removed = await store.deleteAll();
+    if (removed.kind !== "ok") {
+      setData((previous) => ({ ...previous, status: "unavailable" }));
+      return;
+    }
+
+    /*
+     * Preferences live on the workspace record, so deletion took them too.
+     * The view is reset to match rather than left showing settings whose
+     * stored copy no longer exists — a screen that disagrees with the store
+     * is how "I deleted my data" becomes "did I?".
+     *
+     * `written.current` is set *before* dispatching, so the write effect
+     * sees no difference and does not immediately recreate the workspace
+     * record that was just removed. Deletion that undoes itself one tick
+     * later is the obvious failure here and it is silent.
+     */
+    written.current = INITIAL_VIEW_STATE.preferences;
+    dispatch({
+      type: "setPreference",
+      field: "groupSeparator",
+      value: INITIAL_VIEW_STATE.preferences.groupSeparator,
+    });
+    dispatch({
+      type: "setPreference",
+      field: "showUnverified",
+      value: INITIAL_VIEW_STATE.preferences.showUnverified,
+    });
+
+    /*
+     * Ready and empty, not a failure. SPEC-0009: deletion "MUST leave the
+     * application in the designed empty state rather than in an error
+     * state" — deleting your data is a thing you chose.
+     */
+    setData((previous) => ({
+      ...previous,
+      status: "ready",
+      places: [],
+      empty: true,
+    }));
+  }, [store, dispatch]);
+
+  return { ...data, saving, deleteEverything };
 }
