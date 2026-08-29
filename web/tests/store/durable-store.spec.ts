@@ -83,7 +83,8 @@ test("updatedAt and revision are written even though nothing reads them", async 
   page,
 }) => {
   /*
-   * Reserved for ADR-0012. A reviewer who has not read ADR-0008 will
+   * Reserved by ADR-0008 for the sync ADR it defers to. A reviewer who has
+   * not read ADR-0008 will
    * reasonably ask why three unused fields exist, so this asserts them
    * rather than leaving it to judgement: a store that adds ordering later
    * cannot order edits made before it existed.

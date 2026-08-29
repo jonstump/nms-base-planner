@@ -132,10 +132,10 @@ export function networkCalls(file: string, source: string): Finding[] {
  * asserts on records read back out of IndexedDB for that reason.
  *
  * `updatedAt` and `revision` are NOT matched, and that is the point of the
- * requirement rather than an oversight in the pattern. ADR-0012 reserves
- * both, SPEC-0009 requires they be "present and unset rather than absent",
- * and a checker that treated a reserved-and-empty field as a marked one
- * would be arguing with the schema.
+ * requirement rather than an oversight in the pattern. ADR-0008 reserves
+ * both for a later sync ADR, SPEC-0009 requires they be written from the
+ * first version, and a checker that treated a reserved field as a marked
+ * one would be arguing with the schema rather than enforcing it.
  */
 const SYNC_MARKER =
   /\b(?:isShared|shared|isSynced|synced|syncState|syncedAt|pendingUpload|pendingSync|needsUpload|needsSync|uploadedAt|remoteId|publishedAt)\s*[:=]/;

@@ -50,7 +50,12 @@ export interface PlaceRecord {
   readonly stocked?: Readonly<Record<string, string>>;
 
   /*
-   * Reserved for ADR-0012 (multi-device sync and conflict resolution).
+   * Reserved by ADR-0008, which defers multi-device sync and conflict
+   * resolution to a later ADR (numbered 0012 in its forward table, and not
+   * yet written) and keeps the schema room deliberately. SPEC-0009 makes it
+   * normative: both MUST be written from the first version, because a store
+   * that adds them later cannot order edits made before they existed.
+   *
    * Written on every mutation; nothing reads them in stage 1.
    */
   readonly updatedAt: string;
