@@ -347,3 +347,25 @@
   border-block-start: var(--border-width) solid var(--divider);
   color: var(--text-muted);
 }
+
+/*
+ * The base assignment control.
+ *
+ * Governing: SPEC-0006 REQ "Leaf Assignment to Bases"
+ *
+ * A native select, which the design asks for and which is keyboard
+ * operable without anything added — the requirement is that the assignment
+ * "be changed and committed without a pointing device", and a bespoke
+ * listbox would have to re-earn that.
+ */
+.node-control-base {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: var(--space-2);
+}
+
+.node-base-select {
+  background-color: var(--input-bg);
+  color: var(--text);
+}

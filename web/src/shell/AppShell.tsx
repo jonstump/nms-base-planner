@@ -3,24 +3,29 @@ import {
   Suspense,
   useCallback,
   useId,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import {
+  EMPTY_PLAN,
   formatQuantity,
   isQuantity,
+  validatePlan,
   type BoundaryClient,
   type Failure,
 } from "../boundary";
 import { LiveRegionProvider } from "../a11y/LiveRegion";
-import { useAnnounceOnChange } from "../a11y/useLiveRegion";
+import { useAnnounceOnChange, useLiveRegion } from "../a11y/useLiveRegion";
 import { Popover } from "../a11y/Popover";
 import { ViewStateProvider } from "../state/ViewStateProvider";
 import { useViewDispatch, useViewState } from "../state/useViewState";
 import { usePlanResolution, type Resolution } from "../state/usePlanResolution";
 import { useStoredData } from "../state/useStoredData";
+import { BASES } from "../canvas/bases";
+import { useLeafAssignment } from "../canvas/useLeafAssignment";
 import { DurableStore } from "../store";
 import { StatusBadge } from "./StatusBadge";
 
@@ -297,6 +302,31 @@ function Chrome({
    * about a recompute that has not happened.
    */
   const pendingChange = useRef<string | null>(null);
+  const { announce } = useLiveRegion();
+
+  /*
+   * The plan the assignment hook sends with its rollup. Built through
+   * `validatePlan` rather than assembled by hand — SPEC-0005 makes it the
+   * single gate, and a second construction path is a second thing to drift.
+   */
+  const plan = useMemo(() => {
+    const validated = validatePlan({
+      target: state.inputs.target,
+      quantity: state.inputs.quantity,
+      methods,
+    });
+    return validated.ok ? validated.plan : EMPTY_PLAN;
+  }, [state.inputs.target, state.inputs.quantity, methods]);
+
+  /*
+   * `constants: null` is not a stub. `RollupRequest` requires curated
+   * constants and the application has no source for them — they exist only
+   * in test fixtures, and the base planner card that would own them is not
+   * mounted either. So assignments are held and rendered here, and the
+   * stage-2 dispatch this hook performs is exercised where constants exist.
+   * Stated rather than hidden: see the PR for #88.
+   */
+  const { assignments, assign } = useLeafAssignment({ client, plan, constants: null });
 
   useAnnounceOnChange(resultToken, () => {
     const change = pendingChange.current;
@@ -304,6 +334,27 @@ function Chrome({
     const described = describeResolution(resolution, state.preferences.groupSeparator);
     return change === null ? described : `${change} ${described}`;
   });
+
+  const onAssign = useCallback(
+    (nodeId: string, name: string, baseId: string | null) => {
+      assign(nodeId, baseId);
+
+      /*
+       * Announced directly rather than through the recompute's description.
+       * SPEC-0006 requires an assignment change be announced naming what
+       * changed; it also expects "totals updated", and saying so here would
+       * be false while no recompute is dispatched. What is true is the
+       * assignment, so that is what is said.
+       */
+      const label = BASES.find((base) => base.id === baseId)?.label;
+      announce(
+        label === undefined
+          ? `${name} is no longer assigned to a base.`
+          : `${name} assigned to ${label}.`,
+      );
+    },
+    [assign, announce],
+  );
 
   const onSelectMethod = useCallback(
     (nodeId: string, name: string, method: string) => {
@@ -369,7 +420,12 @@ function Chrome({
             <Suspense
               fallback={<StatusBadge status="pending" detail="loading the canvas" />}
             >
-              <TreeCanvas graph={resolution.graph} onSelectMethod={onSelectMethod} />
+              <TreeCanvas
+                graph={resolution.graph}
+                onSelectMethod={onSelectMethod}
+                assignments={assignments}
+                onAssign={onAssign}
+              />
             </Suspense>
           </section>
         )}

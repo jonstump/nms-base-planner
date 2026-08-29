@@ -9,6 +9,7 @@ import { StatusBadge } from "../shell/StatusBadge";
 import { useViewState } from "../state/useViewState";
 import { toCanvasModel, toLayoutInput, type CanvasModel } from "./graph-model";
 import { layoutGraph, NODE_HEIGHT, NODE_WIDTH, type Placement } from "./layout";
+import { slotFor } from "./bases";
 import { NodeCard } from "./NodeCard";
 import { NodeControl } from "./NodeControl";
 import { TreeEdge } from "./TreeEdge";
@@ -65,6 +66,8 @@ const LAYING_OUT: LayoutState = { status: "laying-out" };
 export function TreeCanvas({
   graph,
   onSelectMethod,
+  assignments,
+  onAssign,
 }: {
   readonly graph: ResolvedGraph;
   /**
@@ -76,6 +79,9 @@ export function TreeCanvas({
    * of the plan would be the second source of truth SPEC-0005 forbids.
    */
   readonly onSelectMethod: (nodeId: string, name: string, method: string) => void;
+  /** Item id to base id. The canvas renders it; it does not own it. */
+  readonly assignments: Readonly<Record<string, string>>;
+  readonly onAssign: (nodeId: string, name: string, baseId: string | null) => void;
 }): ReactNode {
   const model = useMemo(() => toCanvasModel(graph), [graph]);
   const [layout, setLayout] = useState<LayoutState>(LAYING_OUT);
@@ -150,6 +156,16 @@ export function TreeCanvas({
           node,
           onOpen,
           /*
+           * SPEC-0006 REQ "Node Card": an assigned leaf carries its base's
+           * colour on the border, an unassigned one a dashed neutral frame
+           * and a warning dot. The slot is looked up from the assignments
+           * the shell holds — the card does not know what a base is.
+           */
+          ...(() => {
+            const slot = slotFor(assignments, node.id);
+            return slot === undefined ? {} : { identity: slot };
+          })(),
+          /*
            * Grouped for display and not otherwise touched. `formatQuantity`
            * inserts separators into the string the module sent; it does not
            * parse it, and SPEC-0005 forbids the view doing arithmetic on a
@@ -185,7 +201,7 @@ export function TreeCanvas({
                 }),
         },
       })),
-    [model, layoutOf, preferences.groupSeparator, onOpen],
+    [model, layoutOf, preferences.groupSeparator, onOpen, assignments],
   );
 
   const flowEdges = useMemo<Edge[]>(
@@ -284,8 +300,12 @@ export function TreeCanvas({
             format={(quantity) =>
               formatQuantity(quantity, { groupSeparator: preferences.groupSeparator })
             }
+            assignedTo={assignments[openNode.id] ?? null}
             onSelectMethod={(method) => {
               onSelectMethod(openNode.id, openNode.name, method);
+            }}
+            onAssign={(baseId) => {
+              onAssign(openNode.id, openNode.name, baseId);
             }}
           />
         )}
