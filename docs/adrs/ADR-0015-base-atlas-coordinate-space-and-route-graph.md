@@ -6,7 +6,7 @@ extends: [ADR-0010]
 related: [ADR-0003, ADR-0004, ADR-0006, ADR-0007, ADR-0008]
 ---
 
-# ADR-0011: The Base Atlas — an authored coordinate space, and a route graph that is presentation
+# ADR-0015: The Base Atlas — an authored coordinate space, and a route graph that is presentation
 
 ## Context and Problem Statement
 
@@ -233,6 +233,14 @@ graph TD
 **On the handoff's open questions.** Question 1 (drag-repositioning and district drawing are unprototyped production features) is answered in principle: positions are authored, so a means of authoring them is required, and (d) adds that a non-spatial means is required alongside any drag. The interaction itself is spec work. Question 2 is deferred to ADR-0010 as above. Question 3 (overlapping waypoint chips on a shared mid-route stop) is resolved by keeping one active run at a time, which makes the overlap unreachable.
 
 **The premise to watch.** The whole of the chosen option rests on Atlas positions being arrangement rather than geography, and on teleporter travel being uniform-cost. Both are true today and both are stated in the design. If either changes — a real distance, or a per-leg cost that varies — option A becomes correct and this decision should be superseded rather than amended, because the boundary crossing it declines is the substance of it.
+
+### The number, and why it is not 0011
+
+This decision was drafted as ADR-0011, on the grounds that 0011 was the next free *file* in `docs/adrs/`. It is not the next free *number*: ADR-0008's "ADRs that spawn from this one" table reserves 0011 for server hosting, retention and deletion, and three live references point at that reservation — ADR-0008's own retention commitment, and two lines in `docs/openspec/specs/durable-store/design.md` that defer the retention story to it.
+
+ADR-0010 met the same collision from the other side and settled it by moving rather than displacing, for the reason that applies here unchanged: renumbering into a reserved slot displaces live pointers to save one number. So the Atlas is 0015, after hosting (0011), sync (0012), blobs (0013) and sharing (0014).
+
+Recorded rather than silently renamed, because "check the directory for the next free number" is the instruction that produced the collision, and the directory is not where the reservations live.
 
 **Sequencing.** Nothing here is blocked. The store exists (SPEC-0009 is implemented), the place record exists, and the two things this adds to it are a nullable field and a new record type. The spec that follows this ADR can be written against a working store rather than a proposed one.
 
