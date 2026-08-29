@@ -173,16 +173,18 @@ test("disregarding edge styling entirely loses no fact", async ({ page }) => {
   const canvas = page.getByRole("region", CANVAS);
 
   const expected = await payloadEdges(page);
-  const methodsOnCards = await canvas
-    .locator(".react-flow__node")
-    .evaluateAll((nodes) =>
-      Object.fromEntries(
-        nodes.map((node) => [
-          node.getAttribute("data-id") ?? "",
-          node.querySelector(".node-method")?.textContent ?? "",
-        ]),
-      ),
-    );
+  const methodsOnCards = await canvas.locator(".react-flow__node").evaluateAll((nodes) =>
+    Object.fromEntries(
+      nodes.map((node) => [
+        node.getAttribute("data-id") ?? "",
+        /* The word, not the glyph beside it. The glyph is aria-hidden,
+         * so this is also what a screen reader is left with — and the
+         * requirement is that the fact survive as text. */
+        node.querySelector(".node-method span:not([aria-hidden])")?.textContent?.trim() ??
+          "",
+      ]),
+    ),
+  );
 
   for (const edge of expected) {
     const target = edge.id.split("->")[1] ?? "";

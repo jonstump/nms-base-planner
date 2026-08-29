@@ -40,6 +40,29 @@ from pathlib import Path
 # file is the one place any of them is allowed.
 PATTERN = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(")
 
+# The other way a colour stops resolving through a token: reaching for a
+# token that is not a colour. `color: var(--text-body)` looks exactly like
+# discipline and is `color: 15px`, which the browser drops on the floor —
+# the element silently inherits and nobody sees a failure. Six of these were
+# live in canvas.css, including one inside a WCAG fix.
+#
+# The type scale is a closed set, so this names it rather than guessing at
+# what is or is not a colour. A token added to that scale belongs here too.
+SIZE_TOKENS = (
+    "text-label",
+    "text-meta",
+    "text-body",
+    "text-emphasis",
+    "text-h3",
+    "text-h2",
+    "text-display",
+    "display-floor",
+)
+COLOUR_PROPERTIES = r"color|background-color|border-color|outline-color|fill|stroke|caret-color|text-decoration-color|column-rule-color"
+MISUSE = re.compile(
+    rf"\b(?:{COLOUR_PROPERTIES})\s*:\s*var\(\s*--(?:{'|'.join(SIZE_TOKENS)})\b"
+)
+
 BLOCK = re.compile(r"/\*.*?\*/", re.S)
 LINE = re.compile(r"^\s*(//|\*)")
 
@@ -61,6 +84,14 @@ def findings(source: str) -> list[tuple[int, str]]:
         (number, line.strip())
         for number, line in enumerate(strip_comments(source).split("\n"), start=1)
         if PATTERN.search(line)
+    ]
+
+
+def misuses(source: str) -> list[tuple[int, str]]:
+    return [
+        (number, line.strip())
+        for number, line in enumerate(strip_comments(source).split("\n"), start=1)
+        if MISUSE.search(line)
     ]
 
 
@@ -89,17 +120,36 @@ CASES: list[tuple[str, str, bool]] = [
     ("a literal after a comment closes", "  /* note */ color: #ff0000;", True),
 ]
 
+# The size-token-in-a-colour-slot check gets its own controls, including the
+# near-misses: a size token in a size slot is correct, and a colour token in
+# a colour slot is the whole point.
+MISUSE_CASES: list[tuple[str, str, bool]] = [
+    ("a size token as a colour", "  color: var(--text-body);", True),
+    ("a size token as a background", "  background-color: var(--text-meta);", True),
+    ("a size token as a border colour", "  border-color: var(--text-label);", True),
+    ("a size token as an SVG fill", "  fill: var(--text-emphasis);", True),
+    ("a size token in a size slot", "  font-size: var(--text-body);", False),
+    ("a colour token in a colour slot", "  color: var(--text);", False),
+    ("a colour token whose name starts the same", "  color: var(--text-bright);", False),
+    ("a muted colour token", "  color: var(--text-muted);", False),
+    ("a size token named in a comment", "/* color: var(--text-body) was wrong */", False),
+]
+
 broken = [
     f"  {name}: expected {'a finding' if want else 'no finding'}"
     for name, source, want in CASES
     if bool(findings(source)) != want
+] + [
+    f"  {name}: expected {'a finding' if want else 'no finding'}"
+    for name, source, want in MISUSE_CASES
+    if bool(misuses(source)) != want
 ]
 
 if broken:
-    print("The colour-literal check cannot see what it is for:")
+    print("The colour checks cannot see what they are for:")
     print("\n".join(broken))
     print()
-    print("Fix the pattern or the comment stripping before trusting a clean run.")
+    print("Fix the patterns or the comment stripping before trusting a clean run.")
     sys.exit(1)
 
 # ----------------------------------------------------------------------
@@ -108,17 +158,23 @@ if broken:
 TOKEN_FILE = Path("src/styles/tokens.css")
 
 offenders: list[str] = []
+misused: list[str] = []
 scanned = 0
 for path in sorted(Path("src").rglob("*")):
     if path.suffix not in {".ts", ".tsx", ".css"} or path == TOKEN_FILE:
         continue
     scanned += 1
-    for number, text in findings(path.read_text()):
+    source = path.read_text()
+    for number, text in findings(source):
         offenders.append(f"{path}:{number}:{text}")
+    for number, text in misuses(source):
+        misused.append(f"{path}:{number}:{text}")
 
 if scanned == 0:
     print("No source files were scanned — the check found nothing to look at.")
     sys.exit(1)
+
+failed = False
 
 if offenders:
     print("Colour literals found outside src/styles/tokens.css:")
@@ -126,7 +182,22 @@ if offenders:
     print()
     print("Add the value to the token file with its design provenance, or")
     print("reference an existing custom property.")
+    failed = True
+
+if misused:
+    if offenders:
+        print()
+    print("Type-scale tokens used as colours (the browser drops these):")
+    print("\n".join(misused))
+    print()
+    print("These look like token discipline and are not — `color: var(--text-body)`")
+    print("is `color: 15px`, which is invalid, so the element silently inherits.")
+    print("Use a colour token: --text, --text-bright, --text-muted, or a state token.")
+    failed = True
+
+if failed:
     sys.exit(1)
 
-print(f"No colour literals outside the token file ({scanned} files, {len(CASES)} self-checks).")
+checks = len(CASES) + len(MISUSE_CASES)
+print(f"No colour literals and no type-scale tokens in colour slots ({scanned} files, {checks} self-checks).")
 PY
