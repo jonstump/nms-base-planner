@@ -73,14 +73,28 @@ check() {
     return
   fi
 
-  # --timeout is far below the 30s default because every run here is expected
-  # to go red, and the two ways a mutation goes red cost very different
-  # amounts. Breaking a computed value — a colour literal, an inset shadow, a
-  # control step — fails its assertion the moment it is evaluated. Breaking an
-  # element's identity leaves a locator waiting for something that will never
-  # appear, at 30s a test. 8s is generous against a full suite that runs in
-  # ~54s across two workers, and a mutation needing longer than that is worth
-  # discovering rather than absorbing.
+  # --timeout is the per-test timeout, below the 30s default because every run
+  # here is expected to go red and waiting is the dominant cost of doing so.
+  #
+  # What it actually bounds: a single waiting assertion is capped by the
+  # *expect* timeout, which is 5s and which this flag does not change —
+  # playwright.config.ts sets neither. The test timeout binds when one test
+  # accumulates several such waits. So a mutation that breaks a computed value
+  # (a colour literal, an inset shadow, a control step) fails the instant the
+  # assertion is evaluated, while one that breaks an element's identity leaves
+  # each dependent assertion waiting out its 5s.
+  #
+  # 8s is chosen against the slowest single *test* in the specs this script
+  # runs, not against the suite's wall time — the suite total is a different
+  # quantity and does not license lowering this further as the suite gets
+  # faster.
+  #
+  # Before lowering it, note what the check cannot see: `check` reads only the
+  # exit code, so a red from a timeout and a red from an assertion are
+  # indistinguishable to it. A timeout tight enough to cut off a slow but
+  # correct test would report that mutation `ok` for the wrong reason — the
+  # same false-pass class the landmark mutation below was an instance of. The
+  # margin here is the safeguard, not slack to reclaim.
   if npx playwright test "$spec" --timeout=8000 --reporter=dot >/dev/null 2>&1; then
     echo "FAIL  $name — the suite still passed, so no test is watching this"
     failures=$((failures + 1))
@@ -213,6 +227,12 @@ check "the live region announces on every render" \
 # reason — it would have gone red with no landmark assertion in the suite at
 # all, which is precisely the thing this script exists to rule out — and it
 # cost ~70s of CI on each of two observed runs while proving nothing.
+#
+# The anchor spans the whole element because `check` performs one substitution,
+# and both tags have to move together. That couples this mutation to the
+# footer's user-facing copy: an editorial change to that sentence breaks the
+# anchor. It breaks loudly — `mutation anchor not found`, then FAIL — so it is
+# a maintenance cost rather than a way to fail open.
 check "a landmark goes missing" \
   tests/shell/shell.spec.ts "$SHELL" \
   '      <footer className="shell-footer">
