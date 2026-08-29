@@ -140,7 +140,7 @@ Build the shell chrome against the current direction and revisit when sharing fo
 * Good, because the question genuinely can be answered later — nothing is technically impossible in either direction
 * Bad, because chrome built against plan → base bakes that direction into every surface, and the revisit becomes a rewrite of the thing just built
 * Bad, because SPEC-0007 already deferred once and the deferral is why `BasePlannerCard` renders only in a fixture; deferring the same question twice is a pattern rather than a judgement
-* Bad, because ADR-0010's sharing model needs to know what a share references, and it cannot be specified while the referent is undecided
+* Bad, because ADR-0014's sharing model needs to know what a share references, and it cannot be specified while the referent is undecided
 
 ## Architecture Diagram
 
