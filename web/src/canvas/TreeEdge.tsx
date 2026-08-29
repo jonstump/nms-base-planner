@@ -30,8 +30,6 @@ import type { ReactNode } from "react";
 export interface TreeEdgeData extends Record<string, unknown> {
   readonly perUnit: string;
   readonly targetMethod: string;
-  readonly sourceName: string;
-  readonly targetName: string;
 }
 
 export function TreeEdge({
