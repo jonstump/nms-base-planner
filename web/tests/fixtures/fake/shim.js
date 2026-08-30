@@ -27,7 +27,7 @@ globalThis.Go = class {
 
     if (script.neverPublish === true) return;
 
-    const version = script.contractVersion ?? "1.2.0";
+    const version = script.contractVersion ?? "1.3.0";
     let readyAfter = script.notReadyTimes ?? 0;
 
     const envelope = (body) => JSON.stringify({ contractVersion: version, ...body });

@@ -130,7 +130,7 @@ test("the real module's contract version is the one this view was built for", as
     return (globalThis as unknown as { nmsPlanner: { contractVersion: string } })
       .nmsPlanner.contractVersion;
   });
-  expect(version).toBe("1.2.0");
+  expect(version).toBe("1.3.0");
 });
 
 test("changing an input produces a fresh crossing rather than a derived figure", async ({

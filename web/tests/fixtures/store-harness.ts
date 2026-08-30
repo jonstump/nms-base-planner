@@ -25,6 +25,7 @@ declare global {
         database: string,
         preferences: Record<string, string | boolean>,
       ) => Promise<StoreResult<void>>;
+      deletePlace: (database: string, id: string) => Promise<StoreResult<void>>;
       deleteAll: (database: string) => Promise<StoreResult<void>>;
       close: (database: string) => void;
       /** Write a record straight past the store, to plant a bad version. */
@@ -61,6 +62,7 @@ window.__store = {
   putPlace: async (database, place) => get(database).putPlace(place),
   putPreferences: async (database, preferences) =>
     get(database).putPreferences(preferences),
+  deletePlace: async (database, id) => get(database).deletePlace(id),
   deleteAll: async (database) => get(database).deleteAll(),
   close: (database) => {
     get(database).close();

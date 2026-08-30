@@ -550,3 +550,95 @@ func TestProducerProvenanceCrossesTheBoundary(t *testing.T) {
 		t.Error("base crossed unverified with every date supplied")
 	}
 }
+
+// SPEC-0011 REQ "A Place Is Creatable by Hand":
+// WHEN a leaf is assigned to a place that has no site configuration
+// THEN the boundary reports the base as unconfigured with the demand
+// unsized, rather than failing the call or reporting zero extractors.
+//
+// Asserted at the boundary rather than only in the domain because the view
+// renders the absence, and a field the encoder drops is a gap the view
+// cannot tell from a base with nothing to extract.
+func TestRollupCarriesAnUnconfiguredBase(t *testing.T) {
+	m := stagesModule(t)
+
+	blob, _ := callOK(t, m, "rollup", `{
+	  "plan":{"target":"widget","quantity":"10"},
+	  "assignments":{"crop_a":"base1","gas_a":"base1"},
+	  "constants":`+curatedJSON+`}`)
+
+	var out struct {
+		Data struct {
+			Build struct {
+				Bases []struct {
+					Base       string `json:"base"`
+					Configured bool   `json:"configured"`
+					Extractors []struct {
+						ItemID string `json:"itemId"`
+					} `json:"extractors"`
+					Farms []struct {
+						ItemID string `json:"itemId"`
+					} `json:"farms"`
+					Unsited []struct {
+						ItemID   string `json:"itemId"`
+						Required string `json:"required"`
+					} `json:"unsited"`
+				} `json:"bases"`
+			} `json:"build"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(blob, &out); err != nil {
+		t.Fatalf("unparseable rollup output: %v", err)
+	}
+	if len(out.Data.Build.Bases) != 1 {
+		t.Fatalf("bases = %d, want 1", len(out.Data.Build.Bases))
+	}
+
+	base := out.Data.Build.Bases[0]
+	if base.Configured {
+		t.Error("a base with no sites entry crossed as configured")
+	}
+	if len(base.Extractors) != 0 {
+		t.Errorf("extractor rows = %d, want none", len(base.Extractors))
+	}
+	if len(base.Unsited) != 1 || base.Unsited[0].ItemID != "gas_a" {
+		t.Fatalf("unsited = %+v, want gas_a alone", base.Unsited)
+	}
+	if base.Unsited[0].Required == "" {
+		t.Error("the unsited row crossed with no requirement")
+	}
+	// The half that still works: a crop needs no site, so the farm is sized.
+	if len(base.Farms) != 1 {
+		t.Errorf("farm rows = %d, want 1 — an unconfigured base still says what to plant", len(base.Farms))
+	}
+}
+
+// The complement: a configured base still reports itself configured, so the
+// flag is a real distinction rather than a field that is always false.
+func TestRollupReportsAConfiguredBase(t *testing.T) {
+	m := stagesModule(t)
+
+	blob, _ := callOK(t, m, "rollup", rollupRequest(curatedJSON))
+
+	var out struct {
+		Data struct {
+			Build struct {
+				Bases []struct {
+					Configured bool `json:"configured"`
+					Unsited    []struct {
+						ItemID string `json:"itemId"`
+					} `json:"unsited"`
+				} `json:"bases"`
+			} `json:"build"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(blob, &out); err != nil {
+		t.Fatalf("unparseable rollup output: %v", err)
+	}
+	if len(out.Data.Build.Bases) != 1 || !out.Data.Build.Bases[0].Configured {
+		t.Fatalf("configured base did not report itself configured: %+v", out.Data.Build.Bases)
+	}
+	if len(out.Data.Build.Bases[0].Unsited) != 0 {
+		t.Errorf("configured base carried %d unsited rows, want none", len(out.Data.Build.Bases[0].Unsited))
+	}
+}

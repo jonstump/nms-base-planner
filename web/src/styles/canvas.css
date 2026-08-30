@@ -369,3 +369,16 @@
   background-color: var(--input-bg);
   color: var(--text);
 }
+
+/*
+ * A workspace with no places yet.
+ *
+ * Governing: SPEC-0011 REQ "A Place Is Authored, and a Plan References It"
+ *
+ * A designed state rather than a gap: a plan referencing no places resolves,
+ * so the control offers only "Unassigned" and this says why.
+ */
+.node-control-no-places {
+  flex-basis: 100%;
+  color: var(--text-muted);
+}

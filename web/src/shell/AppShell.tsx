@@ -24,7 +24,7 @@ import { ViewStateProvider } from "../state/ViewStateProvider";
 import { useViewDispatch, useViewState } from "../state/useViewState";
 import { usePlanResolution, type Resolution } from "../state/usePlanResolution";
 import { useStoredData } from "../state/useStoredData";
-import { BASES } from "../canvas/bases";
+import { basesFrom } from "../canvas/bases";
 import { useLeafAssignment } from "../canvas/useLeafAssignment";
 import { DurableStore } from "../store";
 import { StatusBadge } from "./StatusBadge";
@@ -319,14 +319,28 @@ function Chrome({
   }, [state.inputs.target, state.inputs.quantity, methods]);
 
   /*
+   * The assignable places, and the ids the assignment rule is resolved
+   * against. Both derived from the store rather than from a list this file
+   * holds: SPEC-0011 REQ "A Place Is Authored, and a Plan References It"
+   * makes a place something the player authored, so there is no set of
+   * bases until there are records.
+   */
+  const bases = useMemo(() => basesFrom(stored.places), [stored.places]);
+  const placeIds = useMemo(() => bases.map((base) => base.id), [bases]);
+
+  /*
    * `constants: null` is not a stub. `RollupRequest` requires curated
    * constants and the application has no source for them — they exist only
    * in test fixtures, and the base planner card that would own them is not
    * mounted either. So assignments are held and rendered here, and the
    * stage-2 dispatch this hook performs is exercised where constants exist.
-   * Stated rather than hidden: see the PR for #88.
    */
-  const { assignments, assign } = useLeafAssignment({ client, plan, constants: null });
+  const { assignments, assign } = useLeafAssignment({
+    client,
+    plan,
+    constants: null,
+    placeIds,
+  });
 
   useAnnounceOnChange(resultToken, () => {
     const change = pendingChange.current;
@@ -346,14 +360,14 @@ function Chrome({
        * be false while no recompute is dispatched. What is true is the
        * assignment, so that is what is said.
        */
-      const label = BASES.find((base) => base.id === baseId)?.label;
+      const label = bases.find((base) => base.id === baseId)?.label;
       announce(
         label === undefined
           ? `${name} is no longer assigned to a base.`
           : `${name} assigned to ${label}.`,
       );
     },
-    [assign, announce],
+    [assign, announce, bases],
   );
 
   const onSelectMethod = useCallback(
@@ -425,6 +439,7 @@ function Chrome({
                 onSelectMethod={onSelectMethod}
                 assignments={assignments}
                 onAssign={onAssign}
+                bases={bases}
               />
             </Suspense>
           </section>

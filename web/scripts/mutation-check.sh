@@ -35,6 +35,7 @@ LIVE="src/a11y/useLiveRegion.ts"
 SHELL="src/shell/AppShell.tsx"
 BADGE="src/shell/StatusBadge.tsx"
 STORE="src/store/durable-store.ts"
+PLACES="src/shell/StoredPlaces.tsx"
 MODEL="src/canvas/graph-model.ts"
 EDGE="src/canvas/TreeEdge.tsx"
 CARD="src/canvas/NodeCard.tsx"
@@ -43,16 +44,20 @@ LAYOUT="src/canvas/layout.ts"
 TREE="src/canvas/TreeCanvas.tsx"
 
 MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANVAS"
+MUTABLE="$MUTABLE $PLACES"
 METHODS="src/canvas/methods.ts"
 CONTROL="src/canvas/NodeControl.tsx"
 
 ASSIGN="src/canvas/useLeafAssignment.ts"
 BASES="src/canvas/bases.ts"
 
+RESOLVE="src/state/assignments.ts"
+STORED="src/state/useStoredData.ts"
 PLANNERCARD="src/card/BasePlannerCard.tsx"
 POWERBLOCK="src/card/PowerBlock.tsx"
 
 MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
+MUTABLE="$MUTABLE $RESOLVE $STORED"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -558,8 +563,8 @@ check "clearing an assignment stops recomputing" \
 
 check "the rollup goes out without the assignment on it" \
   tests/canvas/assignment.spec.ts "$ASSIGN" \
-  "    const request: RollupRequest = { plan, assignments: next, constants };" \
-  "    const request: RollupRequest = { plan, assignments: {}, constants };"
+  "        assignments: resolveAssignments(next, placeIds).assignments," \
+  "        assignments: {},"
 
 check "a non-leaf is offered a base it cannot be gathered at" \
   tests/canvas/assignment.spec.ts "$CONTROL" \
@@ -568,12 +573,12 @@ check "a non-leaf is offered a base it cannot be gathered at" \
 
 check "an assigned leaf stops taking its base colour" \
   tests/canvas/assignment.spec.ts "$BASES" \
-  "  return BASES.find((base) => base.id === id)?.slot;" \
+  "  return bases.find((base) => base.id === id)?.slot;" \
   "  return undefined;"
 
 check "the assignment announcement stops naming the base" \
   tests/canvas/assignment.spec.ts "$SHELL" \
-  "      const label = BASES.find((base) => base.id === baseId)?.label;" \
+  "      const label = bases.find((base) => base.id === baseId)?.label;" \
   "      const label: string | undefined = undefined;"
 
 # ----------------------------------------------------------------------
@@ -603,6 +608,50 @@ check "an unsizeable fix is claimed for a fix the domain sized" \
   tests/card/power.spec.ts "$POWERBLOCK" \
   "  const sized = budget.inDeficit && !budget.fixUnsized;" \
   "  const sized = false;"
+
+# ----------------------------------------------------------------------
+# Places are first-class.
+#
+# Governing: ADR-0010, SPEC-0011 REQ "A Place Is Authored, and a Plan
+# References It", REQ "An Assignment Naming an Absent Place Is Unassigned",
+# REQ "A Place Is Creatable by Hand"
+#
+# Three rules a behavioural test alone cannot pin down, because each has a
+# passing-looking implementation that is wrong:
+#
+#   - a place id derived from the name renders identically until a rename
+#   - an assignment resolver that keeps everything looks right until a
+#     place is deleted
+#   - a card that shows the site's zeros looks like a configured base
+# ----------------------------------------------------------------------
+
+check "a place takes an id derived from its name instead of a generated one" \
+  tests/shell/places.spec.ts "$STORED" \
+  "        id: crypto.randomUUID()," \
+  "        id: trimmed.toLowerCase().replace(/ /gu, \"-\"),"
+
+check "an assignment naming a deleted place is kept rather than unassigned" \
+  tests/canvas/assignment.spec.ts "$RESOLVE" \
+  "    if (exists.has(baseId)) {" \
+  "    if (true) {"
+
+check "the unsited rows stop being rendered at all" \
+  tests/card/composition.spec.ts "$PLANNERCARD" \
+  "      {base.unsited.length > 0 ? (" \
+  "      {false ? ("
+
+# The create form's identity, which is the thing a position change destroys.
+#
+# `StoredPlaces` renders an empty state and a populated state. While the form
+# was rendered inside each branch it sat at a different child position in
+# each, so creating the first place moved it and React remounted it, throwing
+# away the name in its `useState`. A key that varies with the same condition
+# reproduces the fault exactly, and is the shape someone reaches for when they
+# want to "reset the form" on a state change.
+check "the create form is remounted when the first place appears" \
+  tests/shell/places.spec.ts "$PLACES" \
+  "      <CreatePlace create={data.createPlace} />" \
+  '      <CreatePlace key={data.empty ? "empty" : "populated"} create={data.createPlace} />'
 
 echo
 if [ "$failures" -gt 0 ]; then

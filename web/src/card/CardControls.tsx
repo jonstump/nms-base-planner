@@ -68,6 +68,26 @@ function ClassSelect({
           onPick(event.target.value);
         }}
       >
+        {/*
+          An unconfigured site shows that it is unconfigured.
+
+          Governing: SPEC-0011 REQ "A Place Is Creatable by Hand", SPEC-0007
+          REQ "Absent Data Is Absent"
+
+          Without this option a select whose value matches nothing falls back
+          to its first option, so a place created with a name and nothing
+          else would read as configured at class C — a value the player never
+          chose, which is exactly what the requirement rules out.
+
+          Offered only while the value is empty. Once a class is picked,
+          "un-configure" is not an operation the payload models, and an
+          option that cannot be honoured is worse than one that is absent.
+        */}
+        {value === "" && (
+          <option value="" disabled>
+            Not configured
+          </option>
+        )}
         {HOTSPOT_CLASSES.map((cls) => (
           <option key={cls} value={cls}>
             {cls}

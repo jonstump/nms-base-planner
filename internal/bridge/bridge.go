@@ -42,7 +42,14 @@ import (
 // 1.2.0 added provenance to every producer row and to each base, and the
 // verified-dates map to the request. Same reasoning: additive, but a
 // consumer that branches on provenance needs to know it is there.
-const ContractVersion = "1.2.0"
+//
+// 1.3.0 added `configured` to each base and the `unsited` rows beside it,
+// when SPEC-0011 made a place with no site configuration assignable. Same
+// reasoning again, with a sharper edge than the previous two: a consumer
+// that does not know about `configured` reads a base with a zero site as
+// one configured at class "" for zero seconds, which is exactly the zero
+// SPEC-0011 REQ "A Place Is Creatable by Hand" forbids presenting.
+const ContractVersion = "1.3.0"
 
 // Quantity is an exact quantity on the wire.
 //

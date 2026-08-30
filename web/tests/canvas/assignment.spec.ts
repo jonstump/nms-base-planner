@@ -3,7 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { BASES, slotFor } from "../../src/canvas/bases";
+import { basesFrom, slotFor, UNNAMED_PLACE } from "../../src/canvas/bases";
+import type { PlaceRecord } from "../../src/store";
 import { countCrossings, crossings } from "../helpers/crossings";
 
 /*
@@ -61,10 +62,23 @@ async function aLeafName(page: Page): Promise<string> {
  * The slot mapping
  * ------------------------------------------------------------------- */
 
+/** A stored place, with only the fields the mapping reads. */
+function place(id: string, name?: string): PlaceRecord {
+  return {
+    id,
+    kind: "base",
+    schemaVersion: 1,
+    ...(name === undefined ? {} : { name }),
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    revision: 1,
+  };
+}
+
 test("a base id maps to the slot whose colour the card draws", () => {
-  const second = BASES[1];
+  const bases = basesFrom([place("p-1", "Alpha"), place("p-2", "Beta")]);
+  const second = bases[1];
   expect(second).toBeDefined();
-  expect(slotFor({ COBALT: second?.id ?? "" }, "COBALT")).toBe(second?.slot);
+  expect(slotFor({ COBALT: second?.id ?? "" }, "COBALT", bases)).toBe(second?.slot);
 });
 
 test("an unassigned leaf has no slot, and neither does an unknown base", () => {
@@ -72,15 +86,52 @@ test("an unassigned leaf has no slot, and neither does an unknown base", () => {
    * The second half matters: a base id from a link or an older session that
    * no longer maps to a slot must read as unassigned rather than as slot
    * undefined-coloured, which is how a leaf ends up with no border at all.
+   * SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned" is
+   * the rule; this is the rendering half of it.
    */
-  expect(slotFor({}, "COBALT")).toBeUndefined();
-  expect(slotFor({ COBALT: "base-99" }, "COBALT")).toBeUndefined();
+  const bases = basesFrom([place("p-1", "Alpha")]);
+  expect(slotFor({}, "COBALT", bases)).toBeUndefined();
+  expect(
+    slotFor({ COBALT: "a-place-that-was-deleted" }, "COBALT", bases),
+  ).toBeUndefined();
 });
 
-test("every base has a distinct id and a distinct slot", () => {
-  expect(new Set(BASES.map((base) => base.id)).size).toBe(BASES.length);
-  expect(new Set(BASES.map((base) => base.slot)).size).toBe(BASES.length);
-  expect(BASES.length).toBe(6);
+/*
+ * SPEC-0011 REQ "A Place Is Authored, and a Plan References It":
+ * WHEN a place is created and later assigned a leaf THEN the value the plan
+ * carries as `BaseID` is the place record's own `id`, and no other
+ * identifier for that place exists in the store.
+ */
+test("a base carries the place record's own id, not one minted for it", () => {
+  const record = place("018f-a-generated-uuid", "Alpha");
+  const bases = basesFrom([record]);
+
+  expect(bases[0]?.id).toBe(record.id);
+  // The slot is paint, not identity: it is an index into six colour tokens.
+  expect(bases[0]?.slot).toBe(1);
+});
+
+test("an unnamed place is named on screen, never shown as its id", () => {
+  const bases = basesFrom([place("018f-a-generated-uuid")]);
+  expect(bases[0]?.label).toBe(UNNAMED_PLACE);
+  expect(bases[0]?.label).not.toContain("018f");
+});
+
+/*
+ * A workspace may hold more places than there are colours, and that is not
+ * an error: the colour repeats and the id stays unique.
+ */
+test("colour slots repeat past six places; ids do not", () => {
+  const bases = basesFrom(
+    Array.from({ length: 8 }, (_, index) => place(`p-${String(index)}`)),
+  );
+
+  expect(new Set(bases.map((base) => base.id)).size).toBe(8);
+  expect(bases[6]?.slot).toBe(bases[0]?.slot);
+});
+
+test("an empty workspace offers no bases at all", () => {
+  expect(basesFrom([])).toHaveLength(0);
 });
 
 /* ----------------------------------------------------------------------
@@ -138,7 +189,7 @@ test.describe("with curated constants", () => {
       .toBeGreaterThan(0);
 
     const request = await page.evaluate(() => window.__assignment.requests().at(-1));
-    expect(request?.assignments).toEqual({ COBALT: "base-2" });
+    expect(request?.assignments).toEqual({ COBALT: "place-2" });
     /* The plan travels with it, unchanged. */
     expect(request?.plan.target).toBe("ANTIMATTER");
   });
@@ -159,9 +210,72 @@ test.describe("with curated constants", () => {
       .toBe(2);
 
     const request = await page.evaluate(() => window.__assignment.requests().at(-1));
-    expect(request?.assignments).toEqual({ COBALT: "base-5" });
+    expect(request?.assignments).toEqual({ COBALT: "place-5" });
   });
 
+  /*
+   * SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned":
+   * WHEN three leaves are assigned to a place and that place is deleted
+   * THEN the plan survives, the leaves appear in the unassigned group, and
+   * no dangling identifier is rendered.
+   *
+   * Driven through the fixture rather than the application because the
+   * requirement is about what the hook reports, and the fixture is where a
+   * place can be removed from the workspace mid-session without also
+   * exercising IndexedDB.
+   */
+  test("deleting a place unassigns its leaves without destroying the plan", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "assign cobalt", exact: true }).click();
+    await expect(page.locator("[data-assigned]")).toHaveAttribute(
+      "data-assigned",
+      "place-2",
+    );
+
+    await page.getByRole("button", { name: "delete place-2", exact: true }).click();
+
+    // The leaf is unassigned and says which leaf moved — not silently dropped.
+    await expect(page.locator("[data-assigned]")).toHaveAttribute("data-assigned", "");
+    await expect(page.locator("[data-unresolved]")).toHaveAttribute(
+      "data-unresolved",
+      "COBALT",
+    );
+  });
+
+  test("a deleted place's id never reaches the domain", async ({ page }) => {
+    await page.getByRole("button", { name: "assign cobalt", exact: true }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__assignment.dispatches()), {
+        timeout: 10_000,
+      })
+      .toBe(1);
+
+    await page.getByRole("button", { name: "delete place-2", exact: true }).click();
+    /*
+     * Reassigning after the deletion is what puts a request on the wire
+     * again. The assertion is that the request carries the surviving place
+     * and not the deleted one — a dangling id crossing the boundary would
+     * group leaves at a base that exists nowhere, which is the rendering
+     * ADR-0010 rules out by name.
+     */
+    await page.getByRole("button", { name: "reassign cobalt", exact: true }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__assignment.dispatches()), {
+        timeout: 10_000,
+      })
+      .toBe(2);
+
+    const request = await page.evaluate(() => window.__assignment.requests().at(-1));
+    expect(Object.values(request?.assignments ?? {})).not.toContain("place-2");
+    expect(request?.assignments).toEqual({ COBALT: "place-5" });
+  });
+
+  /*
+   * The assignment is not destroyed, only unresolved. Restoring the place
+   * restores the assignment, which is what makes deletion survivable rather
+   * than a thing the player has to redo.
+   */
   test("clearing an assignment removes the key rather than blanking it", async ({
     page,
   }) => {
@@ -191,11 +305,86 @@ test.describe("with curated constants", () => {
  * The control, in the real application
  * ------------------------------------------------------------------- */
 
+/*
+ * The place a leaf is assigned to in the shell tests.
+ *
+ * Governing: SPEC-0011 REQ "A Place Is Authored, and a Plan References It"
+ *
+ * These tests used to assign to `base-3`, one of six identifiers the view
+ * minted. There is no such set now: the assignable bases are the workspace's
+ * places, so a test that wants somewhere to assign to has to create it —
+ * which is also the honest shape, since that is what a player does.
+ */
+const PLACE = "Aurora Flats";
+
+/** Create a place through the shipped route and wait for it to appear. */
+async function createPlace(page: Page, name: string): Promise<void> {
+  await page.getByLabel("New place").fill(name);
+  await page.getByRole("button", { name: "Create place" }).click();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+}
+
+/** The option value the assignment select carries for a place — its record id. */
+async function placeId(page: Page, name: string): Promise<string> {
+  return page
+    .getByRole("dialog")
+    .getByLabel("Gathered at")
+    .locator("option")
+    .filter({ hasText: name })
+    .first()
+    .getAttribute("value")
+    .then((value) => value ?? "");
+}
+
 test.describe("in the shell", () => {
   test.beforeEach(async ({ page }) => {
     await countCrossings(page);
     await page.goto("/");
+    /*
+     * A clean workspace per test. The store is shared across the origin, so
+     * places left by a previous test would make the assignable set depend on
+     * execution order.
+     */
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          const deleting = indexedDB.deleteDatabase("nms-planner");
+          deleting.onsuccess = () => {
+            resolve();
+          };
+          deleting.onerror = () => {
+            resolve();
+          };
+          deleting.onblocked = () => {
+            resolve();
+          };
+        }),
+    );
+    await page.reload({ waitUntil: "load" });
+    await createPlace(page, PLACE);
     await resolve(page, "ANTIMATTER");
+  });
+
+  /*
+   * SPEC-0011 REQ "A Place Is Authored, and a Plan References It":
+   * "A plan MUST remain resolvable when it references no places at all."
+   */
+  test("a plan resolves against a workspace with no places", async ({ page }) => {
+    await page.getByRole("button", { name: `Delete ${PLACE}` }).click();
+
+    const leaf = await aLeafName(page);
+    await page
+      .getByRole("region", CANVAS)
+      .locator(".node-card")
+      .filter({ hasText: leaf })
+      .first()
+      .click();
+
+    const select = page.getByRole("dialog").getByLabel("Gathered at");
+    await expect(select).toBeVisible();
+    // Unassigned and nothing else, with the state named rather than blank.
+    await expect(select.locator("option")).toHaveCount(1);
+    await expect(page.getByRole("dialog")).toContainText("No places yet");
   });
 
   test("a leaf offers a base, and a non-leaf does not", async ({ page }) => {
@@ -243,9 +432,12 @@ test.describe("in the shell", () => {
     const select = page.getByRole("dialog").getByLabel("Gathered at");
     await select.focus();
     await expect(select).toBeFocused();
-    await select.selectOption("base-3");
+    const id = await placeId(page, PLACE);
+    await select.selectOption(id);
 
-    await expect(select).toHaveValue("base-3");
+    await expect(select).toHaveValue(id);
+    /* The value is the place record's own id, not an identifier minted here. */
+    expect(id).not.toBe("");
   });
 
   test("an assigned leaf takes its base's colour on the border", async ({ page }) => {
@@ -260,10 +452,14 @@ test.describe("in the shell", () => {
     await expect(card).toHaveAttribute("data-identity", "unassigned");
 
     await card.click();
-    await page.getByRole("dialog").getByLabel("Gathered at").selectOption("base-3");
+    await page
+      .getByRole("dialog")
+      .getByLabel("Gathered at")
+      .selectOption(await placeId(page, PLACE));
     await page.keyboard.press("Escape");
 
-    await expect(card).toHaveAttribute("data-identity", "3");
+    /* The first place in the workspace draws with the first colour slot. */
+    await expect(card).toHaveAttribute("data-identity", "1");
     const after = await card.evaluate((el) => getComputedStyle(el).borderTopColor);
     expect(after, "the border did not take the base's colour").not.toBe(before);
   });
@@ -276,10 +472,14 @@ test.describe("in the shell", () => {
       .filter({ hasText: leaf })
       .first()
       .click();
-    await page.getByRole("dialog").getByLabel("Gathered at").selectOption("base-3");
+    await page
+      .getByRole("dialog")
+      .getByLabel("Gathered at")
+      .selectOption(await placeId(page, PLACE));
 
     const live = page.locator('[aria-live="polite"]');
-    await expect(live).toContainText(`${leaf} assigned to Base 3`);
+    /* The player's own name for the place, not a slot number. */
+    await expect(live).toContainText(`${leaf} assigned to ${PLACE}`);
   });
 
   test("clearing an assignment is announced too, and returns the dashed frame", async ({
@@ -294,7 +494,7 @@ test.describe("in the shell", () => {
 
     await card.click();
     const select = page.getByRole("dialog").getByLabel("Gathered at");
-    await select.selectOption("base-3");
+    await select.selectOption(await placeId(page, PLACE));
     await select.selectOption("");
 
     await expect(page.locator('[aria-live="polite"]')).toContainText(
@@ -318,7 +518,10 @@ test.describe("in the shell", () => {
       .filter({ hasText: leaf })
       .first()
       .click();
-    await page.getByRole("dialog").getByLabel("Gathered at").selectOption("base-3");
+    await page
+      .getByRole("dialog")
+      .getByLabel("Gathered at")
+      .selectOption(await placeId(page, PLACE));
     await page.keyboard.press("Escape");
 
     expect((await crossings(page)).resolve).toBe(before);

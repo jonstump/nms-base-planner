@@ -199,10 +199,55 @@ type NoBuild struct {
 // Required returns the demand the byproduct covers.
 func (b NoBuild) Required() *big.Rat { return new(big.Rat).Set(b.required) }
 
+// Unsited is a demand that needs a site configuration the base does not have.
+//
+// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand" — "A place with no
+// site configuration MUST be assignable. Its rollup MUST treat the site as
+// unconfigured, and the card MUST render that absence as absence ... rather
+// than as a zero."
+//
+// Only extraction needs the site. A crop's yield and a fauna's rate are the
+// item's own facts, so a farm and a ranch at an unconfigured base size
+// normally — the plan still says what to plant and what to feed. What it
+// cannot say is how many extractors, because that answer is the hotspot
+// class and the fill duration, and neither exists yet.
+//
+// A row rather than a flag, because "these three items are waiting on a
+// class" is a different statement from "this base is unconfigured", and only
+// the first one tells the player what they lose by leaving it that way.
+type Unsited struct {
+	ItemID string
+	Name   string
+
+	// Verified carries the demand's provenance forward. An unsized figure
+	// is still a figure the plan reports.
+	//
+	// Governing: SPEC-0001 REQ "Provenance Propagation".
+	Verified bool
+
+	required *big.Rat
+}
+
+// Required returns the demand that could not be sized.
+func (u Unsited) Required() *big.Rat { return new(big.Rat).Set(u.required) }
+
 // BaseBuild is one base's construction instructions.
 type BaseBuild struct {
 	Base BaseID
+
+	// Site is the base's configuration. Zero when Configured is false;
+	// read that first.
 	Site SiteConfig
+
+	// Configured reports whether this base has a site configuration.
+	//
+	// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+	//
+	// False is not an error and not a zero. A place created with a name and
+	// nothing else is assignable by rule, and this is how the rollup says
+	// so: Extractors is empty, Unsited carries what would have been sized,
+	// and the card renders the gap as a gap.
+	Configured bool
 
 	Farms      []FarmRow
 	Extractors []ExtractorRow
@@ -220,6 +265,10 @@ type BaseBuild struct {
 
 	// NoBuild are items a byproduct at this base already covers.
 	NoBuild []NoBuild
+
+	// Unsited are demands that need extraction at a base with no site
+	// configuration. Always empty when Configured is true.
+	Unsited []Unsited
 
 	// Verified is false when any row at this base is unverified, or when
 	// the constant sizing the base's nutrient processors has no verified
@@ -312,7 +361,7 @@ func RollupProducers(g *Grouping, t *Tier1, c *Constants, in ProducerInput) (*Bu
 }
 
 func rollupBase(group BaseGroup, t *Tier1, c *Constants, in ProducerInput) (*BaseBuild, error) {
-	build := &BaseBuild{Base: group.Base, Site: group.Site}
+	build := &BaseBuild{Base: group.Base, Site: group.Site, Configured: group.Configured}
 
 	// Byproducts first: an item another producer here already yields
 	// contributes no row at all, so it never reaches the sizing below.
@@ -343,6 +392,23 @@ func rollupBase(group BaseGroup, t *Tier1, c *Constants, in ProducerInput) (*Bas
 			build.Ranches = append(build.Ranches, ranchRow(demand, c))
 
 		default:
+			/*
+			 * Extraction is the one producer that needs the site. Without a
+			 * class and a fill duration there is no honest count, so the
+			 * demand is reported unsized rather than sized against values
+			 * nobody chose.
+			 *
+			 * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+			 */
+			if !group.Configured {
+				build.Unsited = append(build.Unsited, Unsited{
+					ItemID: demand.ItemID, Name: demand.Name,
+					Verified: demand.Verified,
+					required: demand.Total(),
+				})
+				continue
+			}
+
 			row, err := extractorRow(demand, group.Site, c)
 			if err != nil {
 				return nil, err
@@ -409,6 +475,15 @@ func (b *BaseBuild) rowsVerified() bool {
 	}
 	for _, n := range b.NoBuild {
 		if !n.Verified {
+			return false
+		}
+	}
+	// An unsized demand still carries provenance. Leaving it out would let
+	// a base go from unverified to verified purely by losing its site
+	// configuration, which is the wrong direction for a rule that exists to
+	// stop unverified figures being presented as verified.
+	for _, u := range b.Unsited {
+		if !u.Verified {
 			return false
 		}
 	}
@@ -566,6 +641,7 @@ func sortRows(b *BaseBuild) {
 	sort.Slice(b.Extractors, func(i, j int) bool { return b.Extractors[i].ItemID < b.Extractors[j].ItemID })
 	sort.Slice(b.Ranches, func(i, j int) bool { return b.Ranches[i].ItemID < b.Ranches[j].ItemID })
 	sort.Slice(b.NoBuild, func(i, j int) bool { return b.NoBuild[i].ItemID < b.NoBuild[j].ItemID })
+	sort.Slice(b.Unsited, func(i, j int) bool { return b.Unsited[i].ItemID < b.Unsited[j].ItemID })
 	// Kitchen steps keep their given order: it is the sequence the plan
 	// cooks in, and the final step is identified by position.
 }

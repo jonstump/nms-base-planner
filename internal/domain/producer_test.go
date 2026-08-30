@@ -54,8 +54,12 @@ func itoa(v int64) string { return new(big.Int).SetInt64(v).String() }
 
 // demandOf builds a grouping directly, so producer tests exercise sizing
 // rather than re-deriving a graph.
+//
+// The group is configured: a caller passing a SiteConfig is stating one.
+// The unconfigured case is a different thing to test and has its own
+// helper — see unconfiguredDemandOf.
 func demandOf(base BaseID, site SiteConfig, demands map[string]int64) *Grouping {
-	group := &BaseGroup{Base: base, Site: site}
+	group := &BaseGroup{Base: base, Site: site, Configured: true}
 	for id, qty := range demands {
 		group.Demands = append(group.Demands, LeafDemand{
 			ItemID: id, Name: id, Verified: true,
@@ -219,8 +223,8 @@ func TestSiteClassAppliesToAllRowsAndOnlyThatBase(t *testing.T) {
 
 	// Two bases, two extractor rows each.
 	grouping := func(alphaClass HotspotClass) *Grouping {
-		alpha := &BaseGroup{Base: "alpha", Site: SiteConfig{ExtractorClass: alphaClass, FillSeconds: 1}}
-		beta := &BaseGroup{Base: "beta", Site: SiteConfig{ExtractorClass: ClassB, FillSeconds: 1}}
+		alpha := &BaseGroup{Base: "alpha", Site: SiteConfig{ExtractorClass: alphaClass, FillSeconds: 1}, Configured: true}
+		beta := &BaseGroup{Base: "beta", Site: SiteConfig{ExtractorClass: ClassB, FillSeconds: 1}, Configured: true}
 		for _, id := range []string{"gas_a", "gas_b"} {
 			alpha.Demands = append(alpha.Demands, LeafDemand{ItemID: id, Name: id, total: new(big.Rat).SetInt64(500)})
 			beta.Demands = append(beta.Demands, LeafDemand{ItemID: id, Name: id, total: new(big.Rat).SetInt64(500)})
@@ -728,5 +732,112 @@ func TestUnverifiedDemandTaintsItsProducerRow(t *testing.T) {
 	}
 	if base.Verified {
 		t.Error("base verified while one of its rows is not")
+	}
+}
+
+// unconfiguredDemandOf builds a grouping for a base with no site
+// configuration — the shape SPEC-0011 makes assignable.
+func unconfiguredDemandOf(base BaseID, demands map[string]int64) *Grouping {
+	g := demandOf(base, SiteConfig{}, demands)
+	group := g.byBase[base]
+	group.Configured = false
+	g.Groups[0] = *group
+	return g
+}
+
+// SPEC-0011 REQ "A Place Is Creatable by Hand":
+// WHEN a leaf is assigned to a place that has no site configuration
+// THEN the card presents the missing configuration as absent, not as a
+// configured value of zero.
+//
+// The rollup's half of that: extraction reports the demand unsized rather
+// than reporting zero extractors, and rather than reporting extractors sized
+// at class "" against a zero-second window.
+func TestUnconfiguredBaseReportsUnsizedDemands(t *testing.T) {
+	a1 := producerArtifact(t, economyFor(25, 3600, 100, 1000))
+	c := constantsFor(t, a1, baseCurated())
+
+	b := build(t, unconfiguredDemandOf("alpha", map[string]int64{"gas_a": 500}), a1, c, ProducerInput{})
+
+	alpha, ok := b.Base("alpha")
+	if !ok {
+		t.Fatal("an unconfigured base produced no build at all")
+	}
+	if alpha.Configured {
+		t.Error("the build reports the base as configured")
+	}
+	if len(alpha.Extractors) != 0 {
+		t.Errorf("unconfigured base sized %d extractor rows, want none", len(alpha.Extractors))
+	}
+	if len(alpha.Unsited) != 1 {
+		t.Fatalf("unsited rows = %d, want 1", len(alpha.Unsited))
+	}
+	if alpha.Unsited[0].ItemID != "gas_a" {
+		t.Errorf("unsited row is %q, want gas_a", alpha.Unsited[0].ItemID)
+	}
+	// The requirement survives: what is missing is the sizing, not the demand.
+	if got := alpha.Unsited[0].Required(); got.Cmp(new(big.Rat).SetInt64(500)) != 0 {
+		t.Errorf("unsited requirement = %s, want 500", got.RatString())
+	}
+}
+
+// Only extraction needs the site. A crop's yield is the item's own fact, so
+// an unconfigured base still says what to plant — which is the difference
+// between "this place is not ready" and "this place tells you nothing".
+func TestUnconfiguredBaseStillSizesFarms(t *testing.T) {
+	a1 := producerArtifact(t, economyFor(25, 3600, 100, 1000))
+	c := constantsFor(t, a1, baseCurated())
+
+	b := build(t, unconfiguredDemandOf("alpha",
+		map[string]int64{"crop_a": 200, "gas_a": 500}), a1, c, ProducerInput{})
+
+	alpha, _ := b.Base("alpha")
+	if len(alpha.Farms) != 1 {
+		t.Fatalf("farm rows = %d, want 1", len(alpha.Farms))
+	}
+	if alpha.Farms[0].Plants == 0 {
+		t.Error("the farm row was sized to zero plants")
+	}
+	if len(alpha.Unsited) != 1 || alpha.Unsited[0].ItemID != "gas_a" {
+		t.Errorf("unsited = %+v, want gas_a alone", alpha.Unsited)
+	}
+}
+
+// A configured site with a zero fill window is still an error. The change in
+// SPEC-0011 is about absence, not about accepting a configuration that
+// cannot size anything — and losing that distinction would turn a caller
+// mistake into a silent unsized row.
+func TestConfiguredSiteWithNoWindowIsStillRefused(t *testing.T) {
+	a1 := producerArtifact(t, economyFor(25, 3600, 100, 1000))
+	c := constantsFor(t, a1, baseCurated())
+
+	_, err := RollupProducers(demandOf("alpha", SiteConfig{ExtractorClass: ClassB},
+		map[string]int64{"gas_a": 500}), a1, c, ProducerInput{})
+	if err == nil {
+		t.Fatal("a configured site with no fill window sized extractors anyway")
+	}
+	if !strings.Contains(err.Error(), "fill duration") {
+		t.Errorf("error %q does not name the missing window", err)
+	}
+}
+
+// An unsized demand still carries provenance: a base must not become
+// verified by losing its site configuration.
+func TestUnsitedDemandsCarryProvenance(t *testing.T) {
+	a1 := producerArtifact(t, economyFor(25, 3600, 100, 1000))
+	c := constantsFor(t, a1, baseCurated())
+
+	g := unconfiguredDemandOf("alpha", map[string]int64{"gas_a": 500})
+	group := g.byBase["alpha"]
+	group.Demands[0].Verified = false
+	g.Groups[0] = *group
+
+	b := build(t, g, a1, c, ProducerInput{})
+	alpha, _ := b.Base("alpha")
+	if alpha.Unsited[0].Verified {
+		t.Error("the unsited row lost its unverified provenance")
+	}
+	if alpha.Verified {
+		t.Error("the base reports verified while carrying an unverified unsited row")
 	}
 }

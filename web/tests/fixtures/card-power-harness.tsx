@@ -72,6 +72,8 @@ function baseNamed(name: string): BaseBuild {
     nutrientProcessors: exact("0"),
     pelletFeeders: exact("0"),
     noBuild: [],
+    configured: true,
+    unsited: [],
     verified: true,
   };
 }
