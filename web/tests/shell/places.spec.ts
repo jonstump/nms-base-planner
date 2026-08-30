@@ -144,6 +144,44 @@ test("two places created in one session get different ids", async ({ page }) => 
 });
 
 /*
+ * SPEC-0011 REQ "A Place Is Authored, and a Plan References It":
+ * "The application MUST NOT ... derive a place's identity from a plan's
+ * assignments." The same argument rules out deriving it from the name, and
+ * that is the derivation actually within reach here — a slug of the name is
+ * the obvious shortcut and it reads correctly until one of these two cases.
+ *
+ * Two places with the same name are two places. A name-derived id makes
+ * them one: the second write lands on the first record's key and overwrites
+ * it, so the player creates a place and watches another disappear.
+ */
+test("two places with the same name are two places", async ({ page }) => {
+  await page.getByLabel("New place").fill("Aurora Flats");
+  await page.getByRole("button", { name: "Create place" }).click();
+  await page.getByLabel("New place").fill("Aurora Flats");
+  await page.getByRole("button", { name: "Create place" }).click();
+
+  await expect(page.getByText("Aurora Flats", { exact: true })).toHaveCount(2);
+
+  const records = await storedPlaces(page);
+  expect(records, "the second place overwrote the first").toHaveLength(2);
+  expect(new Set(records.map((record) => record["id"])).size).toBe(2);
+});
+
+/*
+ * And the id carries no trace of the name, because a rename must not change
+ * it. An id derived from the name changes when the player renames the
+ * place, which silently reassigns every leaf that pointed at it — the exact
+ * fragmentation ADR-0010 rejected the side-table for.
+ */
+test("a place id is not derived from its name", async ({ page }) => {
+  await createPlace(page, "Aurora Flats");
+
+  const id = String((await storedPlaces(page))[0]?.["id"]);
+  expect(id.toLowerCase()).not.toContain("aurora");
+  expect(id.toLowerCase()).not.toContain("flats");
+});
+
+/*
  * SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned":
  * deleting a place removes the record and nothing else. The plan is the
  * expensive artifact and it is not the store's to edit.
