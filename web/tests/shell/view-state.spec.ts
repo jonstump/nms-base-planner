@@ -48,6 +48,7 @@ test("the state's shape has nowhere to put a plan or a graph", () => {
     "inputs",
     "preferences",
     "selection",
+    "surface",
   ]);
 });
 

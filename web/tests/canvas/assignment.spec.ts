@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner, openSurface } from "../helpers/surfaces";
+
 import { basesFrom, slotFor, UNNAMED_PLACE } from "../../src/canvas/bases";
 import type { PlaceRecord } from "../../src/store";
 import { countCrossings, crossings } from "../helpers/crossings";
@@ -361,7 +363,14 @@ test.describe("in the shell", () => {
         }),
     );
     await page.reload({ waitUntil: "load" });
+    /*
+     * The reload lands on the entry surface, because the selected surface is
+     * view state and is deliberately not persisted — a link to the app opens
+     * where SPEC-0011 says it opens. So the place is created on bases, which
+     * is where the control lives, and the planner is selected afterwards.
+     */
     await createPlace(page, PLACE);
+    await openPlanner(page);
     await resolve(page, "ANTIMATTER");
   });
 
@@ -370,7 +379,14 @@ test.describe("in the shell", () => {
    * "A plan MUST remain resolvable when it references no places at all."
    */
   test("a plan resolves against a workspace with no places", async ({ page }) => {
+    /*
+     * Deleting a place is a bases control, so this leaves the planner and
+     * comes back — which is also the only route a player has to the state
+     * this test is about.
+     */
+    await openSurface(page, "Bases");
     await page.getByRole("button", { name: `Delete ${PLACE}` }).click();
+    await openPlanner(page);
 
     const leaf = await aLeafName(page);
     await page

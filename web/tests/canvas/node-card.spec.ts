@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 /*
  * What a node says about itself.
  *
@@ -46,6 +48,7 @@ function card(page: Page, name: string): Locator {
 test.describe("the real payload", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
+    await openPlanner(page);
   });
 
   test("the method is a glyph and a word, not a colour", async ({ page }) => {

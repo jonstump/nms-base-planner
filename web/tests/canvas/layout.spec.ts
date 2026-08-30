@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 import { toCanvasModel, toLayoutInput } from "../../src/canvas/graph-model";
 import { NODE_HEIGHT, NODE_WIDTH, toElkGraph } from "../../src/canvas/layout";
 import { asQuantity } from "../../src/boundary/quantity";
@@ -195,6 +197,7 @@ test("changing the target quantity does not move a single node", async ({ page }
    * a sub-pixel amount for a small quantity change and pass a tolerance.
    */
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ULTRAPROD2");
 
   const atOne = await positionsFor(page, "1");
@@ -217,6 +220,7 @@ test("the totals did change, so the comparison above means something", async ({
    * broken application.
    */
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ULTRAPROD2");
 
   await positionsFor(page, "1");

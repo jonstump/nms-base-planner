@@ -20,7 +20,24 @@
  * makes of it at the moment of a crossing, and it is not kept.
  */
 
+import { ENTRY_SURFACE, type SurfaceId } from "../shell/surfaces";
+
 export interface ViewState {
+  /**
+   * Which surface is showing.
+   *
+   * Interface state, and the sixth key this type has ever had. SPEC-0011
+   * REQ "Surfaces Are Shell View State" puts surface selection here rather
+   * than in a router, and it is the same kind of thing as `selection`: what
+   * the player is looking at, not what the domain computed.
+   *
+   * The shape test in tests/shell/view-state.spec.ts asserts the key set,
+   * so this field arrived as a visible diff — which is what that test is
+   * for. What it forbids is a field a plan, a graph or a derived quantity
+   * could occupy, and a surface id is a closed union of two strings.
+   */
+  readonly surface: SurfaceId;
+
   /** Which node the user has selected, if any. */
   readonly selection: string | null;
 
@@ -51,6 +68,7 @@ export interface ViewState {
 }
 
 export const INITIAL_VIEW_STATE: ViewState = Object.freeze({
+  surface: ENTRY_SURFACE,
   selection: null,
   collapsed: Object.freeze({}),
   inputs: Object.freeze({ target: "", quantity: "1" }),
@@ -59,6 +77,7 @@ export const INITIAL_VIEW_STATE: ViewState = Object.freeze({
 });
 
 export type ViewAction =
+  | { readonly type: "selectSurface"; readonly surface: SurfaceId }
   | { readonly type: "select"; readonly nodeId: string | null }
   | { readonly type: "toggleCollapse"; readonly sectionId: string }
   | {
@@ -77,6 +96,9 @@ export type ViewAction =
 
 export function viewReducer(state: ViewState, action: ViewAction): ViewState {
   switch (action.type) {
+    case "selectSurface":
+      return { ...state, surface: action.surface };
+
     case "select":
       return { ...state, selection: action.nodeId };
 

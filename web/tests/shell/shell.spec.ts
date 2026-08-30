@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 /*
  * Governing: ADR-0004 (React view layer), SPEC-0005 Accessibility
  * Requirements
@@ -36,6 +38,7 @@ async function resolveAPlan(page: Page, target = "ANTIMATTER"): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await openPlanner(page);
 });
 
 test("all four landmarks are present, once each", async ({ page }) => {
@@ -100,6 +103,7 @@ test("figures are pending rather than zero while the module loads", async ({ pag
     await route.continue();
   });
   await page.goto("/");
+  await openPlanner(page);
 
   await page.getByLabel("Target").fill("ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 import { toCanvasModel } from "../../src/canvas/graph-model";
 import { asQuantity } from "../../src/boundary/quantity";
 import { countCrossings, payloadEdges } from "../helpers/crossings";
@@ -40,6 +42,7 @@ async function resolve(page: Page, target: string): Promise<void> {
 test.beforeEach(async ({ page }) => {
   await countCrossings(page);
   await page.goto("/");
+  await openPlanner(page);
 });
 
 /* ----------------------------------------------------------------------

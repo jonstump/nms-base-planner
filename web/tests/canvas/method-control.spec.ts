@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 import { METHOD_ORDER, methodOptions } from "../../src/canvas/methods";
 import { countCrossings, crossings } from "../helpers/crossings";
 
@@ -193,6 +195,7 @@ test.describe("in the shell", () => {
   test.beforeEach(async ({ page }) => {
     await countCrossings(page);
     await page.goto("/");
+    await openPlanner(page);
     await resolve(page, "ANTIMATTER");
   });
 

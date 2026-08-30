@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -49,6 +50,7 @@ const TreeCanvas = lazy(async () => ({
 }));
 import { DataCustody } from "./DataCustody";
 import { StoredPlaces } from "./StoredPlaces";
+import { SURFACES } from "./surfaces";
 import { ViewPreferences } from "./ViewPreferences";
 
 /*
@@ -253,6 +255,29 @@ function Chrome({
   readonly store: DurableStore;
 }): ReactNode {
   const state = useViewState();
+  const dispatch = useViewDispatch();
+
+  /*
+   * Focus follows the surface change.
+   *
+   * SPEC-0011 Focus Management: "Switching surface MUST move focus to the
+   * newly selected surface's region rather than leaving it on the switcher,
+   * and MUST NOT drop focus to the document body."
+   *
+   * Skipped on the first render. Moving focus into the page on load steals
+   * it from wherever the browser put it and is the behaviour screen-reader
+   * users report as a page that "jumps" — the requirement is about a
+   * change, and the first render is not one.
+   */
+  const surfaceRegion = useRef<HTMLElement | null>(null);
+  const shownSurface = useRef<string | null>(null);
+  useEffect(() => {
+    const first = shownSurface.current === null;
+    const changed = shownSurface.current !== state.surface;
+    shownSurface.current = state.surface;
+    if (first || !changed) return;
+    surfaceRegion.current?.focus();
+  }, [state.surface]);
 
   /*
    * Per-node method overrides: plan state, held here rather than in
@@ -395,85 +420,125 @@ function Chrome({
         <h2>NMS Base Planner</h2>
       </header>
 
+      {/*
+        The one navigation landmark. SPEC-0011: the shell "MUST expose
+        exactly one `role="navigation"` landmark, named, containing the
+        surface controls. Adding a surface MUST NOT add a second navigation
+        landmark", and SPEC-0010 defers to this one rather than adding its
+        own.
+
+        Every surface is listed unconditionally, including one that needs a
+        module which may still be downloading. A switcher that shrank while
+        the binary loaded would move controls under someone's cursor
+        mid-click, which is why SPEC-0011 requires the set not change under
+        the player.
+      */}
       <nav className="shell-nav" aria-label="Surfaces">
         <ul className="control-row">
-          <li>
-            <button
-              type="button"
-              className="control control-sm interactive"
-              aria-current="page"
-            >
-              Plan
-            </button>
-          </li>
+          {SURFACES.map((surface) => (
+            <li key={surface.id}>
+              <button
+                type="button"
+                className="control control-sm interactive"
+                aria-current={state.surface === surface.id ? "page" : undefined}
+                onClick={() => {
+                  dispatch({ type: "selectSurface", surface: surface.id });
+                }}
+              >
+                {surface.label}
+              </button>
+            </li>
+          ))}
         </ul>
       </nav>
 
       <main className="shell-main">
-        <PlanForm onRecompute={onRecompute} />
-        <section className="panel" aria-label="Figures">
-          <Figures resolution={resolution} />
-        </section>
-
         {/*
-          The canvas sits beside the figure list rather than replacing it,
-          for one story.
+          One surface at a time, chosen from view state.
 
-          SPEC-0006 puts the canvas where the flat list is, and that is
-          where it will end up. But the list's rows are currently what the
-          SPEC-0005 accessibility suite drives — the focus trap, the
-          selection ring and the live region's invoker are all tested
-          through `.figure-row` — and the canvas card has no control to open
-          until the method-selection story lands. Removing the list now
-          would leave those requirements untested in between, which is a
-          worse trade than a surface that shows its figures twice for a
-          release or two.
+          SPEC-0011 REQ "The Shell Opens on Bases and Renders Without the
+          Domain": the entry surface is bases, and it "MUST be complete and
+          operable with the module unavailable, unreachable, or still
+          loading". Nothing in this branch crosses the boundary — places
+          come from the durable store — so it renders whether the binary
+          arrives or not.
+
+          Each surface region is the focus target for a surface change and
+          carries tabIndex={-1} so it can take focus programmatically
+          without becoming a tab stop of its own.
         */}
-        {resolution.status === "resolved" && (
-          <section className="panel" aria-label="Tree">
-            <Suspense
-              fallback={<StatusBadge status="pending" detail="loading the canvas" />}
+        {state.surface === "bases" ? (
+          <section
+            className="surface"
+            aria-label="Bases"
+            tabIndex={-1}
+            ref={surfaceRegion}
+          >
+            <section className="panel" aria-label="Saved places">
+              <StoredPlaces data={stored} target={state.inputs.target} />
+            </section>
+
+            <section className="panel" aria-label="Your data">
+              <DataCustody data={stored} />
+            </section>
+
+            {/*
+              `data-saving` reports whether a preference write is still in
+              flight. It carries no user-facing claim — SPEC-0009 REQ
+              "Storage Is Evictable" governs what may be *said* about stored
+              data, and that indication belongs to the data-custody story
+              rather than here.
+
+              Issue numbers are spelled without the leading hash in this
+              file. check-tokens.sh matches a hash followed by three to
+              eight hex digits, and plenty of issue numbers are exactly
+              that — so the reference reads as a colour literal and fails
+              the gate.
+            */}
+            <section
+              className="panel"
+              aria-label="Preferences"
+              data-saving={String(stored.saving)}
             >
-              <TreeCanvas
-                graph={resolution.graph}
-                onSelectMethod={onSelectMethod}
-                assignments={assignments}
-                onAssign={onAssign}
-                bases={bases}
-              />
-            </Suspense>
+              <ViewPreferences />
+            </section>
+          </section>
+        ) : (
+          <section
+            className="surface"
+            aria-label="Planner"
+            tabIndex={-1}
+            ref={surfaceRegion}
+          >
+            <PlanForm onRecompute={onRecompute} />
+            <section className="panel" aria-label="Figures">
+              <Figures resolution={resolution} />
+            </section>
+
+            {/*
+              The canvas sits beside the figure list rather than replacing
+              it. The list's rows are what the SPEC-0005 accessibility suite
+              drives — the focus trap, the selection ring and the live
+              region's invoker all run through `.figure-row` — so removing
+              it would leave those requirements untested.
+            */}
+            {resolution.status === "resolved" && (
+              <section className="panel" aria-label="Tree">
+                <Suspense
+                  fallback={<StatusBadge status="pending" detail="loading the canvas" />}
+                >
+                  <TreeCanvas
+                    graph={resolution.graph}
+                    onSelectMethod={onSelectMethod}
+                    assignments={assignments}
+                    onAssign={onAssign}
+                    bases={bases}
+                  />
+                </Suspense>
+              </section>
+            )}
           </section>
         )}
-
-        <section className="panel" aria-label="Saved places">
-          <StoredPlaces data={stored} target={state.inputs.target} />
-        </section>
-
-        <section className="panel" aria-label="Your data">
-          <DataCustody data={stored} />
-        </section>
-
-        {/*
-          `data-saving` reports whether a preference write is still in
-          flight. It carries no user-facing claim — SPEC-0009 REQ "Storage
-          Is Evictable" governs what may be *said* about stored data, and
-          that indication belongs to the data-custody story rather than
-          here.
-
-          Issue numbers are spelled without the leading hash in this file.
-          check-tokens.sh matches a hash followed by three to eight hex
-          digits, and plenty of issue numbers are exactly that — so the
-          reference reads as a colour literal and fails the gate. Caught in
-          CI after passing locally, and then again by the comment written to
-          explain it, which had quoted the offending form.
-        */}
-        <section
-          className="panel"
-          aria-label="Preferences"
-          data-saving={String(stored.saving)}
-        >
-          <ViewPreferences />
-        </section>
       </main>
 
       <footer className="shell-footer">

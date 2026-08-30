@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 import { STATUSES } from "../../src/shell/StatusBadge";
 
 /*
@@ -13,6 +15,7 @@ import { STATUSES } from "../../src/shell/StatusBadge";
 
 async function openTheFirstNodePopover(page: Page): Promise<void> {
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });
@@ -100,6 +103,7 @@ test("Tab stays inside the popover while it is open", async ({ page }) => {
 
 test("the live region announces on recompute and not on render", async ({ page }) => {
   await page.goto("/");
+  await openPlanner(page);
 
   const region = page.getByRole("status");
   await expect(region).toBeAttached();
@@ -120,6 +124,7 @@ test("the live region announces on recompute and not on render", async ({ page }
 
 test("the announcement names what changed", async ({ page }) => {
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();
 
@@ -135,6 +140,7 @@ test("a preference change does not announce", async ({ page }) => {
    * that do not correspond to a computation.
    */
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();
 
@@ -159,6 +165,7 @@ test("every status carries a signal other than its colour", async ({ page }) => 
   expect(STATUSES.length).toBeGreaterThan(0);
 
   await page.goto("/");
+  await openPlanner(page);
   await page.getByLabel("Quantity").fill("not a quantity");
 
   const badge = page.locator(".status-badge").first();
