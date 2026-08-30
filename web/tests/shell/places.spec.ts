@@ -154,6 +154,41 @@ test("two places created in one session get different ids", async ({ page }) => 
  * them one: the second write lands on the first record's key and overwrites
  * it, so the player creates a place and watches another disappear.
  */
+/*
+ * The form is one element, not one per store state.
+ *
+ * `StoredPlaces` renders an empty state and a populated state. Rendering the
+ * create form inside each branch put it at a different child position in
+ * each, and React reconciles a fragment's children by position — so creating
+ * the *first* place moved the form from index 1 to index 0 and remounted it,
+ * discarding the name in its `useState`.
+ *
+ * That is the first-run path, every time: type the first place, submit,
+ * start typing the second, and lose it the moment the write settles. The
+ * button then sits disabled on an empty field with nothing to say why.
+ *
+ * Asserted on element identity rather than on the typed text, because the
+ * text can be lost for other reasons and a remount is the specific fault:
+ * a form that survives cannot have been remounted, and one that does not
+ * cannot have kept its state.
+ */
+test("the create form is not remounted when the first place appears", async ({
+  page,
+}) => {
+  const field = page.getByLabel("New place");
+
+  await field.evaluate((element) => {
+    (element as HTMLElement & { dataset: DOMStringMap }).dataset["probe"] = "first";
+  });
+
+  await createPlace(page, "Aurora Flats");
+
+  await expect(
+    field,
+    "the create form was remounted, so anything typed into it was discarded",
+  ).toHaveAttribute("data-probe", "first");
+});
+
 test("two places with the same name are two places", async ({ page }) => {
   await page.getByLabel("New place").fill("Aurora Flats");
   await page.getByRole("button", { name: "Create place" }).click();

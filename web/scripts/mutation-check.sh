@@ -35,6 +35,7 @@ LIVE="src/a11y/useLiveRegion.ts"
 SHELL="src/shell/AppShell.tsx"
 BADGE="src/shell/StatusBadge.tsx"
 STORE="src/store/durable-store.ts"
+PLACES="src/shell/StoredPlaces.tsx"
 MODEL="src/canvas/graph-model.ts"
 EDGE="src/canvas/TreeEdge.tsx"
 CARD="src/canvas/NodeCard.tsx"
@@ -43,6 +44,7 @@ LAYOUT="src/canvas/layout.ts"
 TREE="src/canvas/TreeCanvas.tsx"
 
 MUTABLE="$BASE $TOKENS $TRAP $LIVE $SHELL $BADGE $STORE $MODEL $EDGE $CARD $CANVAS"
+MUTABLE="$MUTABLE $PLACES"
 METHODS="src/canvas/methods.ts"
 CONTROL="src/canvas/NodeControl.tsx"
 
@@ -637,6 +639,19 @@ check "the unsited rows stop being rendered at all" \
   tests/card/composition.spec.ts "$PLANNERCARD" \
   "      {base.unsited.length > 0 ? (" \
   "      {false ? ("
+
+# The create form's identity, which is the thing a position change destroys.
+#
+# `StoredPlaces` renders an empty state and a populated state. While the form
+# was rendered inside each branch it sat at a different child position in
+# each, so creating the first place moved it and React remounted it, throwing
+# away the name in its `useState`. A key that varies with the same condition
+# reproduces the fault exactly, and is the shape someone reaches for when they
+# want to "reset the form" on a state change.
+check "the create form is remounted when the first place appears" \
+  tests/shell/places.spec.ts "$PLACES" \
+  "      <CreatePlace create={data.createPlace} />" \
+  '      <CreatePlace key={data.empty ? "empty" : "populated"} create={data.createPlace} />'
 
 echo
 if [ "$failures" -gt 0 ]; then
