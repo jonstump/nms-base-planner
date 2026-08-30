@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 /*
  * What the canvas does when it cannot draw.
  *
@@ -34,6 +36,7 @@ test("without its layout engine the canvas says so instead of piling the nodes u
 }) => {
   await page.route(ELK_CHUNK, (route) => route.abort());
   await page.goto("/");
+  await openPlanner(page);
   await recompute(page, "ANTIMATTER");
 
   const canvas = page.getByRole("region", CANVAS);
@@ -53,6 +56,7 @@ test("the figures are unaffected, and the canvas does not claim they are wrong",
 }) => {
   await page.route(ELK_CHUNK, (route) => route.abort());
   await page.goto("/");
+  await openPlanner(page);
   await recompute(page, "ANTIMATTER");
 
   const canvas = page.getByRole("region", CANVAS);
@@ -76,6 +80,7 @@ test("the message is announced, not only drawn", async ({ page }) => {
    */
   await page.route(ELK_CHUNK, (route) => route.abort());
   await page.goto("/");
+  await openPlanner(page);
   await recompute(page, "ANTIMATTER");
 
   const message = page.getByRole("status").filter({ hasText: /could not be laid out/i });
@@ -92,6 +97,7 @@ test("with the engine available the canvas draws, so the tests above are about t
    * first test would pass for the wrong reason and this one would fail.
    */
   await page.goto("/");
+  await openPlanner(page);
   await recompute(page, "ANTIMATTER");
 
   const canvas = page.getByRole("region", CANVAS);

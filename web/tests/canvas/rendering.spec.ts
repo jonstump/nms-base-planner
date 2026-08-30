@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner, openSurface } from "../helpers/surfaces";
+
 import { countCrossings, crossings, payloadOrder } from "../helpers/crossings";
 
 /*
@@ -33,6 +35,7 @@ async function resolve(page: Page, target: string): Promise<void> {
 test.beforeEach(async ({ page }) => {
   await countCrossings(page);
   await page.goto("/");
+  await openPlanner(page);
 });
 
 test("one crossing renders the whole tree", async ({ page }) => {
@@ -215,7 +218,14 @@ test("the canvas formats totals the way the player asked, like the list beside i
   ).toBeGreaterThan(0);
   expect(grouped(await cardFigures.allInnerTexts()).length).toBeGreaterThan(0);
 
+  /*
+   * The preference lives on bases and the figures on the planner, so
+   * changing it is a two-surface flow. That is the shape of the product now:
+   * a display preference is player-owned state and sits with the rest of it.
+   */
+  await openSurface(page, "Bases");
   await page.getByLabel("Group digits").uncheck();
+  await openPlanner(page);
 
   await expect
     .poll(async () => grouped(await listFigures.allInnerTexts()).length)

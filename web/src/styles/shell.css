@@ -142,3 +142,28 @@
 .status-pending {
   color: var(--text-muted);
 }
+
+/*
+ * A surface region.
+ *
+ * Governing: SPEC-0011 REQ "Surfaces Are Shell View State", Focus Management
+ *
+ * Layout only, and it must generate a box. `display: contents` was the
+ * first attempt and is wrong here: an element that generates no box is not
+ * visible to the model Playwright's `toBeVisible` and a screen reader's
+ * region navigation both use, so the region announced itself as absent.
+ *
+ * It carries `tabIndex={-1}` so a surface change can move focus into it,
+ * and the outline is suppressed because that focus is programmatic — a
+ * region that flashed a focus ring on every switch would be showing the
+ * player a ring they cannot have moved to.
+ */
+.surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.surface:focus {
+  outline: none;
+}

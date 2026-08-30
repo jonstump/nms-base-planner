@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner, openSurface } from "../helpers/surfaces";
+
 import { fromStored, toStored, differ } from "../../src/state/preferences";
 import { INITIAL_VIEW_STATE } from "../../src/state/view-state";
 import {
@@ -267,7 +269,14 @@ test("a place with no stocked quantity renders absent, not zero", async ({ page 
   ]);
   await page.reload();
 
+  /*
+   * The target control lives on the planner surface and the saved-place
+   * list on bases, so this is a two-surface flow now — which is what a
+   * player does: choose what to build, then look at what they have.
+   */
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ANTIMATTER");
+  await openSurface(page, "Bases");
 
   const row = page
     .getByRole("region", { name: "Saved places" })
@@ -305,7 +314,14 @@ test("a stocked zero is shown as zero, because the player entered it", async ({
   ]);
   await page.reload();
 
+  /*
+   * The target control lives on the planner surface and the saved-place
+   * list on bases, so this is a two-surface flow now — which is what a
+   * player does: choose what to build, then look at what they have.
+   */
+  await openPlanner(page);
   await page.getByLabel("Target").fill("ANTIMATTER");
+  await openSurface(page, "Bases");
 
   const row = page
     .getByRole("region", { name: "Saved places" })

@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { openPlanner } from "../helpers/surfaces";
+
 import { ICON_ONLY_CONTROL_AUDIT } from "../helpers/accessible-name";
 import { STATUSES } from "../../src/shell/StatusBadge";
 
@@ -39,6 +41,7 @@ async function resolveAPlan(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(SHELL);
+  await openPlanner(page);
 });
 
 /* ----------------------------------------------------------------------

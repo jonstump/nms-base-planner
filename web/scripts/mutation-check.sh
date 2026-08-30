@@ -60,7 +60,9 @@ HASH="src/boundary/plan-hash.ts"
 PLANSTATE="src/boundary/plan.ts"
 
 MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
-MUTABLE="$MUTABLE $HASH $PLANSTATE"
+SURFACES="src/shell/surfaces.ts"
+
+MUTABLE="$MUTABLE $HASH $PLANSTATE $SURFACES"
 MUTABLE="$MUTABLE $RESOLVE $STORED"
 
 # shellcheck disable=SC2086
@@ -679,6 +681,29 @@ check "the plan decoder starts accepting a player's ticks" \
   "      assignments: assignments.overrides,
       ...(raw[\"ticks\"] === undefined ? {} : { ticks: raw[\"ticks\"] }),
     },"
+
+# ----------------------------------------------------------------------
+# The shell's surfaces.
+#
+# The second mutation is the one the requirement is really about: a
+# switcher that hid a surface until its data arrived would look correct on
+# a fast connection and move controls under someone's cursor on a slow one.
+# ----------------------------------------------------------------------
+
+check "the shell opens on the planner instead of bases" \
+  tests/shell/surfaces.spec.ts "$SURFACES" \
+  'export const ENTRY_SURFACE: SurfaceId = "bases";' \
+  'export const ENTRY_SURFACE: SurfaceId = "planner";'
+
+check "a surface leaves the switcher while the module is unavailable" \
+  tests/shell/surfaces.spec.ts "$SHELL" \
+  "          {SURFACES.map((surface) => (" \
+  "          {SURFACES.filter((shown) => !shown.needsModule).map((surface) => ("
+
+check "switching surface leaves focus on the switcher" \
+  tests/shell/surfaces.spec.ts "$SHELL" \
+  "    surfaceRegion.current?.focus();" \
+  "    void surfaceRegion.current;"
 
 echo
 if [ "$failures" -gt 0 ]; then
