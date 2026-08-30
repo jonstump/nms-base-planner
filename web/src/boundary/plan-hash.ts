@@ -67,6 +67,12 @@ export function encodePlanToHash(plan: Plan): string {
   const wire: Record<string, unknown> = { target: plan.target, quantity: plan.quantity };
   if (Object.keys(plan.methods).length > 0) wire["methods"] = plan.methods;
   if (Object.keys(plan.recipes).length > 0) wire["recipes"] = plan.recipes;
+  /*
+   * Unlike `planToWire`, the hash *does* carry assignments: SPEC-0011 lists
+   * them among the plan state a shared link carries, and a link that dropped
+   * them would share a plan whose leaves land nowhere.
+   */
+  if (Object.keys(plan.assignments).length > 0) wire["assignments"] = plan.assignments;
   return `#${PARAMETER}=${toBase64Url(JSON.stringify(wire))}`;
 }
 

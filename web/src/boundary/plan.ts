@@ -21,6 +21,17 @@ export interface Plan {
   readonly methods: Readonly<Record<string, string>>;
   /** Per-node recipe overrides. */
   readonly recipes: Readonly<Record<string, string>>;
+  /**
+   * Leaf item id to base id.
+   *
+   * Plan state, and in the hash — SPEC-0011 REQ "The Hash Owns the Plan, the
+   * Store Owns the Player" lists assignments alongside target, quantity,
+   * methods and recipes as what a shared link carries. They are the one
+   * field here that never reaches `resolve`: stage 1 does not see them, and
+   * they cross to the domain on the stage-2 rollup request instead. See
+   * `planToWire`.
+   */
+  readonly assignments: Readonly<Record<string, string>>;
 }
 
 /**
@@ -32,6 +43,7 @@ export const EMPTY_PLAN: Plan = Object.freeze({
   quantity: "0" as Quantity,
   methods: Object.freeze({}),
   recipes: Object.freeze({}),
+  assignments: Object.freeze({}),
 });
 
 export function isEmptyPlan(plan: Plan): boolean {
@@ -111,9 +123,25 @@ export function validatePlan(value: unknown): PlanResult {
   const recipes = validateOverrides(raw["recipes"], "recipes");
   if (!recipes.ok) return reject(recipes.reason);
 
+  const assignments = validateOverrides(raw["assignments"], "assignments");
+  if (!assignments.ok) return reject(assignments.reason);
+
+  /*
+   * Only these five fields are read. A hash carrying `ticks`, `notes` or a
+   * place name is not rejected — it is *ignored*, and the value never
+   * reaches a Plan. SPEC-0011 forbids a hash-derived value being written to
+   * the store as though the player authored it, and the cheapest way to
+   * honour that is for the decoder to have nowhere to put one.
+   */
   return {
     ok: true,
-    plan: { target, quantity, methods: methods.overrides, recipes: recipes.overrides },
+    plan: {
+      target,
+      quantity,
+      methods: methods.overrides,
+      recipes: recipes.overrides,
+      assignments: assignments.overrides,
+    },
   };
 }
 
@@ -122,5 +150,17 @@ export function planToWire(plan: Plan): string {
   const wire: Record<string, unknown> = { target: plan.target, quantity: plan.quantity };
   if (Object.keys(plan.methods).length > 0) wire["methods"] = plan.methods;
   if (Object.keys(plan.recipes).length > 0) wire["recipes"] = plan.recipes;
+  /*
+   * `assignments` is deliberately absent.
+   *
+   * This is the wire shape `resolve` parses, and stage 1 has no concept of a
+   * base — `internal/bridge.Plan` carries target, quantity, methods and
+   * recipes and nothing else. Assignments reach the domain on the stage-2
+   * rollup request, which is where the domain reads them.
+   *
+   * Sending them anyway would be harmless today (the Go decoder ignores
+   * unknown fields on a plan) and wrong in the way that matters: it would
+   * say stage 1 takes an input it does not take.
+   */
   return JSON.stringify(wire);
 }

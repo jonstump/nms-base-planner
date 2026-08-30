@@ -56,7 +56,11 @@ STORED="src/state/useStoredData.ts"
 PLANNERCARD="src/card/BasePlannerCard.tsx"
 POWERBLOCK="src/card/PowerBlock.tsx"
 
+HASH="src/boundary/plan-hash.ts"
+PLANSTATE="src/boundary/plan.ts"
+
 MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
+MUTABLE="$MUTABLE $HASH $PLANSTATE"
 MUTABLE="$MUTABLE $RESOLVE $STORED"
 
 # shellcheck disable=SC2086
@@ -652,6 +656,29 @@ check "the create form is remounted when the first place appears" \
   tests/shell/places.spec.ts "$PLACES" \
   "      <CreatePlace create={data.createPlace} />" \
   '      <CreatePlace key={data.empty ? "empty" : "populated"} create={data.createPlace} />'
+
+# ----------------------------------------------------------------------
+# Where state lives.
+#
+# Two mechanisms exist and each is individually a plausible home for the
+# same value, so the drift would be silent. The second mutation is the
+# direction that matters: a leaked note is visible the first time someone
+# reads a link, and a decoded hash quietly authoring a place record is not
+# visible at all.
+# ----------------------------------------------------------------------
+
+check "the hash stops carrying assignments" \
+  tests/boundary/state-ownership.spec.ts "$HASH" \
+  '  if (Object.keys(plan.assignments).length > 0) wire["assignments"] = plan.assignments;' \
+  "  void plan.assignments;"
+
+check "the plan decoder starts accepting a player's ticks" \
+  tests/boundary/state-ownership.spec.ts "$PLANSTATE" \
+  "      assignments: assignments.overrides,
+    }," \
+  "      assignments: assignments.overrides,
+      ...(raw[\"ticks\"] === undefined ? {} : { ticks: raw[\"ticks\"] }),
+    },"
 
 echo
 if [ "$failures" -gt 0 ]; then

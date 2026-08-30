@@ -131,6 +131,16 @@ declare global {
       exercise: (database: string) => Promise<string[]>;
       /** Write a place and preferences and leave them there, for the raw reads. */
       seed: (database: string) => Promise<string[]>;
+      /**
+       * Attach an owner to the workspace — everything a sign-in does.
+       *
+       * SPEC-0011 REQ "Signing In Is Not a Sync Trigger": completing a
+       * sign-in attaches an owner and "MUST NOT transmit any place record by
+       * itself". There is no sign-in yet, and `ownerId` is the whole of what
+       * one would change, so this writes it and the test asserts nothing
+       * went out.
+       */
+      attachOwner: (database: string, ownerId: string) => Promise<string[]>;
       /** A request from code that is not the store, as any real page has. */
       unrelated: () => Promise<void>;
       /** Every attempt seen, tagged with where it came from. */
@@ -195,6 +205,51 @@ window.__discipline = {
       }),
     );
     note("putPreferences", await store.putPreferences({ showUnverified: false }));
+    store.close();
+    return outcomes;
+  },
+
+  attachOwner: async (database, ownerId) => {
+    const store = new DurableStore({ databaseName: database });
+    const outcomes: string[] = [];
+    const note = (label: string, result: { kind: string }) => {
+      outcomes.push(`${label}:${result.kind}`);
+    };
+
+    note("open", await store.open());
+    /*
+     * Written through the raw path rather than a store method, because the
+     * store has no owner operation — ADR-0008 reserves `ownerId` and stage 1
+     * never sets it. What matters for the requirement is that the field
+     * changes and that the places already there are untouched.
+     */
+    const loaded = await store.load();
+    if (loaded.kind === "ok") {
+      await new Promise<void>((resolve, reject) => {
+        const opening = indexedDB.open(database);
+        opening.onsuccess = () => {
+          const db = opening.result;
+          const transaction = db.transaction("workspace", "readwrite");
+          transaction
+            .objectStore("workspace")
+            .put({ ...loaded.value.workspace, ownerId }, "self");
+          transaction.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          transaction.onerror = () => {
+            db.close();
+            reject(transaction.error ?? new Error("owner write failed"));
+          };
+        };
+        opening.onerror = () => {
+          reject(opening.error ?? new Error("owner open failed"));
+        };
+      });
+      outcomes.push("attach:ok");
+    }
+
+    note("reload", await store.load());
     store.close();
     return outcomes;
   },

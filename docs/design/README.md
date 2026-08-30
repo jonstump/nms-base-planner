@@ -34,7 +34,15 @@ Specified per surface in the three handoff.md files. Cross-cutting rules:
 - **Borders carry identity only**: 3px base-color frames; hover = brightness(1.12), focus = 2px #8ec07c outline outboard, selection = 2px #8ec07c ring **inboard via overlay element** (never inset box-shadow — it paints under positioned children). Nothing else may write to a border.
 - Every recompute (method/class/type change, deficit fix, todo check) announces via `aria-live="polite"`.
 - Color is never the sole carrier: methods have glyph+text, bases have names, warnings have ⚠+text, deficits have stated kPs + red meter segment.
-- Plan state (target, methods, assignments, todo checks) should serialize into a shareable URL hash; no localStorage.
+- Plan state (target, methods, recipes, assignments) serializes into a shareable URL hash; no localStorage.
+
+  > **Superseded in part by [ADR-0008](../adrs/ADR-0008-durable-user-data-store.md).** This line originally listed *todo checks* among the hash contents and predates the durable-store decision. Ticked build items are per-place player data, not plan state: they describe what someone has built at a base, not what they asked the planner for. Sharing a link would otherwise hand the recipient someone else's progress, and receiving one would overwrite theirs.
+  >
+  > SPEC-0011 REQ "The Hash Owns the Plan, the Store Owns the Player" fixes the boundary: the hash carries target, quantity, method and recipe selections and leaf assignments; the store carries places, annotations, ticks and view preferences.
+  >
+  > "No localStorage" still holds and is narrower than it reads. ADR-0008 lifted it for durable player data only, and that store is IndexedDB — asynchronous, structured and quota-bounded. Plan state keeps the original rule.
+
+  The same correction applies to the per-base list in **State Management** below, which predates ADR-0008 for the same reason: its `todo done-map` and `note tags + text` are store-owned, not UI state.
 
 ## State Management
 Per-base UI state (v2 prototype's `ui` map is the reference shape): power type + EM class, extractor class, added generators, section open/closed, todo done-map, note tags + text, selection. Plan-level: target, device/batch quantity. All quantities derive from the dependency graph — the prototypes' math (plants = qty÷yield, domes = plants÷16, extractors sized to ~1.5h fill, power gen = units × class-multiplied output) shows the intended rollup shape, not real constants.
