@@ -34,6 +34,7 @@ export type {
   NoBuildRow,
   RanchRow,
   Site,
+  UnsitedRow,
   YieldRange,
 } from "./build";
 export type { Power, PowerBudget } from "./power";

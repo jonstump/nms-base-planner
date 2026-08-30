@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { Curated, Plan, RollupRequest } from "../boundary";
+import { resolveAssignments } from "../state/assignments";
 
 /*
  * Assignment in, recomputation out.
@@ -44,10 +45,32 @@ export interface LeafAssignmentOptions {
   readonly plan: Plan;
   /** Null until the application has a curated-constants source. */
   readonly constants: Curated | null;
+  /**
+   * The ids of the places that exist in the workspace.
+   *
+   * Governing: SPEC-0011 REQ "An Assignment Naming an Absent Place Is
+   * Unassigned"
+   *
+   * Held assignments are filtered against this on every read rather than
+   * pruned when a place is deleted. Filtering is what makes the rule hold
+   * for *every* source: an assignment decoded from someone else's hash
+   * names a place this device never had, and there is no deletion event to
+   * hang a prune on.
+   */
+  readonly placeIds: readonly string[];
 }
 
 export interface LeafAssignment {
+  /** Assignments naming places that exist. A leaf whose place is gone is absent here. */
   readonly assignments: Readonly<Record<string, string>>;
+  /**
+   * Leaves whose assignment named a place that is not in the workspace.
+   *
+   * They are unassigned and presented as such; the underlying map keeps
+   * them, so restoring the place restores the assignment rather than
+   * requiring the player to make it again.
+   */
+  readonly unresolved: readonly string[];
   /** Assign a leaf to a base, or pass null to clear it. */
   readonly assign: (itemId: string, baseId: string | null) => void;
   /** Settled stage-2 round trips this hook has dispatched. */
@@ -58,6 +81,7 @@ export function useLeafAssignment({
   client,
   plan,
   constants,
+  placeIds,
 }: LeafAssignmentOptions): LeafAssignment {
   const [assignments, setAssignments] = useState<Readonly<Record<string, string>>>({});
   const [dispatches, setDispatches] = useState(0);
@@ -102,7 +126,18 @@ export function useLeafAssignment({
       const issued = sequence.current + 1;
       sequence.current = issued;
 
-      const request: RollupRequest = { plan, assignments: next, constants };
+      /*
+       * The domain is sent the resolved map, not the stored one. An
+       * assignment naming a place the workspace does not have would
+       * otherwise group leaves at a base that exists nowhere, and the card
+       * would render it — which is the dangling identifier ADR-0010 rules
+       * out by name.
+       */
+      const request: RollupRequest = {
+        plan,
+        assignments: resolveAssignments(next, placeIds).assignments,
+        constants,
+      };
       void client.rollup(request).then(() => {
         /*
          * What this hook owns is that the recompute was asked for. A
@@ -113,8 +148,25 @@ export function useLeafAssignment({
         setDispatches((count) => count + 1);
       });
     },
-    [client, plan, constants],
+    [client, plan, constants, placeIds],
   );
 
-  return { assignments, assign, dispatches };
+  /*
+   * Resolved on read, not on write. What is stored is what the player said;
+   * what is rendered is what the workspace can honour. Keeping the two apart
+   * is what lets a deleted-and-recreated place bring its leaves back instead
+   * of making the player reassign them — and it is why deleting a place
+   * cannot destroy a plan, which is the whole of ADR-0010's rule.
+   */
+  const resolved = useMemo(
+    () => resolveAssignments(assignments, placeIds),
+    [assignments, placeIds],
+  );
+
+  return {
+    assignments: resolved.assignments,
+    unresolved: resolved.unresolved,
+    assign,
+    dispatches,
+  };
 }

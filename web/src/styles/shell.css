@@ -47,6 +47,24 @@
   gap: var(--space-2);
 }
 
+/*
+ * The create-a-place route.
+ *
+ * Governing: ADR-0010 (places are authored first), SPEC-0011 REQ "A Place Is
+ * Creatable by Hand"
+ *
+ * A row, wrapping, because the label and the field belong together and the
+ * button belongs beside them — and because the panel it sits in is narrow at
+ * the sizes the shell is built for.
+ */
+.place-create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+}
+
 .figure-list {
   display: flex;
   flex-direction: column;

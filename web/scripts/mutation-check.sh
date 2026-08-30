@@ -49,10 +49,13 @@ CONTROL="src/canvas/NodeControl.tsx"
 ASSIGN="src/canvas/useLeafAssignment.ts"
 BASES="src/canvas/bases.ts"
 
+RESOLVE="src/state/assignments.ts"
+STORED="src/state/useStoredData.ts"
 PLANNERCARD="src/card/BasePlannerCard.tsx"
 POWERBLOCK="src/card/PowerBlock.tsx"
 
 MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
+MUTABLE="$MUTABLE $RESOLVE $STORED"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -558,8 +561,8 @@ check "clearing an assignment stops recomputing" \
 
 check "the rollup goes out without the assignment on it" \
   tests/canvas/assignment.spec.ts "$ASSIGN" \
-  "    const request: RollupRequest = { plan, assignments: next, constants };" \
-  "    const request: RollupRequest = { plan, assignments: {}, constants };"
+  "        assignments: resolveAssignments(next, placeIds).assignments," \
+  "        assignments: {},"
 
 check "a non-leaf is offered a base it cannot be gathered at" \
   tests/canvas/assignment.spec.ts "$CONTROL" \
@@ -568,12 +571,12 @@ check "a non-leaf is offered a base it cannot be gathered at" \
 
 check "an assigned leaf stops taking its base colour" \
   tests/canvas/assignment.spec.ts "$BASES" \
-  "  return BASES.find((base) => base.id === id)?.slot;" \
+  "  return bases.find((base) => base.id === id)?.slot;" \
   "  return undefined;"
 
 check "the assignment announcement stops naming the base" \
   tests/canvas/assignment.spec.ts "$SHELL" \
-  "      const label = BASES.find((base) => base.id === baseId)?.label;" \
+  "      const label = bases.find((base) => base.id === baseId)?.label;" \
   "      const label: string | undefined = undefined;"
 
 # ----------------------------------------------------------------------
@@ -603,6 +606,37 @@ check "an unsizeable fix is claimed for a fix the domain sized" \
   tests/card/power.spec.ts "$POWERBLOCK" \
   "  const sized = budget.inDeficit && !budget.fixUnsized;" \
   "  const sized = false;"
+
+# ----------------------------------------------------------------------
+# Places are first-class.
+#
+# Governing: ADR-0010, SPEC-0011 REQ "A Place Is Authored, and a Plan
+# References It", REQ "An Assignment Naming an Absent Place Is Unassigned",
+# REQ "A Place Is Creatable by Hand"
+#
+# Three rules a behavioural test alone cannot pin down, because each has a
+# passing-looking implementation that is wrong:
+#
+#   - a place id derived from the name renders identically until a rename
+#   - an assignment resolver that keeps everything looks right until a
+#     place is deleted
+#   - a card that shows the site's zeros looks like a configured base
+# ----------------------------------------------------------------------
+
+check "a place takes an id derived from its name instead of a generated one" \
+  tests/shell/places.spec.ts "$STORED" \
+  "        id: crypto.randomUUID()," \
+  "        id: trimmed.toLowerCase().replace(/ /gu, \"-\"),"
+
+check "an assignment naming a deleted place is kept rather than unassigned" \
+  tests/canvas/assignment.spec.ts "$RESOLVE" \
+  "    if (exists.has(baseId)) {" \
+  "    if (true) {"
+
+check "the unsited rows stop being rendered at all" \
+  tests/card/composition.spec.ts "$PLANNERCARD" \
+  "      {base.unsited.length > 0 ? (" \
+  "      {false ? ("
 
 echo
 if [ "$failures" -gt 0 ]; then

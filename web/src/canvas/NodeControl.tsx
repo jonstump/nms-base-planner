@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { Quantity } from "../boundary";
-import { BASES } from "./bases";
+import type { Base } from "./bases";
 import type { CanvasNode } from "./graph-model";
 import { methodOptions } from "./methods";
 
@@ -39,6 +39,13 @@ export interface NodeControlProps {
   readonly onAssign: (baseId: string | null) => void;
   /** The base this leaf is currently assigned to, if any. */
   readonly assignedTo: string | null;
+  /**
+   * The places this leaf may be assigned to — the workspace's, not a set
+   * this file invents.
+   *
+   * Governing: SPEC-0011 REQ "A Place Is Authored, and a Plan References It"
+   */
+  readonly bases: readonly Base[];
   /** Grouping only — `formatQuantity` never parses. */
   readonly format: (quantity: Quantity) => string;
 }
@@ -49,6 +56,7 @@ export function NodeControl({
   onSelectMethod,
   onAssign,
   assignedTo,
+  bases,
   format,
 }: NodeControlProps): ReactNode {
   const options = methodOptions(node.legalMethods, node.method, node.name);
@@ -160,12 +168,24 @@ export function NodeControl({
             }}
           >
             <option value="">Unassigned</option>
-            {BASES.map((base) => (
+            {bases.map((base) => (
               <option key={base.id} value={base.id}>
                 {base.label}
               </option>
             ))}
           </select>
+          {/*
+            A workspace with no places offers only "Unassigned", which is
+            correct and looks broken. SPEC-0011 REQ "A Place Is Authored, and
+            a Plan References It" requires a plan referencing no places to
+            resolve, so this is a designed state rather than a gap — and the
+            sentence is what keeps it from reading as one.
+          */}
+          {bases.length === 0 && (
+            <span className="label node-control-no-places">
+              No places yet. Create one under Saved places to gather leaves there.
+            </span>
+          )}
         </p>
       )}
 

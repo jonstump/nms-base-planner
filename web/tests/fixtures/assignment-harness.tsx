@@ -55,7 +55,20 @@ declare global {
 
 const requests: RollupRequest[] = [];
 
+/*
+ * The places the workspace holds, as ids.
+ *
+ * Governing: SPEC-0011 REQ "An Assignment Naming an Absent Place Is
+ * Unassigned"
+ *
+ * Held in state so a test can delete one and observe what happens to a leaf
+ * assigned there — which is the case the requirement exists for and the one
+ * a store-backed fixture would make harder to stage, not easier.
+ */
+const PLACES = ["place-2", "place-5"];
+
 function Harness(): ReactNode {
+  const [placeIds, setPlaceIds] = useState<readonly string[]>(PLACES);
   const [client] = useState(() => ({
     rollup: async (request: RollupRequest): Promise<unknown> => {
       requests.push(request);
@@ -63,10 +76,11 @@ function Harness(): ReactNode {
     },
   }));
 
-  const { assignments, assign, dispatches } = useLeafAssignment({
+  const { assignments, unresolved, assign, dispatches } = useLeafAssignment({
     client,
     plan: PLAN,
     constants: CONSTANTS,
+    placeIds,
   });
 
   /*
@@ -86,10 +100,11 @@ function Harness(): ReactNode {
       <p data-assigned={assignments["COBALT"] ?? ""}>
         cobalt: {assignments["COBALT"] ?? "none"}
       </p>
+      <p data-unresolved={unresolved.join(",")}>unresolved: {unresolved.join(",")}</p>
       <button
         type="button"
         onClick={() => {
-          assign("COBALT", "base-2");
+          assign("COBALT", "place-2");
         }}
       >
         assign cobalt
@@ -97,7 +112,7 @@ function Harness(): ReactNode {
       <button
         type="button"
         onClick={() => {
-          assign("COBALT", "base-5");
+          assign("COBALT", "place-5");
         }}
       >
         reassign cobalt
@@ -109,6 +124,14 @@ function Harness(): ReactNode {
         }}
       >
         clear cobalt
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setPlaceIds((current) => current.filter((id) => id !== "place-2"));
+        }}
+      >
+        delete place-2
       </button>
     </main>
   );

@@ -78,7 +78,7 @@ test("a module reporting another contract version is refused, naming both", asyn
 
   expect(outcome.kind).toBe("version-mismatch");
   expect(outcome.received).toBe("9.9.9");
-  expect(outcome.expected).toBe("1.2.0");
+  expect(outcome.expected).toBe("1.3.0");
 });
 
 test("a contract mismatch does not even fetch the artifact", async ({ page }) => {

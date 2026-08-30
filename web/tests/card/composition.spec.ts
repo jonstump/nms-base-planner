@@ -155,3 +155,50 @@ test("a base with no identity slot says so rather than inventing one", async ({
   // The dashed frame AND the badge. base.css: never the frame alone.
   await expect(card.locator(".status-badge")).toContainText("Unassigned");
 });
+
+/* ----------------------------------------------------------------------
+ * A place with no site configuration
+ * ------------------------------------------------------------------- */
+
+const UNCONFIGURED = '[data-base="New Place"]';
+
+/*
+ * SPEC-0011 REQ "A Place Is Creatable by Hand":
+ * WHEN a leaf is assigned to a place that has no site configuration
+ * THEN the card presents the missing configuration as absent, and does not
+ * present it as a configured value of zero.
+ */
+test("an unconfigured site is rendered as absent, not as a zero", async ({ page }) => {
+  const section = page.locator(`${UNCONFIGURED} [data-section="unsited"]`);
+  await expect(section).toHaveCount(1);
+  await expect(section).toContainText("Site not configured");
+
+  /* The demand survives — what is missing is the sizing, not the requirement. */
+  await expect(section.locator('[data-row="unsited"]')).toHaveCount(1);
+  await expect(section).toContainText("500");
+
+  /*
+   * And no extractor section at all. A card that sized the row against the
+   * zeros would render one showing 0 extractors at class "", which is the
+   * configured-value-of-zero the requirement rules out.
+   */
+  await expect(page.locator(`${UNCONFIGURED} [data-section="extractor"]`)).toHaveCount(0);
+});
+
+test("an unconfigured place still says what to plant", async ({ page }) => {
+  /*
+   * Extraction is the only producer that needs the site. Losing the farm
+   * too would make an unconfigured place a card that tells the player
+   * nothing, which is a different and worse thing than one with a gap in it.
+   */
+  await expect(page.locator(`${UNCONFIGURED} [data-section="farm"]`)).toHaveCount(1);
+  await expect(
+    page.locator(`${UNCONFIGURED} [data-section="farm"] .card-row`),
+  ).toHaveCount(1);
+});
+
+test("a configured base carries no unsited section", async ({ page }) => {
+  for (const base of [FULL, SPARSE]) {
+    await expect(page.locator(`${base} [data-section="unsited"]`)).toHaveCount(0);
+  }
+});

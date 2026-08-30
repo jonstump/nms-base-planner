@@ -88,9 +88,38 @@ export interface Site {
   readonly fillSeconds: Quantity;
 }
 
+/**
+ * A demand needing extraction at a base with no site configuration.
+ *
+ * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand", SPEC-0007 REQ
+ * "Absent Data Is Absent"
+ *
+ * The requirement is still known; what is missing is the class and the fill
+ * duration that would size it. A row rather than a flag, so a surface can
+ * name what is waiting rather than only that something is.
+ */
+export interface UnsitedRow {
+  readonly itemId: string;
+  readonly name: string;
+  readonly required: Quantity;
+  readonly verified: boolean;
+}
+
 export interface BaseBuild {
   readonly base: string;
   readonly site: Site;
+  /**
+   * Whether this base has a site configuration.
+   *
+   * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+   *
+   * Read this before reading `site`. When false the site's values are zeros
+   * that mean nothing, and a surface MUST render the absence rather than
+   * the zeros — a class of "" shown as a class, or a fill duration of 0
+   * shown as a duration, is the configured-value-of-zero the requirement
+   * rules out.
+   */
+  readonly configured: boolean;
   readonly farms: readonly FarmRow[];
   readonly extractors: readonly ExtractorRow[];
   readonly ranches: readonly RanchRow[];
@@ -99,6 +128,8 @@ export interface BaseBuild {
   readonly nutrientProcessors: Quantity;
   readonly pelletFeeders: Quantity;
   readonly noBuild: readonly NoBuildRow[];
+  /** Demands awaiting a site configuration. Always empty when `configured`. */
+  readonly unsited: readonly UnsitedRow[];
   /** The base-level answer: every row here, and the constant that sized its processors. */
   readonly verified: boolean;
 }
@@ -247,6 +278,21 @@ function decodeNoBuild(value: unknown): NoBuildRow | null {
   return { itemId, name, from, required, verified };
 }
 
+function decodeUnsited(value: unknown): UnsitedRow | null {
+  const raw = object(value);
+  if (!raw) return null;
+
+  const itemId = text(raw["itemId"]);
+  const name = text(raw["name"]);
+  const required = quantity(raw["required"]);
+  const verified = flag(raw["verified"]);
+
+  if (itemId === null || name === null) return null;
+  if (required === null || verified === null) return null;
+
+  return { itemId, name, required, verified };
+}
+
 function decodeSite(value: unknown): Site | null {
   const raw = object(value);
   if (!raw) return null;
@@ -280,19 +326,29 @@ function decodeBase(value: unknown): BaseBuild | null {
   const ranches = list(raw["ranches"], decodeRanch);
   const kitchen = list(raw["kitchen"], decodeKitchen);
   const noBuild = list(raw["noBuild"], decodeNoBuild);
+  const unsited = list(raw["unsited"], decodeUnsited);
   const nutrientProcessors = quantity(raw["nutrientProcessors"]);
   const pelletFeeders = quantity(raw["pelletFeeders"]);
   const verified = flag(raw["verified"]);
+  /*
+   * Required rather than defaulted. A payload without the key is a module
+   * older than contract 1.3.0, and guessing `true` would present an
+   * unconfigured base's zeros as a configuration — which is the one thing
+   * SPEC-0011 asks this field to prevent. Failing the decode routes it to
+   * the version-mismatch path instead.
+   */
+  const configured = flag(raw["configured"]);
 
-  if (base === null || site === null) return null;
+  if (base === null || site === null || configured === null) return null;
   if (farms === null || extractors === null || ranches === null) return null;
-  if (kitchen === null || noBuild === null) return null;
+  if (kitchen === null || noBuild === null || unsited === null) return null;
   if (nutrientProcessors === null || pelletFeeders === null || verified === null)
     return null;
 
   return {
     base,
     site,
+    configured,
     farms,
     extractors,
     ranches,
@@ -300,6 +356,7 @@ function decodeBase(value: unknown): BaseBuild | null {
     nutrientProcessors,
     pelletFeeders,
     noBuild,
+    unsited,
     verified,
   };
 }

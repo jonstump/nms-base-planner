@@ -9,7 +9,7 @@ import { StatusBadge } from "../shell/StatusBadge";
 import { useViewState } from "../state/useViewState";
 import { toCanvasModel, toLayoutInput, type CanvasModel } from "./graph-model";
 import { layoutGraph, NODE_HEIGHT, NODE_WIDTH, type Placement } from "./layout";
-import { slotFor } from "./bases";
+import { slotFor, type Base } from "./bases";
 import { NodeCard } from "./NodeCard";
 import { NodeControl } from "./NodeControl";
 import { TreeEdge } from "./TreeEdge";
@@ -68,6 +68,7 @@ export function TreeCanvas({
   onSelectMethod,
   assignments,
   onAssign,
+  bases,
 }: {
   readonly graph: ResolvedGraph;
   /**
@@ -82,6 +83,15 @@ export function TreeCanvas({
   /** Item id to base id. The canvas renders it; it does not own it. */
   readonly assignments: Readonly<Record<string, string>>;
   readonly onAssign: (nodeId: string, name: string, baseId: string | null) => void;
+  /**
+   * The places a leaf may be assigned to.
+   *
+   * Passed in rather than imported: the assignable set is the workspace's
+   * places, and the canvas has no business reading the store.
+   *
+   * Governing: SPEC-0011 REQ "A Place Is Authored, and a Plan References It"
+   */
+  readonly bases: readonly Base[];
 }): ReactNode {
   const model = useMemo(() => toCanvasModel(graph), [graph]);
   const [layout, setLayout] = useState<LayoutState>(LAYING_OUT);
@@ -162,7 +172,7 @@ export function TreeCanvas({
            * the shell holds — the card does not know what a base is.
            */
           ...(() => {
-            const slot = slotFor(assignments, node.id);
+            const slot = slotFor(assignments, node.id, bases);
             return slot === undefined ? {} : { identity: slot };
           })(),
           /*
@@ -201,7 +211,7 @@ export function TreeCanvas({
                 }),
         },
       })),
-    [model, layoutOf, preferences.groupSeparator, onOpen, assignments],
+    [model, layoutOf, preferences.groupSeparator, onOpen, assignments, bases],
   );
 
   const flowEdges = useMemo<Edge[]>(
@@ -301,6 +311,7 @@ export function TreeCanvas({
               formatQuantity(quantity, { groupSeparator: preferences.groupSeparator })
             }
             assignedTo={assignments[openNode.id] ?? null}
+            bases={bases}
             onSelectMethod={(method) => {
               onSelectMethod(openNode.id, openNode.name, method);
             }}

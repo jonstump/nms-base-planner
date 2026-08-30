@@ -10,6 +10,7 @@ import {
   type PowerBudget,
   type Quantity,
   type RanchRow,
+  type UnsitedRow,
 } from "../boundary";
 import { StatusBadge } from "../shell/StatusBadge";
 
@@ -155,6 +156,34 @@ function KitchenRowView({ row }: { row: KitchenStep }): ReactNode {
   );
 }
 
+/*
+ * A demand at a base with no site configuration.
+ *
+ * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand", SPEC-0007 REQ
+ * "Absent Data Is Absent"
+ *
+ *   "the card MUST render that absence as absence ... rather than as a
+ *   configured value of zero."
+ *
+ * So the row shows the demand, which is known, and says the configuration
+ * is missing — it does not show `0` extractors, and it does not show a
+ * class of "". The same rule NoBuildRowView follows: a word, not a style,
+ * because a row distinguished only by being greyed out is not distinguished
+ * for anyone who does not see the grey.
+ */
+function UnsitedRowView({ row }: { row: UnsitedRow }): ReactNode {
+  return (
+    <li className="card-row" data-row="unsited" data-item={row.itemId}>
+      <span className="card-row-name">{row.name}</span>
+      <span className="card-row-figures">
+        <Figure label="Demand" value={q(row.required)} />
+        <span className="card-nothing-to-build">Site not configured</span>
+        <RowProvenance verified={row.verified} />
+      </span>
+    </li>
+  );
+}
+
 function NoBuildRowView({ row }: { row: NoBuildRow }): ReactNode {
   return (
     <li className="card-row" data-row="no-build" data-item={row.itemId}>
@@ -268,6 +297,24 @@ export function BasePlannerCard({
 
       {budget !== undefined ? (
         <PowerBlock budget={budget} emClass={configuration?.power.emClass} />
+      ) : null}
+
+      {/*
+        Extraction is the only producer that needs the site, so this section
+        is where an unconfigured place's gap becomes visible — beside the
+        farms and ranches that sized normally, rather than instead of them.
+        A place created with a name and nothing else is assignable by rule,
+        and this is what that place's card looks like.
+      */}
+      {base.unsited.length > 0 ? (
+        <section className="card-section" data-section="unsited">
+          <h4 className="card-section-head">Awaiting site configuration</h4>
+          <ul className="card-rows">
+            {base.unsited.map((row) => (
+              <UnsitedRowView key={row.itemId} row={row} />
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {base.noBuild.length > 0 ? (

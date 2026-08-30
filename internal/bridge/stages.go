@@ -222,10 +222,37 @@ type NoBuildRow struct {
 	Verified bool     `json:"verified"`
 }
 
+// UnsitedRow is a demand that needs a site configuration the base does not
+// have.
+//
+// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+//
+// Carried across the boundary rather than dropped, for the same reason
+// NoBuildRow is: an absent row is indistinguishable from an overlooked
+// requirement, and here the whole point is that the view render the gap.
+type UnsitedRow struct {
+	ItemID   string   `json:"itemId"`
+	Name     string   `json:"name"`
+	Required Quantity `json:"required"`
+	Verified bool     `json:"verified"`
+}
+
 // BaseBuild is one base's construction instructions.
 type BaseBuild struct {
 	Base string `json:"base"`
 	Site Site   `json:"site"`
+
+	// Configured reports whether the base has a site configuration. When
+	// false, Site carries zero values that mean nothing and the view MUST
+	// render the absence rather than the zeros.
+	//
+	// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand", SPEC-0007
+	// REQ "Absent Data Is Absent"
+	//
+	// Always emitted, never omitempty: false is the value that carries the
+	// meaning here, and a field that disappears when it matters most is the
+	// opposite of what the requirement asks for.
+	Configured bool `json:"configured"`
 
 	Farms      []FarmRow      `json:"farms,omitempty"`
 	Extractors []ExtractorRow `json:"extractors,omitempty"`
@@ -237,6 +264,10 @@ type BaseBuild struct {
 	PelletFeeders      Quantity `json:"pelletFeeders"`
 
 	NoBuild []NoBuildRow `json:"noBuild,omitempty"`
+
+	// Unsited are demands that need extraction at a base with no site
+	// configuration. Empty whenever Configured is true.
+	Unsited []UnsitedRow `json:"unsited,omitempty"`
 
 	// Verified is the base-level answer: every row here, and the constant
 	// that sized its processors.
@@ -502,6 +533,7 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			ExtractorClass: string(b.Site.ExtractorClass),
 			FillSeconds:    QuantityOfInt(b.Site.FillSeconds),
 		},
+		Configured:         b.Configured,
 		NutrientProcessors: QuantityOfInt(b.NutrientProcessors),
 		PelletFeeders:      QuantityOfInt(b.PelletFeeders),
 		Verified:           b.Verified,
@@ -569,6 +601,14 @@ func encodeBaseBuild(b domain.BaseBuild) BaseBuild {
 			From:     n.From,
 			Required: QuantityOf(n.Required()),
 			Verified: n.Verified,
+		})
+	}
+	for _, u := range b.Unsited {
+		out.Unsited = append(out.Unsited, UnsitedRow{
+			ItemID:   u.ItemID,
+			Name:     u.Name,
+			Required: QuantityOf(u.Required()),
+			Verified: u.Verified,
 		})
 	}
 	return out

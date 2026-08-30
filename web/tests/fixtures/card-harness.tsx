@@ -108,6 +108,8 @@ const full: BaseBuild = {
   /* Base-level. Rendered once even though the kitchen carries three steps. */
   nutrientProcessors: exact("2"),
   pelletFeeders: exact("1"),
+  configured: true,
+  unsited: [],
   noBuild: [
     {
       itemId: "condensedcarbon",
@@ -143,6 +145,55 @@ const sparse: BaseBuild = {
   nutrientProcessors: exact("0"),
   pelletFeeders: exact("0"),
   noBuild: [],
+  configured: true,
+  unsited: [],
+  verified: true,
+};
+
+/*
+ * A place created with a name and nothing else.
+ *
+ * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+ *
+ * The site's values are the zeros an unconfigured base carries, and they are
+ * present precisely so a test can prove the card does not render them: the
+ * requirement is that the absence read as absence "rather than as a
+ * configured value of zero", and a fixture omitting the zeros could not
+ * catch a card that showed them.
+ *
+ * The farm alongside is the other half. Extraction needs the site; a crop's
+ * yield does not, so an unconfigured place still says what to plant.
+ */
+const unconfigured: BaseBuild = {
+  base: "New Place",
+  site: { extractorClass: "", fillSeconds: exact("0") },
+  configured: false,
+  farms: [
+    {
+      itemId: "starbulb",
+      name: "Star Bulb",
+      required: exact("100"),
+      plants: exact("4"),
+      biodomes: exact("1"),
+      yieldPerPlant: { min: exact("25"), max: exact("25") },
+      growthSeconds: exact("1800"),
+      verified: true,
+    },
+  ],
+  extractors: [],
+  ranches: [],
+  kitchen: [],
+  nutrientProcessors: exact("0"),
+  pelletFeeders: exact("0"),
+  noBuild: [],
+  unsited: [
+    {
+      itemId: "cobalt",
+      name: "Cobalt",
+      required: exact("500"),
+      verified: true,
+    },
+  ],
   verified: true,
 };
 
@@ -153,5 +204,6 @@ createRoot(root).render(
   <StrictMode>
     <BasePlannerCard base={full} identity={2} selected={true} />
     <BasePlannerCard base={sparse} />
+    <BasePlannerCard base={unconfigured} />
   </StrictMode>,
 );

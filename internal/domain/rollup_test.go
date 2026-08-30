@@ -236,10 +236,11 @@ func TestExtractorClassIsPerSite(t *testing.T) {
 	}
 }
 
-// A base with assignments but no configuration is refused rather than
-// defaulted — an extractor class picked for the caller is a number they
-// never chose showing up in their plan.
-func TestUnconfiguredBaseIsRefused(t *testing.T) {
+// A site the caller did supply must be usable. Absence is a different thing
+// and is no longer refused — see TestUnconfiguredBaseIsAssignable.
+//
+// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+func TestInvalidSiteConfigurationIsRefused(t *testing.T) {
 	g := resolveStasis(t, 1, nil)
 
 	cases := []struct {
@@ -247,14 +248,6 @@ func TestUnconfiguredBaseIsRefused(t *testing.T) {
 		in   RollupInput
 		want string
 	}{
-		{
-			name: "no site configuration",
-			in: RollupInput{
-				Assignments: map[string]BaseID{"sul": "alpha"},
-				Sites:       map[BaseID]SiteConfig{},
-			},
-			want: "no site configuration",
-		},
 		{
 			name: "class outside the vocabulary",
 			in: RollupInput{
@@ -587,5 +580,80 @@ func TestAbsentTier2ConstantMatchesTheMissingConstantSentinel(t *testing.T) {
 				t.Errorf("error %q does not name the constant at fault (%q)", err, tc.names)
 			}
 		})
+	}
+}
+
+// SPEC-0011 REQ "A Place Is Creatable by Hand":
+// WHEN a leaf is assigned to a place that has no site configuration
+// THEN the rollup treats the site as unconfigured rather than refusing.
+//
+// This replaces the older rule that refused the whole grouping. Both rules
+// exist to stop a class nobody chose appearing in a plan; this one does it
+// by saying the base is unconfigured instead of by failing, because a place
+// created with a name and nothing else is assignable by rule.
+func TestUnconfiguredBaseIsAssignable(t *testing.T) {
+	g := resolveStasis(t, 1, nil)
+
+	out, err := GroupLeaves(g, RollupInput{
+		Assignments: map[string]BaseID{"sul": "alpha"},
+		Sites:       map[BaseID]SiteConfig{},
+	})
+	if err != nil {
+		t.Fatalf("GroupLeaves refused an unconfigured base: %v", err)
+	}
+
+	alpha, ok := out.Group("alpha")
+	if !ok {
+		t.Fatal("the assigned base has no group")
+	}
+	if alpha.Configured {
+		t.Error("a base with no Sites entry reports itself configured")
+	}
+	if alpha.Site != (SiteConfig{}) {
+		t.Errorf("unconfigured site = %+v, want the zero value", alpha.Site)
+	}
+	if len(alpha.Demands) == 0 {
+		t.Error("the leaf was not grouped at the base it was assigned to")
+	}
+}
+
+// SPEC-0011 REQ "A Place Is Authored, and a Plan References It":
+// WHEN a plan is resolved against a workspace holding no places
+// THEN it resolves, and every leaf is reported unassigned rather than
+// failing.
+func TestPlanWithNoPlacesResolves(t *testing.T) {
+	g := resolveStasis(t, 1, nil)
+
+	out, err := GroupLeaves(g, RollupInput{})
+	if err != nil {
+		t.Fatalf("a plan referencing no places failed: %v", err)
+	}
+
+	un, ok := out.Unassigned()
+	if !ok {
+		t.Fatal("no unassigned group exists")
+	}
+	if len(un.Demands) != len(g.Leaves()) {
+		t.Errorf("unassigned holds %d leaves, want all %d", len(un.Demands), len(g.Leaves()))
+	}
+	for _, group := range out.Groups {
+		if !group.IsUnassigned() {
+			t.Errorf("base %q has a group in a plan that assigned nothing", group.Base)
+		}
+	}
+}
+
+// SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned" is a
+// view-side rule about the workspace, but the domain has to make it
+// reachable: an assignment naming a base the caller knows nothing about must
+// not be an error, or the view could not drop it without also refusing the
+// plan.
+func TestAssignmentToAnUnknownBaseIsNotAnError(t *testing.T) {
+	g := resolveStasis(t, 1, nil)
+
+	if _, err := GroupLeaves(g, RollupInput{
+		Assignments: map[string]BaseID{"sul": "a-place-that-was-deleted"},
+	}); err != nil {
+		t.Fatalf("an assignment naming an unknown base failed: %v", err)
 	}
 }

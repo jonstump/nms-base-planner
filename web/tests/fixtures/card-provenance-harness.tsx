@@ -87,6 +87,8 @@ function baseWith(name: string, rowsVerified: boolean, baseVerified: boolean): B
     ],
     nutrientProcessors: exact("1"),
     pelletFeeders: exact("1"),
+    configured: true,
+    unsited: [],
     noBuild: [
       {
         itemId: "condensedcarbon",

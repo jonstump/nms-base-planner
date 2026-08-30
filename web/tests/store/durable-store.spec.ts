@@ -477,6 +477,101 @@ test("deletion removes everything and leaves the designed empty state", async ({
   expect(after.places).toBe(0);
 });
 
+/*
+ * SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned":
+ * WHEN three leaves are assigned to a place and that place is deleted
+ * THEN the plan survives, the three leaves appear in the unassigned group,
+ * and no dangling identifier is rendered.
+ *
+ * The store's half is the first clause: removing one place leaves the rest
+ * of the workspace exactly as it was. The second clause is the view's and is
+ * asserted in tests/canvas/assignment.spec.ts, where the assignment lives.
+ */
+test("deleting one place leaves the others and the workspace intact", async ({
+  page,
+}) => {
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const after = await page.evaluate(async (db) => {
+    await window.__store.putPlace(db, { id: "keep-1", kind: "base", name: "Alpha" });
+    await window.__store.putPlace(db, { id: "gone", kind: "base", name: "Beta" });
+    await window.__store.putPlace(db, { id: "keep-2", kind: "freighter" });
+    await window.__store.putPreferences(db, { groupSeparator: "," });
+
+    const deleted = await window.__store.deletePlace(db, "gone");
+    const loaded = await window.__store.load(db);
+    return {
+      deleted,
+      ids: loaded.kind === "ok" ? loaded.value.places.map((place) => place.id) : [],
+      separator:
+        loaded.kind === "ok"
+          ? loaded.value.workspace.preferences?.["groupSeparator"]
+          : null,
+    };
+  }, database);
+
+  expect(after.deleted.kind).toBe("ok");
+  expect(after.ids.toSorted()).toEqual(["keep-1", "keep-2"]);
+  // The workspace record survives with it: deleting a place is not a reset.
+  expect(after.separator).toBe(",");
+});
+
+test("deleting a place that is not there succeeds", async ({ page }) => {
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  /*
+   * The caller asked for a state and that state already holds. Reporting a
+   * failure would make a double click an error, and would make deletion the
+   * one operation a player has to get right first time.
+   */
+  const deleted = await page.evaluate(
+    (db) => window.__store.deletePlace(db, "never-existed"),
+    database,
+  );
+  expect(deleted.kind).toBe("ok");
+});
+
+/*
+ * SPEC-0011 REQ "A Place Is Creatable by Hand":
+ * WHEN a place is created with a name and nothing else
+ * THEN it persists across a reload.
+ *
+ * The store's half of "a name is the whole minimum": every other field is
+ * optional, so a record carrying only an id, a kind and a name is a complete
+ * place rather than a partial one.
+ */
+test("a place with only a name persists across a reload", async ({ page }) => {
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  await page.evaluate(
+    (db) => window.__store.putPlace(db, { id: "named", kind: "base", name: "Alpha" }),
+    database,
+  );
+  await page.evaluate((db) => {
+    window.__store.close(db);
+  }, database);
+
+  await page.reload({ waitUntil: "load" });
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+  await openStore(page, database);
+
+  const loaded = await page.evaluate((db) => window.__store.load(db), database);
+  expect(loaded.kind).toBe("ok");
+  if (loaded.kind !== "ok") return;
+
+  const place = loaded.value.places[0];
+  expect(place?.name).toBe("Alpha");
+  expect(place?.id).toBe("named");
+  // Nothing was invented to fill the fields the player did not supply.
+  expect(place?.notes).toBeUndefined();
+  expect(place?.tags).toBeUndefined();
+  expect(place?.ticks).toBeUndefined();
+  expect(place?.stocked).toBeUndefined();
+});
+
 test("preferences round-trip without becoming place records", async ({ page }) => {
   const database = freshDatabase();
   await openStore(page, database);

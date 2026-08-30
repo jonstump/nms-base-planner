@@ -309,6 +309,48 @@ export class DurableStore {
     }
   }
 
+  /**
+   * Remove one place.
+   *
+   * Governing: SPEC-0011 REQ "An Assignment Naming an Absent Place Is
+   * Unassigned", ADR-0010 (a deleted place unassigns; it does not cascade)
+   *
+   * The store removes the record and nothing else. It does not reach into
+   * any plan, because a plan is not the store's to edit — the leaves that
+   * named this place become unassigned by rule when the plan is next read
+   * against the workspace, which is what keeps deleting a place from
+   * destroying the plan that referenced it.
+   *
+   * Deleting a place that is not there succeeds. The caller asked for a
+   * state, and that state already holds; reporting an error would make a
+   * double click a failure.
+   */
+  async deletePlace(id: string): Promise<StoreResult<void>> {
+    const db = this.#db;
+    if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
+
+    try {
+      const now = this.#now();
+      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");
+      await request(transaction.objectStore(PLACES_STORE).delete(id));
+
+      const workspaces = transaction.objectStore(WORKSPACE_STORE);
+      const storedWorkspace = (await request<unknown>(workspaces.get(WORKSPACE_KEY))) as
+        WorkspaceRecord | undefined;
+      await request(
+        workspaces.put(
+          { ...(storedWorkspace ?? emptyWorkspace(now)), updatedAt: now },
+          WORKSPACE_KEY,
+        ),
+      );
+
+      await settled(transaction);
+      return ok(undefined);
+    } catch (error) {
+      return classify(error, `deleting place ${id}`);
+    }
+  }
+
   /** Persist the view's own preferences. Interface state, not domain state. */
   async putPreferences(
     preferences: Readonly<Record<string, string | boolean>>,

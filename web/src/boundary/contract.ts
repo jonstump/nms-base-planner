@@ -17,7 +17,7 @@
  * with the `contractVersion` on every envelope; a mismatch is reported
  * naming both and no payload is read.
  */
-export const EXPECTED_CONTRACT_VERSION = "1.2.0";
+export const EXPECTED_CONTRACT_VERSION = "1.3.0";
 
 /*
  * The stable code set from internal/bridge/errors.go.

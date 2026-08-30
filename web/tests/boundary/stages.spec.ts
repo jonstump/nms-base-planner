@@ -55,6 +55,15 @@ const FARM = {
 const BASE = {
   base: "A",
   site: { extractorClass: "C", fillSeconds: "5400" },
+  /*
+   * Required, not optional. Contract 1.3.0 added it, and the decoder refuses
+   * a payload without it rather than assuming: assuming `true` would present
+   * an unconfigured base's zeros as a configuration, and assuming `false`
+   * would report every configured base as unconfigured. The version check is
+   * what keeps an older module from reaching the decoder at all; this is the
+   * second line.
+   */
+  configured: true,
   farms: [FARM],
   nutrientProcessors: "1",
   pelletFeeders: "0",
@@ -149,6 +158,20 @@ test.describe("the build payload", () => {
      */
     const withoutVerified = without(BASE, "verified");
     expect(selectBuild({ build: { bases: [withoutVerified] } })).toBeNull();
+
+    /*
+     * `configured` for the same reason, and a sharper one.
+     *
+     * Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+     *
+     * Its false case is the whole point: it is what tells the card to render
+     * a gap rather than the site's zeros. A decoder that defaulted it to
+     * true would present class "" for zero seconds as a configuration, which
+     * is the configured-value-of-zero the requirement rules out; one that
+     * defaulted it to false would report every configured base as
+     * unconfigured. Neither guess is available, so the payload has to say.
+     */
+    expect(selectBuild({ build: { bases: [without(BASE, "configured")] } })).toBeNull();
   });
 
   test("anything that is not a build payload is rejected", () => {

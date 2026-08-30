@@ -64,9 +64,42 @@ export interface StoredData {
    * confirmation is the caller's — this is the operation, not the prompt.
    */
   readonly deleteEverything: () => Promise<void>;
+  /**
+   * Create a place from a name and nothing else.
+   *
+   * Governing: ADR-0010 (places are authored first), SPEC-0011 REQ "A Place
+   * Is Creatable by Hand" — "The minimum a place requires before a plan may
+   * assign to it is its generated `id` and a name. Every other field ... MUST
+   * be optional at creation."
+   *
+   * The id is generated here and is the only identifier the place ever has:
+   * ADR-0010 makes it the value the domain receives as `BaseID`, so minting
+   * a second one for the plan to use is the thing SPEC-0011 forbids.
+   *
+   * `kind` defaults to "base" rather than being asked for. A freighter and a
+   * settlement are places too (SPEC-0009 REQ "A Place Is One Record Type"),
+   * but making the player answer that before they can have one is exactly the
+   * longer first-run path the requirement rules out.
+   */
+  readonly createPlace: (name: string) => Promise<void>;
+  /**
+   * Remove one place.
+   *
+   * Governing: ADR-0010 (a deleted place unassigns; it does not cascade),
+   * SPEC-0011 REQ "An Assignment Naming an Absent Place Is Unassigned"
+   *
+   * No plan is touched. Leaves that named this place become unassigned by
+   * rule when the plan is next read against the workspace — see
+   * canvas/assignments.ts.
+   */
+  readonly removePlace: (id: string) => Promise<void>;
 }
 
 const NOOP = async (): Promise<void> => {
+  /* replaced by the real operation once the hook has run */
+};
+
+const NOOP_WITH_ARG = async (): Promise<void> => {
   /* replaced by the real operation once the hook has run */
 };
 
@@ -76,6 +109,8 @@ const LOADING: StoredData = Object.freeze({
   empty: false,
   saving: false,
   deleteEverything: NOOP,
+  createPlace: NOOP_WITH_ARG,
+  removePlace: NOOP_WITH_ARG,
 });
 
 export function useStoredData(store: DurableStore): StoredData {
@@ -113,6 +148,8 @@ export function useStoredData(store: DurableStore): StoredData {
           empty: false,
           saving: false,
           deleteEverything: NOOP,
+          createPlace: NOOP_WITH_ARG,
+          removePlace: NOOP_WITH_ARG,
         });
         return;
       }
@@ -126,6 +163,8 @@ export function useStoredData(store: DurableStore): StoredData {
           empty: false,
           saving: false,
           deleteEverything: NOOP,
+          createPlace: NOOP_WITH_ARG,
+          removePlace: NOOP_WITH_ARG,
         });
         return;
       }
@@ -156,6 +195,8 @@ export function useStoredData(store: DurableStore): StoredData {
         empty: loaded.value.places.length === 0,
         saving: false,
         deleteEverything: NOOP,
+        createPlace: NOOP_WITH_ARG,
+        removePlace: NOOP_WITH_ARG,
       });
     };
 
@@ -185,6 +226,61 @@ export function useStoredData(store: DurableStore): StoredData {
       if (outstanding.current === 0) setSaving(false);
     });
   }, [store, preferences]);
+
+  /*
+   * A place's id, generated once and never derived from anything.
+   *
+   * Governing: ADR-0010, SPEC-0011 REQ "A Place Is Authored, and a Plan
+   * References It" — "The application MUST NOT mint a second identifier for
+   * a place, and MUST NOT derive a place's identity from a plan's
+   * assignments."
+   *
+   * `crypto.randomUUID` rather than a counter or a slug of the name,
+   * because both of those are derivations: a counter collides across
+   * devices the moment sync lands, and a name-derived id changes when the
+   * player renames a place, which would silently reassign every leaf that
+   * pointed at it.
+   */
+  const createPlace = useCallback(
+    async (name: string): Promise<void> => {
+      const trimmed = name.trim();
+      if (trimmed === "") return;
+
+      const written = await store.putPlace({
+        id: crypto.randomUUID(),
+        kind: "base",
+        name: trimmed,
+      });
+      if (written.kind !== "ok") {
+        setData((previous) => ({ ...previous, status: "unavailable" }));
+        return;
+      }
+
+      setData((previous) => ({
+        ...previous,
+        status: "ready",
+        places: [...previous.places, written.value],
+        empty: false,
+      }));
+    },
+    [store],
+  );
+
+  const removePlace = useCallback(
+    async (id: string): Promise<void> => {
+      const removed = await store.deletePlace(id);
+      if (removed.kind !== "ok") {
+        setData((previous) => ({ ...previous, status: "unavailable" }));
+        return;
+      }
+
+      setData((previous) => {
+        const places = previous.places.filter((place) => place.id !== id);
+        return { ...previous, places, empty: places.length === 0 };
+      });
+    },
+    [store],
+  );
 
   const deleteEverything = useCallback(async (): Promise<void> => {
     const removed = await store.deleteAll();
@@ -229,5 +325,5 @@ export function useStoredData(store: DurableStore): StoredData {
     }));
   }, [store, dispatch]);
 
-  return { ...data, saving, deleteEverything };
+  return { ...data, saving, deleteEverything, createPlace, removePlace };
 }

@@ -17,8 +17,20 @@ import (
 // constant and needs no base assignment. Stage 2 takes stage 1's output and
 // everything below.
 
-// BaseID identifies a base within a plan. The empty value is not a base —
-// see Unassigned.
+// BaseID identifies a place. It is the place record's own id — the value
+// SPEC-0009 generates at creation — and not a key a plan invents for itself.
+// The empty value is not a place; see Unassigned.
+//
+// Governing: ADR-0010 (places are authored first, and a plan assigns leaves
+// to places that exist), SPEC-0011 REQ "A Place Is Authored, and a Plan
+// References It"
+//
+// The distinction is load-bearing rather than cosmetic. A plan-scoped key is
+// invented by whichever plan first named the base, so the same real base
+// acquires a different key in every plan and the annotations against it
+// fragment — a failure that surfaces as data loss rather than as a type
+// error. The domain still sees an opaque string and mints nothing; what
+// changed is where the string comes from.
 type BaseID string
 
 // Unassigned is the group a leaf lands in when the plan does not say where
@@ -447,8 +459,24 @@ type RollupInput struct {
 	Assignments map[string]BaseID
 
 	// Sites configures each base. A base named in Assignments but absent
-	// here is refused rather than defaulted: an extractor class picked for
-	// the caller is a number they never chose showing up in their plan.
+	// here is unconfigured, which is a reported state rather than an error
+	// and rather than a default.
+	//
+	// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand" — "A place
+	// with no site configuration MUST be assignable. Its rollup MUST treat
+	// the site as unconfigured".
+	//
+	// Both halves of the original rule survive. Nothing is defaulted: an
+	// extractor class picked for the caller is still a number they never
+	// chose showing up in their plan, so an unconfigured base sizes no
+	// extractors at all rather than sizing them at class "". What changed
+	// is that refusing the whole rollup is no longer the only alternative
+	// to defaulting — the third state is saying so, which is what
+	// BaseGroup.Configured and BaseBuild.Unsited carry.
+	//
+	// A site that IS present is still validated. An explicit entry with an
+	// unusable class is a caller mistake, and the distinction between
+	// "not configured yet" and "configured wrongly" is the whole point.
 	Sites map[BaseID]SiteConfig
 }
 
@@ -483,8 +511,21 @@ type BaseGroup struct {
 	Base BaseID
 
 	// Site is the base's configuration. Zero for the unassigned group,
-	// which has no site.
+	// which has no site, and zero for a base the plan has not configured —
+	// read Configured before reading this.
 	Site SiteConfig
+
+	// Configured reports whether RollupInput.Sites carried an entry for
+	// this base.
+	//
+	// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
+	//
+	// A separate flag rather than a sentinel inside SiteConfig, because the
+	// zero SiteConfig is a legitimate shape to hold — it is what a caller
+	// sends before choosing a class — and a struct that answers "am I real"
+	// about itself makes every reader check a field they did not know was
+	// there. False for the unassigned group, which has no site to configure.
+	Configured bool
 
 	// Demands are the leaves assigned here, sorted by item ID.
 	Demands []LeafDemand
@@ -530,9 +571,11 @@ func GroupLeaves(g *ResolvedGraph, in RollupInput) (*Grouping, error) {
 		return nil, fmt.Errorf("%w: nil resolved graph", ErrInvalidArtifact)
 	}
 
-	// Every base named in an assignment must be configured. Checked before
-	// grouping so the error names the omission rather than surfacing later
-	// as an extractor sized at class "".
+	// A site the caller did supply must be usable. An assignment to a base
+	// with no entry at all is not an error — that base is unconfigured, and
+	// the rollup says so rather than refusing.
+	//
+	// Governing: SPEC-0011 REQ "A Place Is Creatable by Hand"
 	for item, base := range in.Assignments {
 		if base == Unassigned {
 			return nil, fmt.Errorf("%w: %q is assigned to the empty base id; omit it to leave it unassigned",
@@ -540,7 +583,7 @@ func GroupLeaves(g *ResolvedGraph, in RollupInput) (*Grouping, error) {
 		}
 		site, ok := in.Sites[base]
 		if !ok {
-			return nil, fmt.Errorf("%w: base %q has no site configuration", ErrInvalidArtifact, base)
+			continue
 		}
 		if !site.ExtractorClass.Valid() {
 			return nil, fmt.Errorf("%w: base %q extractor class %q is not one of C, B, A, S",
@@ -556,7 +599,13 @@ func GroupLeaves(g *ResolvedGraph, in RollupInput) (*Grouping, error) {
 		}
 		group, ok := out.byBase[base]
 		if !ok {
-			group = &BaseGroup{Base: base, Site: in.Sites[base]}
+			site, configured := in.Sites[base]
+			group = &BaseGroup{
+				Base: base, Site: site,
+				// The unassigned group has no site to configure, so it is
+				// never reported as configured however the map is keyed.
+				Configured: configured && base != Unassigned,
+			}
 			out.byBase[base] = group
 		}
 		group.Demands = append(group.Demands, LeafDemand{
