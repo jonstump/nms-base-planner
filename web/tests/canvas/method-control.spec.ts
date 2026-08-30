@@ -347,6 +347,35 @@ test.describe("in the shell", () => {
     await expect(card).toBeFocused();
   });
 
+  test("the backdrop returns focus too — the third route", async ({ page }) => {
+    /*
+     * #90 asks for every close route "each tested separately": Escape, the
+     * backdrop, and the close control. The trap's backdrop route is proven
+     * once on the shell's own popover in a11y-primitives.spec.ts; this
+     * asserts it on *this* dialog, because a surface that added its own
+     * backdrop handler would break here and nowhere else.
+     */
+    const card = page
+      .getByRole("region", CANVAS)
+      .locator(".node-card")
+      .filter({ hasText: "Antimatter" })
+      .first();
+
+    await card.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    /*
+     * A corner, not the centre. The backdrop spans the viewport, so its
+     * midpoint is underneath the dialog — `force: true` skips the
+     * actionability check but still clicks the centre point, which lands on
+     * the dialog and dismisses nothing. This cost a debugging detour.
+     */
+    await page.locator(".popover-backdrop").click({ position: { x: 8, y: 8 } });
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(card).toBeFocused();
+  });
+
   test("focus stays inside the control while it is open", async ({ page }) => {
     await openControlFor(page, "Chromatic Metal");
     const dialog = page.getByRole("dialog");

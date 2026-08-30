@@ -109,6 +109,30 @@ const unsizedBudget: PowerBudget = {
   verified: true,
 };
 
+/*
+ * The contrast case #101 names: the *same* zero additional generators, with
+ * the flag off.
+ *
+ * `unsizedBudget` above is a deficit the domain could not size. This one is
+ * a deficit it sized at zero — the two payloads differ in exactly one
+ * boolean, and the card has to render them differently. Without this,
+ * "fixUnsized shows the deficit and states the fix needs a class" passes
+ * against a card that says it unconditionally whenever the count is zero.
+ */
+const sizedAtZeroBudget: PowerBudget = {
+  base: "Zero Sized",
+  generation: exact("200"),
+  draw: exact("380"),
+  balance: exact("-180"),
+  deficit: exact("180"),
+  inDeficit: true,
+  perGenerator: exact("50"),
+  batteries: exact("0"),
+  additionalGenerators: exact("0"),
+  fixUnsized: false,
+  verified: true,
+};
+
 const surplusBudget: PowerBudget = {
   base: "Surplus",
   generation: exact("600"),
@@ -149,6 +173,17 @@ export function Cards(): ReactNode {
         configuration={{
           site: baseNamed("Unsized Deficit").site,
           power: { solarPanels: exact("10") },
+        }}
+        onConfigure={() => {}}
+      />
+      {/* Same zero as the card above it, with the flag off. */}
+      <BasePlannerCard
+        base={baseNamed("Zero Sized")}
+        identity={4}
+        budget={sizedAtZeroBudget}
+        configuration={{
+          site: baseNamed("Zero Sized").site,
+          power: { emClass: "B", emGenerators: exact("2") },
         }}
         onConfigure={() => {}}
       />
