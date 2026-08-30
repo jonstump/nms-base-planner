@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 import { METHOD_ORDER, methodOptions } from "../../src/canvas/methods";
 import { countCrossings, crossings } from "../helpers/crossings";
@@ -29,7 +29,7 @@ import { countCrossings, crossings } from "../helpers/crossings";
 const CANVAS = { name: "Dependency tree" } as const;
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(
     page.getByRole("region", CANVAS).locator(".node-card").first(),

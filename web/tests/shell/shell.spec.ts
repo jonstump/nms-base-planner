@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 /*
  * Governing: ADR-0004 (React view layer), SPEC-0005 Accessibility
@@ -13,7 +13,7 @@ import { openPlanner } from "../helpers/surfaces";
  */
 
 async function resolveAPlan(page: Page, target = "ANTIMATTER"): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });
 
@@ -105,7 +105,7 @@ test("figures are pending rather than zero while the module loads", async ({ pag
   await page.goto("/");
   await openPlanner(page);
 
-  await page.getByLabel("Target").fill("ANTIMATTER");
+  await chooseTarget(page, "ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();
 
   const figures = page.getByLabel("Figures");

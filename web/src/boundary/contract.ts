@@ -17,7 +17,16 @@
  * with the `contractVersion` on every envelope; a mismatch is reported
  * naming both and no payload is read.
  */
-export const EXPECTED_CONTRACT_VERSION = "1.3.0";
+/*
+ * Bumped to 1.4.0 by SPEC-0011's catalogue entry point.
+ *
+ * Additive — `resolve`, `rollup` and `power` are unchanged — but still a
+ * contract change, because a view built against 1.4.0 calls an entry point
+ * a 1.3.0 module does not carry. SPEC-0002's mismatch rule is what handles
+ * the skew: the view reports the mismatch and refuses the payload rather
+ * than calling into a namespace and getting an undefined back.
+ */
+export const EXPECTED_CONTRACT_VERSION = "1.4.0";
 
 /*
  * The stable code set from internal/bridge/errors.go.
@@ -87,4 +96,12 @@ export interface PlannerModule {
   resolve(planJSON: string): string;
   rollup(requestJSON: string): string;
   power(requestJSON: string): string;
+  /**
+   * The searchable item catalogue. Takes no input.
+   *
+   * Filtering is the view's job over a list it already holds — SPEC-0011
+   * § Rate Limiting forbids a crossing per keystroke — so there is nothing
+   * to send.
+   */
+  catalogue(argument: string): string;
 }

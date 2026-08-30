@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner, openSurface } from "../helpers/surfaces";
+import { openPlanner, openSurface, chooseTarget } from "../helpers/surfaces";
 
 import { basesFrom, slotFor, UNNAMED_PLACE } from "../../src/canvas/bases";
 import type { PlaceRecord } from "../../src/store";
@@ -38,7 +38,7 @@ const CANVAS = { name: "Dependency tree" } as const;
 const FIXTURE = "/tests/fixtures/assignment.html";
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(
     page.getByRole("region", CANVAS).locator(".node-card").first(),

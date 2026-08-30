@@ -27,7 +27,7 @@ globalThis.Go = class {
 
     if (script.neverPublish === true) return;
 
-    const version = script.contractVersion ?? "1.3.0";
+    const version = script.contractVersion ?? "1.4.0";
     let readyAfter = script.notReadyTimes ?? 0;
 
     const envelope = (body) => JSON.stringify({ contractVersion: version, ...body });
@@ -72,6 +72,16 @@ globalThis.Go = class {
       },
       rollup: () => failure("MALFORMED_INPUT", "not scripted"),
       power: () => failure("MALFORMED_INPUT", "not scripted"),
+      /*
+       * The catalogue entry point exists on the fake for the same reason
+       * the others do: the client calls it on mount now, and a fake missing
+       * an entry point fails as "undefined is not a function" rather than
+       * as whatever the test was actually about.
+       */
+      catalogue: () =>
+        script.catalogue === undefined
+          ? envelope({ ok: true, data: { catalogue: { items: [] } } })
+          : script.catalogue(),
     };
   }
 };

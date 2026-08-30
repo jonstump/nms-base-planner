@@ -241,3 +241,84 @@ func TestMalformedPlanAtTheEntryPoint(t *testing.T) {
 		t.Errorf("the module broke after a malformed call: %+v", env.Error)
 	}
 }
+
+// SPEC-0011 REQ "The Catalogue Crosses the Boundary":
+// WHEN the catalogue is requested THEN the module returns each selectable
+// item's id and display name, through the same envelope every other entry
+// point uses.
+func TestCatalogueListsSelectableItems(t *testing.T) {
+	m := loadedModule(t)
+
+	env := m.Catalogue("")
+	if !env.OK {
+		t.Fatalf("catalogue failed: %+v", env.Error)
+	}
+	if env.Data.Catalogue == nil {
+		t.Fatal("catalogue returned no catalogue payload")
+	}
+	if len(env.Data.Catalogue.Items) == 0 {
+		t.Fatal("catalogue is empty, so nothing was listed")
+	}
+
+	// Every entry carries both halves. An id with no name is unsearchable by
+	// anyone who has not memorised the artifact, which is the failure
+	// SPEC-0011 REQ "Target Selection Is a Search Over Known Items" exists
+	// to prevent.
+	for _, item := range env.Data.Catalogue.Items {
+		if item.ID == "" {
+			t.Errorf("catalogue item with empty id: %+v", item)
+		}
+		if item.Name == "" {
+			t.Errorf("catalogue item %q has no display name", item.ID)
+		}
+	}
+
+	// And nothing else crosses. The view searches this and sends back an id;
+	// a recipe or a method here would be data it is not allowed to reason
+	// about anyway.
+	blob, err := bridge.Marshal(env)
+	if err != nil {
+		t.Fatalf("marshalling: %v", err)
+	}
+	for _, absent := range []string{`"recipes"`, `"default_method"`, `"verified"`} {
+		if strings.Contains(string(blob), absent) {
+			t.Errorf("catalogue payload carries %s", absent)
+		}
+	}
+}
+
+// SPEC-0011 REQ "The Catalogue Crosses the Boundary":
+// WHEN the catalogue is requested before the module is ready THEN the
+// readiness sentinel is returned, so the view can present a loading state
+// and retry rather than reporting an error.
+func TestCatalogueBeforeReadyIsNotReady(t *testing.T) {
+	m := bridge.NewModule()
+
+	env := m.Catalogue("")
+	if env.OK {
+		t.Fatal("catalogue succeeded before the artifact loaded")
+	}
+	if env.Error == nil || env.Error.Code != bridge.CodeNotReady {
+		t.Errorf("catalogue before load = %+v, want %s", env.Error, bridge.CodeNotReady)
+	}
+}
+
+// SPEC-0002 REQ "Boundary Surface": adding an entry point is a change to the
+// enumerated surface, and the dispatcher must carry it.
+func TestCatalogueIsAnEntryPoint(t *testing.T) {
+	found := false
+	for _, name := range bridge.EntryPoints {
+		if name == "catalogue" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("EntryPoints = %v, missing catalogue", bridge.EntryPoints)
+	}
+
+	// Reachable by name, not only as a method — the js shim dispatches by
+	// string and nothing else.
+	if env := loadedModule(t).Call("catalogue", ""); !env.OK {
+		t.Errorf("Call(catalogue) failed: %+v", env.Error)
+	}
+}

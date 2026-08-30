@@ -50,6 +50,8 @@ const TreeCanvas = lazy(async () => ({
 }));
 import { DataCustody } from "./DataCustody";
 import { StoredPlaces } from "./StoredPlaces";
+import { TargetSearch } from "./TargetSearch";
+import { useCatalogue, type CatalogueState } from "./useCatalogue";
 import { SURFACES } from "./surfaces";
 import { ViewPreferences } from "./ViewPreferences";
 
@@ -118,10 +120,15 @@ function describeResolution(resolution: Resolution, groupSeparator: string): str
   }
 }
 
-function PlanForm({ onRecompute }: { onRecompute: () => void }): ReactNode {
+function PlanForm({
+  onRecompute,
+  catalogue,
+}: {
+  readonly onRecompute: () => void;
+  readonly catalogue: CatalogueState;
+}): ReactNode {
   const state = useViewState();
   const dispatch = useViewDispatch();
-  const targetId = useId();
   const quantityId = useId();
 
   const quantityLooksUsable = isQuantity(state.inputs.quantity);
@@ -135,15 +142,17 @@ function PlanForm({ onRecompute }: { onRecompute: () => void }): ReactNode {
       }}
     >
       <div className="control-row">
-        <label className="label" htmlFor={targetId}>
-          Target
-        </label>
-        <input
-          id={targetId}
-          className="control"
+        {/*
+          A search, not an id field. SPEC-0011: the control "MUST be a search
+          over known items, not a field accepting only an internal item id",
+          and the list arrives through the boundary rather than being
+          compiled in.
+        */}
+        <TargetSearch
+          catalogue={catalogue}
           value={state.inputs.target}
-          onChange={(event) => {
-            dispatch({ type: "setInput", field: "target", value: event.target.value });
+          onSelect={(itemId) => {
+            dispatch({ type: "setInput", field: "target", value: itemId });
           }}
         />
 
@@ -307,6 +316,7 @@ function Chrome({
     methods,
   );
   const stored = useStoredData(store);
+  const catalogue = useCatalogue(client);
 
   /*
    * The announcement is keyed to the result token, which changes exactly when
@@ -510,7 +520,7 @@ function Chrome({
             tabIndex={-1}
             ref={surfaceRegion}
           >
-            <PlanForm onRecompute={onRecompute} />
+            <PlanForm onRecompute={onRecompute} catalogue={catalogue} />
             <section className="panel" aria-label="Figures">
               <Figures resolution={resolution} />
             </section>

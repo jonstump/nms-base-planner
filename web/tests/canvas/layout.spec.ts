@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 import { toCanvasModel, toLayoutInput } from "../../src/canvas/graph-model";
 import { NODE_HEIGHT, NODE_WIDTH, toElkGraph } from "../../src/canvas/layout";
@@ -198,7 +198,7 @@ test("changing the target quantity does not move a single node", async ({ page }
    */
   await page.goto("/");
   await openPlanner(page);
-  await page.getByLabel("Target").fill("ULTRAPROD2");
+  await chooseTarget(page, "ULTRAPROD2");
 
   const atOne = await positionsFor(page, "1");
   expect(atOne.length, "no nodes were placed").toBe(36);
@@ -221,7 +221,7 @@ test("the totals did change, so the comparison above means something", async ({
    */
   await page.goto("/");
   await openPlanner(page);
-  await page.getByLabel("Target").fill("ULTRAPROD2");
+  await chooseTarget(page, "ULTRAPROD2");
 
   await positionsFor(page, "1");
   const first = await page

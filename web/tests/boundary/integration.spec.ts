@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { EXPECTED_CONTRACT_VERSION } from "../../src/boundary/contract";
+
 /*
  * Governing: ADR-0003 (Go domain, thin adapter), ADR-0004 (React view layer),
  * SPEC-0005 REQ "Boundary Client", REQ "The View Computes No Domain Values"
@@ -130,7 +132,7 @@ test("the real module's contract version is the one this view was built for", as
     return (globalThis as unknown as { nmsPlanner: { contractVersion: string } })
       .nmsPlanner.contractVersion;
   });
-  expect(version).toBe("1.3.0");
+  expect(version).toBe(EXPECTED_CONTRACT_VERSION);
 });
 
 test("changing an input produces a fresh crossing rather than a derived figure", async ({

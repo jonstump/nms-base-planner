@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner, openSurface } from "../helpers/surfaces";
+import { openPlanner, openSurface, chooseTarget } from "../helpers/surfaces";
 
 import { countCrossings, crossings, payloadOrder } from "../helpers/crossings";
 
@@ -24,7 +24,7 @@ const CANVAS = { name: "Dependency tree" } as const;
 const LARGE_TARGET = "ULTRAPROD2";
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("region", CANVAS)).toBeVisible({ timeout: 30_000 });
   await expect(

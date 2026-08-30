@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 import { ICON_ONLY_CONTROL_AUDIT } from "../helpers/accessible-name";
 import { STATUSES } from "../../src/shell/StatusBadge";
@@ -34,7 +34,7 @@ import { STATUSES } from "../../src/shell/StatusBadge";
 const SHELL = "/";
 
 async function resolveAPlan(page: Page): Promise<void> {
-  await page.getByLabel("Target").fill("ANTIMATTER");
+  await chooseTarget(page, "ANTIMATTER");
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });
 }

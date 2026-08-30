@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 /*
  * What a node says about itself.
@@ -27,7 +27,7 @@ const CANVAS = { name: "Dependency tree" } as const;
 const FIXTURE = "/tests/fixtures/node-card.html";
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(
     page.getByRole("region", CANVAS).locator(".node-card").first(),

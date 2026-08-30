@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 /*
  * What the canvas does when it cannot draw.
@@ -25,7 +25,7 @@ const CANVAS = { name: "Dependency tree" } as const;
 const ELK_CHUNK = "**/*elk*";
 
 async function recompute(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   /* The figure list, which does not depend on the layout engine. */
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });

@@ -167,3 +167,59 @@
 .surface:focus {
   outline: none;
 }
+
+/*
+ * The target search.
+ *
+ * Governing: SPEC-0011 REQ "Target Selection Is a Search Over Known Items"
+ *
+ * The results list is positioned rather than inline so it does not push the
+ * form around as the count changes, and the active option is marked by more
+ * than colour — the border is what carries it if colour is removed.
+ */
+.target-search {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.target-results {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-panel);
+  background-color: var(--panel-raised);
+  inset-block-start: 100%;
+  inset-inline: 0;
+  list-style: none;
+  max-block-size: 18rem;
+  overflow-y: auto;
+}
+
+.target-result {
+  display: flex;
+  align-items: baseline;
+  padding: var(--control-pad-y-sm) var(--space-2);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  gap: var(--space-2);
+}
+
+/*
+ * The active option is marked by a border as well as a colour, so the
+ * distinction survives colour being removed — the same rule the status
+ * badges follow.
+ */
+.target-result-active {
+  border-color: var(--ok);
+  background-color: var(--input-bg);
+  color: var(--text-bright);
+}
+
+.target-result-id {
+  color: var(--text-muted);
+}
