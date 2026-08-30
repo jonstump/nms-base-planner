@@ -177,11 +177,31 @@
  * form around as the count changes, and the active option is marked by more
  * than colour — the border is what carries it if colour is removed.
  */
+
+/*
+ * A row, not a column.
+ *
+ * The label and the input sit side by side like every other control in the
+ * form. A column put the input lower than its neighbours, so tabbing from
+ * it to the quantity field moved up and to the right — which the shell's
+ * "tab order follows visual layout" assertion correctly called out as
+ * against reading order.
+ *
+ * The count and the results are taken out of flow for the same reason:
+ * either one in flow changes the row's height as the player types.
+ */
 .target-search {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.target-count {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  white-space: nowrap;
 }
 
 .target-results {

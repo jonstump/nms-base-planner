@@ -493,7 +493,7 @@ test.describe("in the shell", () => {
       .getByLabel("Gathered at")
       .selectOption(await placeId(page, PLACE));
 
-    const live = page.locator('[aria-live="polite"]');
+    const live = page.getByRole("status");
     /* The player's own name for the place, not a slot number. */
     await expect(live).toContainText(`${leaf} assigned to ${PLACE}`);
   });
@@ -513,9 +513,7 @@ test.describe("in the shell", () => {
     await select.selectOption(await placeId(page, PLACE));
     await select.selectOption("");
 
-    await expect(page.locator('[aria-live="polite"]')).toContainText(
-      "no longer assigned",
-    );
+    await expect(page.getByRole("status")).toContainText("no longer assigned");
     await page.keyboard.press("Escape");
     await expect(card).toHaveAttribute("data-identity", "unassigned");
   });

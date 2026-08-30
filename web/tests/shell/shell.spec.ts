@@ -87,16 +87,23 @@ test("the shell passes a WCAG 2.1 AA audit with figures on screen", async ({ pag
   ).toEqual([]);
 });
 
-test("figures are pending rather than zero while the module loads", async ({ page }) => {
+test("nothing is shown as zero while the module loads", async ({ page }) => {
   /*
    * SPEC-0005 REQ "Module Loading": "figures dependent on it are shown as
    * pending, not as zero". A zero is a claim about the plan; a pending is a
    * claim about the module, and only one of them is true here.
    *
-   * The binary is held for a second so the pending state is actually on
-   * screen to be asserted. Without the delay the module loads faster than
-   * the assertion runs and the test passes by never observing the state it
-   * is about.
+   * The observation point moved with SPEC-0011. This used to hold the binary
+   * for a second, type an item id into a bare input and assert the figures
+   * read "Pending" — but target selection is a search over the catalogue
+   * now, and the catalogue comes from the module, so there is no longer a
+   * window in which a plan can be submitted while the module is still
+   * loading. That window is not missing coverage; it is unreachable.
+   *
+   * What is still reachable, and is the requirement's actual content, is
+   * that nothing fabricates a figure while the module is on its way. So the
+   * binary is still held, and the assertions are that the surface says it is
+   * waiting and that no zero appears anywhere on it.
    */
   await page.route("**/planner.wasm", async (route) => {
     await new Promise((resume) => setTimeout(resume, 1000));
@@ -105,16 +112,22 @@ test("figures are pending rather than zero while the module loads", async ({ pag
   await page.goto("/");
   await openPlanner(page);
 
-  await chooseTarget(page, "ANTIMATTER");
-  await page.getByRole("button", { name: "Recompute" }).click();
+  const main = page.getByRole("main");
 
-  const figures = page.getByLabel("Figures");
-  await expect(figures).toContainText("Pending");
-  await expect(figures).not.toContainText("0");
+  /* Waiting, and saying so. */
+  await expect(main.getByText(/Pending/i).first()).toBeVisible();
+
+  /*
+   * And no fabricated figure anywhere while it waits — not in the figures
+   * region, not on a card, nowhere.
+   */
+  await expect(main.getByText(/^0$/)).toHaveCount(0);
 
   /* And it resolves, so "pending forever" cannot pass this either. */
+  await chooseTarget(page, "ANTIMATTER");
+  await page.getByRole("button", { name: "Recompute" }).click();
   await expect(page.getByRole("heading", { level: 3 })).toBeVisible({ timeout: 20_000 });
-  await expect(figures).not.toContainText("Pending");
+  await expect(page.getByLabel("Figures")).not.toContainText("Pending");
 });
 
 test("changing an input takes the stale figures away rather than adjusting them", async ({

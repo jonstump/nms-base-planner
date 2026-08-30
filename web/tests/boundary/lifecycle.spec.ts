@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { EXPECTED_CONTRACT_VERSION } from "../../src/boundary/contract";
+
 /*
  * Governing: ADR-0004 (React view layer), SPEC-0005 REQ "Boundary Client",
  * REQ "Module Loading"
@@ -78,7 +80,7 @@ test("a module reporting another contract version is refused, naming both", asyn
 
   expect(outcome.kind).toBe("version-mismatch");
   expect(outcome.received).toBe("9.9.9");
-  expect(outcome.expected).toBe("1.3.0");
+  expect(outcome.expected).toBe(EXPECTED_CONTRACT_VERSION);
 });
 
 test("a contract mismatch does not even fetch the artifact", async ({ page }) => {

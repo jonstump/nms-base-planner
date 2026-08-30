@@ -229,44 +229,73 @@ test("Escape dismisses from anywhere inside the dialog, not only from its first 
   await expect(page.getByRole("dialog")).toBeHidden();
 });
 
-test("no composite widget exists without arrow-key navigation", async ({ page }) => {
+test("the composite widget that exists is navigable by arrow keys", async ({ page }) => {
   /*
-   * SPEC-0005 requires arrow keys within composite widgets. The shell has no
-   * composite widget yet, so a test driving arrow keys would assert nothing
-   * and pass forever.
+   * This replaces a guard, as that guard asked to be replaced.
    *
-   * This is the honest form: it enumerates the roles that carry an arrow-key
-   * obligation and fails the moment one appears, so the requirement is
-   * enforced at the point it becomes real rather than remembered later. The
-   * tree canvas (SPEC-0006) and its method and recipe controls are where that
-   * is expected to happen.
+   * SPEC-0005 requires arrow keys within composite widgets. The shell had
+   * none, so the honest form was a test that enumerated the roles carrying
+   * that obligation and failed the moment one appeared — "replace this guard
+   * with a test that drives the arrow keys". SPEC-0011's target search is
+   * the combobox that made it real.
+   */
+  await openPlanner(page);
+  const search = page.getByRole("combobox", { name: "Target" });
+  await expect(search).toBeVisible({ timeout: 30_000 });
+
+  await search.fill("carbon");
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+
+  /* Down moves the active option, and the input keeps focus throughout. */
+  const firstActive = await search.getAttribute("aria-activedescendant");
+  await page.keyboard.press("ArrowDown");
+  const secondActive = await search.getAttribute("aria-activedescendant");
+  expect(secondActive, "ArrowDown did not move the active option").not.toBe(firstActive);
+  await expect(search).toBeFocused();
+
+  /* Up comes back. */
+  await page.keyboard.press("ArrowUp");
+  expect(await search.getAttribute("aria-activedescendant")).toBe(firstActive);
+
+  /* Enter commits the active option without a pointer. */
+  await page.keyboard.press("Enter");
+  await expect(search).not.toHaveValue("carbon");
+  await expect(page.getByRole("option")).toHaveCount(0);
+});
+
+test("no other composite widget has appeared without arrow-key navigation", async ({
+  page,
+}) => {
+  /*
+   * The original guard, narrowed rather than deleted. The combobox and its
+   * listbox now have the test above; every other role carrying an arrow-key
+   * obligation still has none, so the guard still earns its place for them.
    */
   await resolveAPlan(page);
   await page.locator(".figure-row").first().click();
   await expect(page.getByRole("dialog")).toBeVisible();
 
-  const COMPOSITE_ROLES = [
+  const UNCOVERED_ROLES = [
     "tablist",
     "menu",
     "menubar",
-    "listbox",
     "tree",
     "grid",
     "radiogroup",
     "toolbar",
-    "combobox",
   ];
 
   const present = await page.evaluate(
     (roles) =>
       roles.filter((role) => document.querySelector(`[role="${role}"]`) !== null),
-    COMPOSITE_ROLES,
+    UNCOVERED_ROLES,
   );
 
   expect(
     present,
     "a composite widget appeared — SPEC-0005 requires arrow-key navigation within it, " +
-      "so replace this guard with a test that drives the arrow keys",
+      "so replace this entry with a test that drives the arrow keys",
   ).toEqual([]);
 });
 

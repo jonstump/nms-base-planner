@@ -105,7 +105,7 @@ export function TargetSearch({
      */
     return (
       <div className="target-search">
-        <span className="label">Target</span>{" "}
+        <span className="label">Target</span>
         <StatusBadge status="pending" detail="loading the item list" />
       </div>
     );
@@ -152,12 +152,17 @@ export function TargetSearch({
       />
 
       {/*
-        The count, announced as it changes. SPEC-0011 Accessibility
-        Requirements: "its result count is announced as it changes" — a
-        sighted player watches the list shrink, and this is the same
-        information for someone who cannot.
+        The count, announced as it changes — SPEC-0011 Accessibility
+        Requirements. A sighted player watches the list shrink; this is the
+        same information for someone who cannot.
+
+        Its own polite region, and deliberately not `role="status"`. The
+        shell's announcer is the status region and speaks about recomputes;
+        this speaks about a search. Sharing one made the search talk over
+        the domain — a test asserting the announcer is silent until a
+        recompute caught it immediately.
       */}
-      <p id={countId} className="label" aria-live="polite">
+      <p id={countId} className="label target-count" aria-live="polite">
         {found.length === 0
           ? "No items match"
           : `${String(found.length)} item${found.length === 1 ? "" : "s"} match${
@@ -187,6 +192,15 @@ export function TargetSearch({
         className="target-results"
         role="listbox"
         aria-label="Items"
+        /*
+         * Out of the tab order. The list scrolls, and Chrome makes a
+         * scrollable container focusable so it can be scrolled by keyboard —
+         * correct in general, and wrong here: it put a stop between the
+         * combobox and the quantity field, at a position below both, which
+         * the shell's reading-order assertion caught. In a combobox, focus
+         * stays on the input and the arrow keys move through the options.
+         */
+        tabIndex={-1}
         hidden={!open}
       >
         {shown.map((item, index) => (

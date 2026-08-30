@@ -62,7 +62,10 @@ PLANSTATE="src/boundary/plan.ts"
 MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
 SURFACES="src/shell/surfaces.ts"
 
-MUTABLE="$MUTABLE $HASH $PLANSTATE $SURFACES"
+SEARCH="src/shell/TargetSearch.tsx"
+CATALOGUE="src/boundary/catalogue.ts"
+
+MUTABLE="$MUTABLE $HASH $PLANSTATE $SURFACES $SEARCH $CATALOGUE"
 MUTABLE="$MUTABLE $RESOLVE $STORED"
 
 # shellcheck disable=SC2086
@@ -704,6 +707,38 @@ check "switching surface leaves focus on the switcher" \
   tests/shell/surfaces.spec.ts "$SHELL" \
   "    surfaceRegion.current?.focus();" \
   "    void surfaceRegion.current;"
+
+# ----------------------------------------------------------------------
+# The target search.
+#
+# The first is the story in one line: the control it replaced accepted only
+# an item id, so a player who knew "Stasis Device" and not ULTRAPROD2 could
+# not load it. A search that matched ids alone would be that control again
+# with a listbox attached.
+# ----------------------------------------------------------------------
+
+check "the search stops matching display names" \
+  tests/shell/target-search.spec.ts "$CATALOGUE" \
+  "      item.name.toLowerCase().includes(needle) || item.id.toLowerCase().includes(needle)," \
+  "      item.id.toLowerCase().includes(needle),"
+
+check "a compiled-in item list appears in the view" \
+  tests/shell/target-search.spec.ts "$SEARCH" \
+  "/** How many results to render. The real catalogue is thousands of items. */" \
+  "const FALLBACK_ITEMS = [\"ULTRAPROD2\"];\n/** How many results to render. The real catalogue is thousands of items. */"
+
+# Caught by the shell's reading-order assertion, not by the search's own
+# spec: a scrollable container is focusable in Chrome whether or not the
+# search cares, and it is the tab order that notices.
+check "the results list goes back into the tab order" \
+  tests/shell/a11y-baseline.spec.ts "$SEARCH" \
+  "        tabIndex={-1}" \
+  "        tabIndex={0}"
+
+check "the result count becomes a second status region" \
+  tests/shell/target-search.spec.ts "$SEARCH" \
+  '<p id={countId} className="label target-count" aria-live="polite">' \
+  '<p id={countId} className="label target-count" role="status" aria-live="polite">'
 
 echo
 if [ "$failures" -gt 0 ]; then

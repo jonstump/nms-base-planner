@@ -309,7 +309,7 @@ test.describe("in the shell", () => {
       .filter({ hasText: swap.to })
       .click();
 
-    const live = page.locator('[aria-live="polite"]');
+    const live = page.getByRole("status");
     await expect(live).toContainText(`${swap.name} set to ${swap.to}`, {
       timeout: 20_000,
     });

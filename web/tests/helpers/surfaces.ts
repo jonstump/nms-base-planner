@@ -43,9 +43,20 @@ export async function chooseTarget(page: Page, itemId: string): Promise<void> {
   await expect(search).toBeVisible({ timeout: 30_000 });
   await search.fill(itemId);
 
-  const option = page.getByRole("option").filter({ hasText: itemId }).first();
-  await expect(option, `no catalogue item matched ${itemId}`).toBeVisible({
+  /*
+   * Selected by attribute, not by text. The catalogue is the real 2,237-item
+   * artifact: searching "ANTIMATTER" matches five items, four of them by
+   * name — "Antimatter Housing", "Antimatter Observation Orb" and two
+   * trails. A `hasText` filter takes whichever comes first in artifact
+   * order, which is `AM_HOUSING`, so the tree resolved for the wrong item
+   * and every assertion after it looked for nodes that were never coming.
+   */
+  const option = page.locator(`[role="option"][data-item-id="${itemId}"]`);
+  await expect(option, `no catalogue item has id ${itemId}`).toBeVisible({
     timeout: 30_000,
   });
   await option.click();
+
+  /* And it took. A silent miss here is a wrong tree three assertions later. */
+  await expect(search).not.toHaveValue("");
 }
