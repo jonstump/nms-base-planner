@@ -31,6 +31,7 @@ const PLAN: Plan = {
   quantity: q("3"),
   methods: { CAVE2: "REFINE" },
   recipes: { OXYGEN: "OXYGEN_REFINE" },
+  assignments: { FERRITE_DUST: "base-2" },
 };
 
 function hashOf(value: unknown): string {
