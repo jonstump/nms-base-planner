@@ -143,3 +143,46 @@ const SYNC_MARKER =
 export function syncMarkers(file: string, source: string): Finding[] {
   return scan(file, source, SYNC_MARKER);
 }
+
+/*
+ * Arithmetic on a domain figure, by operator rather than by conversion.
+ *
+ * Governing: SPEC-0005 REQ "The View Computes No Domain Values", SPEC-0007
+ * REQ "Card Composition From the Build Payload", REQ "Power Position",
+ * REQ "Duration Display"
+ *
+ * `numericConversions` catches the step a view has to take *first* —
+ * `Number(...)`, `parseFloat`, `Math.` — and deliberately leaves arithmetic
+ * operators alone, because `+` concatenates strings throughout this
+ * codebase and a checker that flagged it would be switched off within a
+ * week.
+ *
+ * That reasoning does not extend to `-` and `/`. Neither has a string
+ * meaning in JavaScript, and both are exactly the operators the two
+ * requirements name:
+ *
+ *   SPEC-0007 forbids computing a count from a quantity and a rate *even
+ *   where both are in the payload* — a farm row carries `required` and
+ *   `yieldPerPlant`, and `plants` is already the answer. That is division.
+ *
+ *   The shortfall is the domain's figure. Subtracting draw from generation
+ *   produces the same number the payload already carries, which is why a
+ *   behavioural test cannot tell the two apart: a card that computed the
+ *   balance and happened to agree renders identically.
+ *
+ * Both operands are required to be spaced, which is what the formatter
+ * produces and what keeps `data-method`, `card-row-name` and JSX's `/>`
+ * out of the match. The terms are the domain's vocabulary rather than every
+ * identifier, so a loop counter is not a finding.
+ */
+const DOMAIN_TERMS =
+  "quantity|total|required|generation|draw|yield|yieldPerPlant|rate|perUnit|shortfall|balance|plants|biodomes|panels|generators|applications|seconds|duration";
+
+const DOMAIN_ARITHMETIC = new RegExp(
+  `\\b(?:${DOMAIN_TERMS})\\w*\\s+[-/]\\s+|\\s+[-/]\\s+\\w*(?:${DOMAIN_TERMS})\\b`,
+  "i",
+);
+
+export function domainArithmetic(file: string, source: string): Finding[] {
+  return scan(file, source, DOMAIN_ARITHMETIC);
+}

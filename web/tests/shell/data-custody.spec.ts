@@ -393,3 +393,32 @@ test("the data custody surface passes the accessibility audit", async ({ page })
     .analyze();
   expect(results.violations).toEqual([]);
 });
+
+test("the backdrop dismisses the confirmation and returns focus, removing nothing", async ({
+  page,
+}) => {
+  /*
+   * #115 asks for every close route "each tested separately". Escape and
+   * the close control are covered above; this is the third, and it carries
+   * a second assertion the others do not: a backdrop click is the easiest
+   * route to dismiss by accident, so it must also be the route that is
+   * certain to have deleted nothing.
+   */
+  await withStoredPlace(page);
+  const opener = page.getByRole("button", { name: "Delete stored data" });
+
+  await opener.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  /*
+   * A corner, not the centre. The backdrop spans the viewport, so its
+   * midpoint is underneath the dialog — `force: true` skips the
+   * actionability check but still clicks the centre point, which lands on
+   * the dialog and dismisses nothing. This cost a debugging detour.
+   */
+  await page.locator(".popover-backdrop").click({ position: { x: 8, y: 8 } });
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  expect(await storedCounts(page)).toEqual({ places: 1, workspace: 1 });
+});

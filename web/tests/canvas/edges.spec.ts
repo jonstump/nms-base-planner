@@ -211,3 +211,86 @@ test("the per-unit figure is text, not a line thickness", async ({ page }) => {
 
   expect(new Set(widths).size, "edge width varies, and only quantity varies").toBe(1);
 });
+
+test("with edge styling actually removed, every fact it carried is still there", async ({
+  page,
+}) => {
+  /*
+   * #89's acceptance criterion words this precisely: the test "removes
+   * styling rather than reasoning about it, so 'the fact is also in the
+   * text' is observed and not argued".
+   *
+   * The companion test above argues it — it reads each edge's method off a
+   * data attribute and finds the same word on the card. That is a claim
+   * about the model, and it would still pass if the styling were the only
+   * thing a *person* could see.
+   *
+   * So this one flattens the styling for real: every edge is forced to one
+   * stroke, one dash pattern and one width. The first assertion is that the
+   * flattening worked — without it, "the facts survived" would be true
+   * because nothing was removed.
+   */
+  await resolve(page, "ANTIMATTER");
+  const canvas = page.getByRole("region", CANVAS);
+
+  const before = await canvas.locator(".tree-edge").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = getComputedStyle(node);
+      return `${style.stroke}|${style.strokeDasharray}`;
+    }),
+  );
+  expect(
+    new Set(before).size,
+    "the edges were already identical, so removing styling proves nothing",
+  ).toBeGreaterThan(1);
+
+  await page.addStyleTag({
+    content: `.tree-edge, .tree-edge[data-method] {
+      stroke: rgb(128 128 128) !important;
+      stroke-dasharray: none !important;
+      stroke-width: 1.5px !important;
+    }
+    .edge-label, .edge-label[data-method] {
+      color: rgb(128 128 128) !important;
+      background-color: transparent !important;
+      border-color: transparent !important;
+    }`,
+  });
+
+  const after = await canvas.locator(".tree-edge").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = getComputedStyle(node);
+      return `${style.stroke}|${style.strokeDasharray}`;
+    }),
+  );
+  expect(new Set(after).size, "the styling did not actually flatten").toBe(1);
+
+  /*
+   * Now every fact the appearance carried has to be readable as text. The
+   * per-unit quantity is on the edge's own label; the method it fed is on
+   * the card it points at.
+   */
+  const expected = await payloadEdges(page);
+  const labels = await canvas
+    .locator(".edge-label")
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""));
+  expect([...labels].sort()).toEqual([...expected.map((edge) => edge.perUnit)].sort());
+
+  const methodsOnCards = await canvas
+    .locator(".react-flow__node")
+    .evaluateAll((nodes) =>
+      Object.fromEntries(
+        nodes.map((node) => [
+          node.getAttribute("data-id") ?? "",
+          node.querySelector(".node-method")?.textContent ?? "",
+        ]),
+      ),
+    );
+  for (const edge of expected) {
+    const target = edge.id.split("->")[1] ?? "";
+    expect(
+      methodsOnCards[target],
+      `with styling gone, nothing says the edge into ${target} feeds a ${edge.targetMethod} step`,
+    ).toContain(edge.targetMethod);
+  }
+});

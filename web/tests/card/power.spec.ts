@@ -14,6 +14,8 @@ const FIXTURE = "/tests/fixtures/card-power.html";
 const SIZED = '[data-base="Sized Deficit"]';
 const UNSIZED = '[data-base="Unsized Deficit"]';
 const SURPLUS = '[data-base="Surplus"]';
+/* Same zero additional generators as UNSIZED, with the flag off. */
+const ZERO_SIZED = '[data-base="Zero Sized"]';
 
 test.beforeEach(async ({ page }) => {
   await page.goto(FIXTURE, { waitUntil: "load" });
@@ -151,4 +153,35 @@ test("no completion fraction is rendered anywhere", async ({ page }) => {
     expect(text).not.toMatch(/complete/i);
     await expect(footer.locator("progress, meter")).toHaveCount(0);
   }
+});
+
+test("the same zero renders differently when the domain could size the fix", async ({
+  page,
+}) => {
+  /*
+   * #101's criterion, precisely: "Distinct from `fixUnsized: false` with the
+   * same zero — the two payloads differ in one boolean and must render
+   * differently."
+   *
+   * Without this, "fixUnsized shows the deficit and states the fix needs a
+   * class" passes against a card that states it whenever the additional
+   * generator count is zero, regardless of the flag. Both fixtures below are
+   * in deficit with `additionalGenerators` of zero; only one has the flag.
+   */
+  const unsized = page.locator(UNSIZED);
+  const sizedAtZero = page.locator(ZERO_SIZED);
+
+  await expect(unsized).toBeVisible();
+  await expect(sizedAtZero).toBeVisible();
+
+  /* Both are deficits, and both say so. */
+  await expect(unsized).toContainText("180");
+  await expect(sizedAtZero).toContainText("180");
+
+  /* Only the unsized one says the fix needs a class. */
+  await expect(unsized).toContainText(/class/i);
+  await expect(
+    sizedAtZero.getByText(/needs a (generator )?class/i),
+    "a fix the domain sized is being reported as unsizeable",
+  ).toHaveCount(0);
 });

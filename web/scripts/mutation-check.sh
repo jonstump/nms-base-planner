@@ -49,7 +49,10 @@ CONTROL="src/canvas/NodeControl.tsx"
 ASSIGN="src/canvas/useLeafAssignment.ts"
 BASES="src/canvas/bases.ts"
 
-MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES"
+PLANNERCARD="src/card/BasePlannerCard.tsx"
+POWERBLOCK="src/card/PowerBlock.tsx"
+
+MUTABLE="$MUTABLE $LAYOUT $TREE $METHODS $CONTROL $ASSIGN $BASES $PLANNERCARD $POWERBLOCK"
 
 # shellcheck disable=SC2086
 restore() { git checkout -- $MUTABLE 2>/dev/null || true; }
@@ -572,6 +575,34 @@ check "the assignment announcement stops naming the base" \
   tests/canvas/assignment.spec.ts "$SHELL" \
   "      const label = BASES.find((base) => base.id === baseId)?.label;" \
   "      const label: string | undefined = undefined;"
+
+# ----------------------------------------------------------------------
+# The absences the test stories asked for and nothing was enforcing.
+#
+# `numericConversions` catches Number()/parseInt/Math., and deliberately not
+# `-` or `/`. So "no quantity-divided-by-rate appears in the card's source"
+# was written at the top of tests/card/discipline.spec.ts and enforced by
+# nothing, and "no subtraction of draw from generation" had only a rendered
+# assertion — which cannot tell a computed balance from the payload's when
+# the two agree, and they always will.
+# ----------------------------------------------------------------------
+
+check "the card computes a plant count it was given" \
+  tests/card/discipline.spec.ts "$PLANNERCARD" \
+  '        <Figure label="Plants" value={q(row.plants)} />' \
+  '        <Figure label="Plants" value={q(row.required / row.yieldPerPlant.min)} />'
+
+check "the card subtracts draw from generation" \
+  tests/card/discipline.spec.ts "$POWERBLOCK" \
+  '        <Figure label="Balance" value={formatQuantity(budget.balance)} />' \
+  '        <Figure label="Balance" value={formatQuantity(budget.generation - budget.draw)} />'
+
+# The two payloads differ in one boolean. A card that stated the unsizeable
+# fix whenever the count was zero would pass every other power assertion.
+check "an unsizeable fix is claimed for a fix the domain sized" \
+  tests/card/power.spec.ts "$POWERBLOCK" \
+  "  const sized = budget.inDeficit && !budget.fixUnsized;" \
+  "  const sized = false;"
 
 echo
 if [ "$failures" -gt 0 ]; then

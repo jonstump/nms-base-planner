@@ -123,3 +123,38 @@ test("every control is reachable and operable by keyboard", async ({ page }) => 
     await expect(control).not.toHaveAttribute("tabindex", /.*/);
   }
 });
+
+test("fill duration, generator count and panel count each cross the boundary too", async ({
+  page,
+}) => {
+  /*
+   * #101 lists four fields, not one: "changing class, fill duration,
+   * generator count or panel count issues a boundary call". Only the class
+   * was covered, and the class is the field most obviously connected to a
+   * recompute — the risk is a later change that treats a panel count as
+   * "display only" and adjusts a figure in place, which is precisely what
+   * SPEC-0007 forbids and what no rendered assertion would notice.
+   *
+   * Each field is driven separately and the count must move for each. A
+   * single test changing all three would pass if two of them dispatched.
+   */
+  const calls = async (): Promise<number> =>
+    Number(await page.locator("body").getAttribute("data-rollup-calls"));
+
+  for (const [testid, value] of [
+    ["fill-seconds", "7200"],
+    ["em-generators", "5"],
+    ["solar-panels", "12"],
+  ] as const) {
+    const before = await calls();
+    const control = page.locator(`${CARD} [data-testid="${testid}"]`);
+    await expect(control, `${testid} is not on the card`).toHaveCount(1);
+
+    await control.fill(value);
+    await control.blur();
+
+    await expect
+      .poll(calls, { timeout: 10_000, message: `${testid} did not recompute` })
+      .toBeGreaterThan(before);
+  }
+});

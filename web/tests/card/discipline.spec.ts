@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { numericConversions } from "../helpers/source-checks";
+import { domainArithmetic, numericConversions } from "../helpers/source-checks";
 
 /*
  * Governing: SPEC-0007 REQ "Card Composition From the Build Payload",
@@ -64,4 +64,64 @@ test("the checker still catches the mistake it exists to catch", () => {
    */
   const broken = `const plants = Math.ceil(Number(row.required) / Number(row.yieldPerPlant.min));`;
   expect(numericConversions("broken.tsx", broken).length).toBeGreaterThan(0);
+});
+
+/*
+ * The half this file's own header claimed and did not perform.
+ *
+ * `numericConversions` matches `Number(`, `parseInt`, `Math.` and `+` on a
+ * quantity-shaped name. It does not match `/` or `-`, because the shared
+ * checker deliberately leaves arithmetic operators alone — `+` concatenates
+ * strings everywhere and flagging it would get the checker switched off.
+ *
+ * So "no quantity-divided-by-rate appears in the card's source" was written
+ * at the top of this file and enforced by nothing. `domainArithmetic` is
+ * the operator half, scoped to the domain's own vocabulary and to spaced
+ * operators so hyphenated class names and JSX's `/>` cannot match.
+ */
+
+test("no card source divides a quantity by a rate or subtracts one figure from another", () => {
+  const sources = cardSources();
+  expect(sources.length).toBeGreaterThan(0);
+
+  for (const { file, source } of sources) {
+    expect(
+      domainArithmetic(file, source),
+      `card/${file} computes a figure the payload already carries`,
+    ).toEqual([]);
+  }
+});
+
+test("the operator checker catches both constructs it exists for", () => {
+  /*
+   * The two the requirements name. The first is SPEC-0007's farm row: a
+   * card carrying `required` and `yieldPerPlant` can produce the plant
+   * count itself, and must not. The second is the power shortfall, where
+   * the computed answer equals the payload's — which is exactly why no
+   * rendered assertion can tell them apart.
+   */
+  expect(
+    domainArithmetic("x.tsx", "const plants = required / yieldPerPlant.min;"),
+  ).toHaveLength(1);
+  expect(domainArithmetic("x.tsx", "const shortfall = generation - draw;")).toHaveLength(
+    1,
+  );
+  expect(domainArithmetic("x.tsx", "const each = total / panels;")).toHaveLength(1);
+});
+
+test("the operator checker does not fire on the code the card actually contains", () => {
+  /*
+   * The companion, and the reason the pattern is narrow. A checker that
+   * matched a hyphenated class name, a JSX self-close or a loop counter
+   * would be reported as a false positive and switched off, which is how a
+   * rule stops being enforced without anyone deciding to stop enforcing it.
+   */
+  expect(domainArithmetic("x.tsx", '<span className="card-row-name" />')).toEqual([]);
+  expect(domainArithmetic("x.tsx", "<Figure label={label} value={value} />")).toEqual([]);
+  expect(
+    domainArithmetic("x.tsx", "for (let i = 0; i < rows.length - 1; i += 1) {"),
+  ).toEqual([]);
+  expect(domainArithmetic("x.tsx", "const total = formatQuantity(row.total);")).toEqual(
+    [],
+  );
 });
