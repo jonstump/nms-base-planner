@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner } from "../helpers/surfaces";
+import { openPlanner, chooseTarget } from "../helpers/surfaces";
 
 import { toCanvasModel } from "../../src/canvas/graph-model";
 import { asQuantity } from "../../src/boundary/quantity";
@@ -32,7 +32,7 @@ function q(value: string): Quantity {
 }
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(
     page.getByRole("region", CANVAS).locator(".node-card").first(),

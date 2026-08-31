@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner, openSurface } from "../helpers/surfaces";
+import { openPlanner, openSurface, chooseTarget } from "../helpers/surfaces";
 
 import { fromStored, toStored, differ } from "../../src/state/preferences";
 import { INITIAL_VIEW_STATE } from "../../src/state/view-state";
@@ -275,7 +275,7 @@ test("a place with no stocked quantity renders absent, not zero", async ({ page 
    * player does: choose what to build, then look at what they have.
    */
   await openPlanner(page);
-  await page.getByLabel("Target").fill("ANTIMATTER");
+  await chooseTarget(page, "ANTIMATTER");
   await openSurface(page, "Bases");
 
   const row = page
@@ -320,7 +320,7 @@ test("a stocked zero is shown as zero, because the player entered it", async ({
    * player does: choose what to build, then look at what they have.
    */
   await openPlanner(page);
-  await page.getByLabel("Target").fill("ANTIMATTER");
+  await chooseTarget(page, "ANTIMATTER");
   await openSurface(page, "Bases");
 
   const row = page

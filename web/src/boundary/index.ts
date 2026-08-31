@@ -10,6 +10,7 @@
  */
 
 export { BoundaryClient, type Readiness } from "./client";
+export { matches, type CatalogueItem } from "./catalogue";
 export {
   BoundaryModule,
   DEFAULT_PATHS,

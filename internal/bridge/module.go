@@ -220,6 +220,32 @@ func (m *Module) loaded() (*domain.Tier1, bool) {
 	return m.artifact, m.artifact != nil
 }
 
+// Catalogue returns the selectable items, each as an id and a display name.
+//
+// Governing: SPEC-0011 REQ "The Catalogue Crosses the Boundary", SPEC-0002
+// REQ "Boundary Surface", REQ "Module Lifecycle and Readiness"
+//
+// Subject to the same not-ready handling as every other entry point: the
+// artifact is what makes the list, so before it loads there is no list, and
+// saying so with the readiness sentinel is what lets the view show a
+// loading state and retry rather than report an error.
+//
+// The argument is ignored. The catalogue takes no input — filtering is the
+// view's job, over a list it already holds, and a per-keystroke crossing is
+// what SPEC-0011 § Rate Limiting forbids.
+func (m *Module) Catalogue(_ string) Envelope {
+	artifact, ok := m.loaded()
+	if !ok {
+		return FailureFrom(fmt.Errorf("catalogue: %w", ErrNotReady))
+	}
+
+	items := make([]CatalogueItem, 0, len(artifact.Items))
+	for _, item := range artifact.Items {
+		items = append(items, CatalogueItem{ID: item.ID, Name: item.Name})
+	}
+	return Success(ResultPayload{Catalogue: &Catalogue{Items: items}})
+}
+
 // EntryPoints are the names the namespace object carries.
 //
 // Governing: SPEC-0002 REQ "Boundary Surface" — one named entry point per
@@ -229,7 +255,7 @@ func (m *Module) loaded() (*domain.Tier1, bool) {
 // Enumerated here rather than inline in the js shim so the surface is
 // listable from a plain test, and so adding one is a change to this list
 // rather than a change scattered through registration code.
-var EntryPoints = []string{"load", "ready", "resolve", "rollup", "power"}
+var EntryPoints = []string{"load", "ready", "resolve", "rollup", "power", "catalogue"}
 
 // Namespace is the single global name the module registers under.
 const Namespace = "nmsPlanner"
@@ -253,6 +279,8 @@ func (m *Module) Call(name, arg string) Envelope {
 		return m.Rollup(arg)
 	case "power":
 		return m.Power(arg)
+	case "catalogue":
+		return m.Catalogue(arg)
 	default:
 		return Failure(CodeMalformedInput,
 			fmt.Sprintf("%q is not an entry point on %s; expected one of %v", name, Namespace, EntryPoints))

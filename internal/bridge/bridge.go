@@ -49,7 +49,7 @@ import (
 // that does not know about `configured` reads a base with a zero site as
 // one configured at class "" for zero seconds, which is exactly the zero
 // SPEC-0011 REQ "A Place Is Creatable by Hand" forbids presenting.
-const ContractVersion = "1.3.0"
+const ContractVersion = "1.4.0"
 
 // Quantity is an exact quantity on the wire.
 //
@@ -113,9 +113,30 @@ type Envelope struct {
 // absent rather than present-and-empty. Exactly one is set by any entry
 // point this package exposes.
 type ResultPayload struct {
-	Graph *Graph `json:"graph,omitempty"`
-	Build *Build `json:"build,omitempty"`
-	Power *Power `json:"power,omitempty"`
+	Graph     *Graph     `json:"graph,omitempty"`
+	Build     *Build     `json:"build,omitempty"`
+	Power     *Power     `json:"power,omitempty"`
+	Catalogue *Catalogue `json:"catalogue,omitempty"`
+}
+
+// Catalogue is the searchable item list on the wire.
+//
+// Governing: SPEC-0011 REQ "The Catalogue Crosses the Boundary" — "for each
+// selectable item, its id and its display name".
+//
+// Nothing else. The view searches over this and sends back an id, so a
+// recipe, a method or a yield would be data the search does not use and the
+// view is not allowed to reason about anyway. Every item in the artifact is
+// listed: the domain decides what resolves, and a view that pre-filtered
+// would be deciding which items exist.
+type Catalogue struct {
+	Items []CatalogueItem `json:"items"`
+}
+
+// CatalogueItem is one selectable item: what to send, and what to show.
+type CatalogueItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // ErrorPayload is the failure half.

@@ -134,8 +134,14 @@ test("a surface that needs the module presents its own state rather than disappe
 
   const planner = page.getByRole("region", { name: "Planner", exact: true });
   await expect(planner).toBeVisible();
-  /* Its own controls are there; it is the figures that have nothing yet. */
-  await expect(planner.getByLabel("Target")).toBeVisible();
+  /*
+   * Its own state, which is the requirement — not necessarily its finished
+   * controls. With the module blocked the catalogue cannot arrive, so the
+   * target search shows its pending state rather than a combobox over an
+   * empty list, and the surface says so instead of vanishing.
+   */
+  await expect(planner.locator(".target-search")).toBeVisible();
+  await expect(planner.getByRole("button", { name: "Recompute" })).toBeVisible();
 });
 
 test("no router package is installed", () => {

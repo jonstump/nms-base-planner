@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { openPlanner, openSurface } from "../helpers/surfaces";
+import { openPlanner, openSurface, chooseTarget } from "../helpers/surfaces";
 
 import { basesFrom, slotFor, UNNAMED_PLACE } from "../../src/canvas/bases";
 import type { PlaceRecord } from "../../src/store";
@@ -38,7 +38,7 @@ const CANVAS = { name: "Dependency tree" } as const;
 const FIXTURE = "/tests/fixtures/assignment.html";
 
 async function resolve(page: Page, target: string): Promise<void> {
-  await page.getByLabel("Target").fill(target);
+  await chooseTarget(page, target);
   await page.getByRole("button", { name: "Recompute" }).click();
   await expect(
     page.getByRole("region", CANVAS).locator(".node-card").first(),
@@ -493,7 +493,7 @@ test.describe("in the shell", () => {
       .getByLabel("Gathered at")
       .selectOption(await placeId(page, PLACE));
 
-    const live = page.locator('[aria-live="polite"]');
+    const live = page.getByRole("status");
     /* The player's own name for the place, not a slot number. */
     await expect(live).toContainText(`${leaf} assigned to ${PLACE}`);
   });
@@ -513,9 +513,7 @@ test.describe("in the shell", () => {
     await select.selectOption(await placeId(page, PLACE));
     await select.selectOption("");
 
-    await expect(page.locator('[aria-live="polite"]')).toContainText(
-      "no longer assigned",
-    );
+    await expect(page.getByRole("status")).toContainText("no longer assigned");
     await page.keyboard.press("Escape");
     await expect(card).toHaveAttribute("data-identity", "unassigned");
   });

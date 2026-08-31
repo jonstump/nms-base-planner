@@ -20,6 +20,7 @@
  */
 
 import type { PlannerModule } from "./contract";
+import { selectCatalogue, type CatalogueItem } from "./catalogue";
 import { decodeEnvelope, isNotReady, type Outcome } from "./envelope";
 import { selectBuild, type Build } from "./build";
 import { selectGraph, type ResolvedGraph } from "./graph";
@@ -125,6 +126,16 @@ export class BoundaryClient {
    * exactly as it costs one a rollup produced, and requiring a plan here
    * would invent a coupling the engine does not have.
    */
+  /**
+   * The searchable item catalogue.
+   *
+   * Called once, not per keystroke — SPEC-0011 § Rate Limiting. The caller
+   * holds the list and filters locally.
+   */
+  async catalogue(): Promise<Outcome<readonly CatalogueItem[]>> {
+    return this.#call((planner) => planner.catalogue(""), selectCatalogue);
+  }
+
   async power(request: PowerRequest): Promise<Outcome<Power>> {
     return this.#call((planner) => planner.power(powerToWire(request)), selectPower);
   }

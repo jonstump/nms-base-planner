@@ -25,11 +25,13 @@ export interface Crossings {
   readonly resolve: number;
   readonly rollup: number;
   readonly power: number;
+  /** SPEC-0011 § Rate Limiting: not one per keystroke. */
+  readonly catalogue: number;
 }
 
 declare global {
   interface Window {
-    __crossings: { resolve: number; rollup: number; power: number };
+    __crossings: { resolve: number; rollup: number; power: number; catalogue: number };
     /** The raw payload of the last resolve, for order comparisons. */
     __lastResolve: unknown;
   }
@@ -37,7 +39,7 @@ declare global {
 
 export async function countCrossings(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    window.__crossings = { resolve: 0, rollup: 0, power: 0 };
+    window.__crossings = { resolve: 0, rollup: 0, power: 0, catalogue: 0 };
     window.__lastResolve = null;
 
     let real: unknown = undefined;
