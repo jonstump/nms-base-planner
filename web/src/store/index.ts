@@ -7,7 +7,7 @@
  * promisifiers, the store names, the record validator — are implementation.
  */
 
-export { DurableStore, type StoreOptions } from "./durable-store";
+export { DB_VERSION, DurableStore, type StoreOptions } from "./durable-store";
 export {
   STORE_CODES,
   type StoreCode,

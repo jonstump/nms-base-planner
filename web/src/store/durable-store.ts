@@ -45,7 +45,7 @@ const DATABASE = "nms-planner";
  * record shape can change without adding a store, and the version failure
  * SPEC-0009 requires is about the records, not the stores.
  */
-const DB_VERSION = 2;
+export const DB_VERSION = 2;
 
 const WORKSPACE_STORE = "workspace";
 const PLACES_STORE = "places";

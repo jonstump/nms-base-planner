@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { durabilityClaims, sharingControls } from "../helpers/claim-checks";
-import type { PlaceRecord } from "../../src/store";
+import { DB_VERSION, SCHEMA_VERSION, type PlaceRecord } from "../../src/store";
 
 /*
  * Governing: ADR-0008 (durable user data), SPEC-0009 REQ "Deletion Is a
@@ -21,15 +21,28 @@ const DATABASE = "nms-planner";
 
 async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
   await page.evaluate(
-    ([database, records]) =>
+    ([database, records, dbVersion, schemaVersion]) =>
       new Promise<void>((resolve, reject) => {
-        const opening = indexedDB.open(database, 1);
+        /*
+         * Opened at the store's own DB version, not a literal.
+         *
+         * This read `indexedDB.open(database, 1)`. Once the store moved to
+         * DB version 2 for the runs object store, seeding the real database
+         * at 1 throws VersionError as soon as the application has already
+         * opened it — a failure with nothing to do with what the test is
+         * checking. Importing the constant means the next bump does not
+         * re-arm this.
+         */
+        const opening = indexedDB.open(database, dbVersion);
         opening.onupgradeneeded = () => {
           const db = opening.result;
           if (!db.objectStoreNames.contains("workspace"))
             db.createObjectStore("workspace");
           if (!db.objectStoreNames.contains("places"))
             db.createObjectStore("places", { keyPath: "id" });
+          /* The application's load reads all three stores in one transaction. */
+          if (!db.objectStoreNames.contains("runs"))
+            db.createObjectStore("runs", { keyPath: "id" });
         };
         opening.onsuccess = () => {
           const db = opening.result;
@@ -37,7 +50,7 @@ async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
           transaction
             .objectStore("workspace")
             .put(
-              { schemaVersion: 1, ownerId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+              { schemaVersion, ownerId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
               "self",
             );
           for (const record of records) transaction.objectStore("places").put(record);
@@ -54,7 +67,7 @@ async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
           reject(opening.error ?? new Error("plant open failed"));
         };
       }),
-    [DATABASE, places] as const,
+    [DATABASE, places, DB_VERSION, SCHEMA_VERSION] as const,
   );
 }
 
@@ -146,7 +159,7 @@ async function preferencePersisted(
 const AURORA: PlaceRecord = {
   id: "aurora",
   kind: "base",
-  schemaVersion: 1,
+  schemaVersion: SCHEMA_VERSION,
   name: "Aurora Flats",
   updatedAt: "2026-01-01T00:00:00.000Z",
   revision: 1,
