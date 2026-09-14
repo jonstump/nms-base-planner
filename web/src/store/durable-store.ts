@@ -24,9 +24,13 @@ import { classify, failure, ok, type StoreResult } from "./errors";
 import { MAX_PLACE_BYTES, serializedBytes } from "./limits";
 import {
   emptyWorkspace,
+  isAtlasPosition,
   isPlaceKind,
+  isTravelMethod,
   SCHEMA_VERSION,
   type PlaceRecord,
+  type RunRecord,
+  type RunStop,
   type Workspace,
   type WorkspaceRecord,
 } from "./schema";
@@ -41,10 +45,11 @@ const DATABASE = "nms-planner";
  * record shape can change without adding a store, and the version failure
  * SPEC-0009 requires is about the records, not the stores.
  */
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const WORKSPACE_STORE = "workspace";
 const PLACES_STORE = "places";
+const RUNS_STORE = "runs";
 /** The workspace is a singleton; this is its key. */
 const WORKSPACE_KEY = "self";
 
@@ -91,7 +96,20 @@ function readPlace(value: unknown): StoreResult<PlaceRecord> {
   if (typeof version !== "number") {
     return failure("MALFORMED_RECORD", "a stored place carries no schemaVersion");
   }
-  if (version > SCHEMA_VERSION) {
+  /*
+   * Any version but ours, in either direction.
+   *
+   * Governing: SPEC-0010 REQ "The Schema Change Fails Legibly"
+   *
+   * This read `> SCHEMA_VERSION` while version 1 was the only version, and
+   * the asymmetry was invisible: nothing older than the current version
+   * existed. Version 2 adds `position` and `district`, so an older record
+   * now loads as a place with no position — which is a real state, and
+   * therefore indistinguishable from a place the player deliberately left
+   * unplaced. The spec requires the whole workspace refuse to load and name
+   * both versions rather than present that guess as data.
+   */
+  if (version !== SCHEMA_VERSION) {
     return failure(
       "UNSUPPORTED_VERSION",
       `a stored place is schema version ${String(version)}, and this build reads ${String(SCHEMA_VERSION)}`,
@@ -108,7 +126,90 @@ function readPlace(value: unknown): StoreResult<PlaceRecord> {
     );
   }
 
+  /*
+   * A position is two integers or it is nothing.
+   *
+   * Checked rather than trusted, because a half-written position — one
+   * axis, a float, a string from some future import path — would place the
+   * marker somewhere precise and wrong. Absent and null are both fine: they
+   * are the unpositioned state SPEC-0010 makes first-class.
+   */
+  const position = raw["position"];
+  if (position !== undefined && position !== null && !isAtlasPosition(position)) {
+    return failure(
+      "MALFORMED_RECORD",
+      `place ${raw["id"]} has a position that is not two integers`,
+    );
+  }
+  if (raw["district"] !== undefined && typeof raw["district"] !== "string") {
+    return failure("MALFORMED_RECORD", `place ${raw["id"]} has a non-string district`);
+  }
+
   return ok(raw as unknown as PlaceRecord);
+}
+
+/**
+ * Validate a stored run.
+ *
+ * Governing: SPEC-0010 REQ "A Harvest Run Is Player-Authored"
+ *
+ * A stop is checked for a `placeId` and nothing more. It is deliberately
+ * NOT checked against the places that loaded alongside it: SPEC-0010 REQ "A
+ * Stop Naming a Deleted Place Is Retained and Unresolved" requires a stop
+ * whose place is gone to survive, in sequence, marked unresolved. Rejecting
+ * it here would delete the player's route to tidy a dangling reference.
+ */
+function readRun(value: unknown): StoreResult<RunRecord> {
+  if (typeof value !== "object" || value === null) {
+    return failure("MALFORMED_RECORD", "a stored run is not an object");
+  }
+  const raw = value as Record<string, unknown>;
+
+  const version = raw["schemaVersion"];
+  if (typeof version !== "number") {
+    return failure("MALFORMED_RECORD", "a stored run carries no schemaVersion");
+  }
+  if (version !== SCHEMA_VERSION) {
+    return failure(
+      "UNSUPPORTED_VERSION",
+      `a stored run is schema version ${String(version)}, and this build reads ${String(SCHEMA_VERSION)}`,
+    );
+  }
+
+  if (typeof raw["id"] !== "string") {
+    return failure("MALFORMED_RECORD", "a stored run has no usable id");
+  }
+  if (typeof raw["updatedAt"] !== "string" || typeof raw["revision"] !== "number") {
+    return failure(
+      "MALFORMED_RECORD",
+      `run ${raw["id"]} is missing updatedAt or revision`,
+    );
+  }
+
+  const stops = raw["stops"];
+  if (!Array.isArray(stops)) {
+    return failure("MALFORMED_RECORD", `run ${raw["id"]} has no stops array`);
+  }
+  for (const stop of stops as unknown[]) {
+    if (typeof stop !== "object" || stop === null) {
+      return failure(
+        "MALFORMED_RECORD",
+        `run ${raw["id"]} has a stop that is not an object`,
+      );
+    }
+    const entry = stop as Record<string, unknown>;
+    if (typeof entry["placeId"] !== "string") {
+      return failure("MALFORMED_RECORD", `run ${raw["id"]} has a stop with no placeId`);
+    }
+    if (entry["method"] !== undefined && !isTravelMethod(entry["method"])) {
+      return failure(
+        "MALFORMED_RECORD",
+        `run ${raw["id"]} has a stop with an unknown travel method`,
+      );
+    }
+  }
+
+  return ok(raw as unknown as RunRecord);
 }
 
 export interface StoreOptions {
@@ -154,6 +255,9 @@ export class DurableStore {
         if (!db.objectStoreNames.contains(PLACES_STORE)) {
           db.createObjectStore(PLACES_STORE, { keyPath: "id" });
         }
+        if (!db.objectStoreNames.contains(RUNS_STORE)) {
+          db.createObjectStore(RUNS_STORE, { keyPath: "id" });
+        }
       });
 
       const db = await request(opening);
@@ -188,12 +292,18 @@ export class DurableStore {
     if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
 
     try {
-      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readonly");
+      const transaction = db.transaction(
+        [WORKSPACE_STORE, PLACES_STORE, RUNS_STORE],
+        "readonly",
+      );
       const storedWorkspace = await request<unknown>(
         transaction.objectStore(WORKSPACE_STORE).get(WORKSPACE_KEY),
       );
       const storedPlaces = await request<unknown[]>(
         transaction.objectStore(PLACES_STORE).getAll(),
+      );
+      const storedRuns = await request<unknown[]>(
+        transaction.objectStore(RUNS_STORE).getAll(),
       );
       await settled(transaction);
 
@@ -213,7 +323,7 @@ export class DurableStore {
             `the store holds ${String(storedPlaces.length)} places and no workspace record`,
           );
         }
-        return ok({ workspace: emptyWorkspace(this.#now()), places: [] });
+        return ok({ workspace: emptyWorkspace(this.#now()), places: [], runs: [] });
       }
 
       const raw = storedWorkspace as Record<string, unknown>;
@@ -224,7 +334,8 @@ export class DurableStore {
           "the stored workspace carries no schemaVersion",
         );
       }
-      if (version > SCHEMA_VERSION) {
+      /* Strict, in both directions — see readPlace. */
+      if (version !== SCHEMA_VERSION) {
         return failure(
           "UNSUPPORTED_VERSION",
           `the stored workspace is schema version ${String(version)}, ` +
@@ -242,7 +353,15 @@ export class DurableStore {
         places.push(place.value);
       }
 
-      return ok({ workspace: raw as unknown as WorkspaceRecord, places });
+      /* Runs are all-or-nothing with the places, for the same reason. */
+      const runs: RunRecord[] = [];
+      for (const stored of storedRuns) {
+        const run = readRun(stored);
+        if (run.kind !== "ok") return run;
+        runs.push(run.value);
+      }
+
+      return ok({ workspace: raw as unknown as WorkspaceRecord, places, runs });
     } catch (error) {
       return classify(error, "loading the store");
     }
@@ -351,6 +470,103 @@ export class DurableStore {
     }
   }
 
+  /**
+   * Write one run, advancing its revision.
+   *
+   * Governing: SPEC-0010 REQ "A Harvest Run Is Player-Authored", REQ
+   * "Seeding Is a One-Time Copy"
+   *
+   * Takes the stops as given. The store does not sort them, does not
+   * deduplicate them, and does not drop a stop whose place is missing — a
+   * run is a sequence the player authored, and every one of those
+   * "helpful" normalizations would edit it.
+   *
+   * A seeded run arrives here indistinguishable from a hand-authored one,
+   * which is what makes seeding a copy rather than a subscription.
+   */
+  async putRun(
+    run: Omit<RunRecord, "schemaVersion" | "updatedAt" | "revision">,
+  ): Promise<StoreResult<RunRecord>> {
+    const db = this.#db;
+    if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
+
+    const size = serializedBytes(run);
+    if (size > MAX_PLACE_BYTES) {
+      return failure(
+        "PLACE_TOO_LARGE",
+        `run ${run.id} is ${String(size)} bytes, and the limit is ${String(MAX_PLACE_BYTES)}`,
+      );
+    }
+
+    try {
+      const now = this.#now();
+      const transaction = db.transaction([WORKSPACE_STORE, RUNS_STORE], "readwrite");
+      const runs = transaction.objectStore(RUNS_STORE);
+      const workspaces = transaction.objectStore(WORKSPACE_STORE);
+
+      const existing = (await request<unknown>(runs.get(run.id))) as
+        { revision?: number } | undefined;
+      const revision = (existing?.revision ?? 0) + 1;
+
+      const record: RunRecord = {
+        ...run,
+        stops: run.stops.map((stop): RunStop => ({ ...stop })),
+        schemaVersion: SCHEMA_VERSION,
+        updatedAt: now,
+        revision,
+      };
+      await request(runs.put(record));
+
+      const storedWorkspace = (await request<unknown>(workspaces.get(WORKSPACE_KEY))) as
+        WorkspaceRecord | undefined;
+      await request(
+        workspaces.put(
+          { ...(storedWorkspace ?? emptyWorkspace(now)), updatedAt: now },
+          WORKSPACE_KEY,
+        ),
+      );
+
+      await settled(transaction);
+      return ok(record);
+    } catch (error) {
+      return classify(error, `writing run ${run.id}`);
+    }
+  }
+
+  /**
+   * Remove one run.
+   *
+   * Deleting a *place* never reaches here. SPEC-0010 REQ "A Stop Naming a
+   * Deleted Place Is Retained and Unresolved" requires the run to survive
+   * with the stop in sequence and marked unresolved, so there is
+   * deliberately no cascade from `deletePlace` to this method.
+   */
+  async deleteRun(id: string): Promise<StoreResult<void>> {
+    const db = this.#db;
+    if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
+
+    try {
+      const now = this.#now();
+      const transaction = db.transaction([WORKSPACE_STORE, RUNS_STORE], "readwrite");
+      await request(transaction.objectStore(RUNS_STORE).delete(id));
+
+      const workspaces = transaction.objectStore(WORKSPACE_STORE);
+      const storedWorkspace = (await request<unknown>(workspaces.get(WORKSPACE_KEY))) as
+        WorkspaceRecord | undefined;
+      await request(
+        workspaces.put(
+          { ...(storedWorkspace ?? emptyWorkspace(now)), updatedAt: now },
+          WORKSPACE_KEY,
+        ),
+      );
+
+      await settled(transaction);
+      return ok(undefined);
+    } catch (error) {
+      return classify(error, `deleting run ${id}`);
+    }
+  }
+
   /** Persist the view's own preferences. Interface state, not domain state. */
   async putPreferences(
     preferences: Readonly<Record<string, string | boolean>>,
@@ -390,8 +606,12 @@ export class DurableStore {
     if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
 
     try {
-      const transaction = db.transaction([WORKSPACE_STORE, PLACES_STORE], "readwrite");
+      const transaction = db.transaction(
+        [WORKSPACE_STORE, PLACES_STORE, RUNS_STORE],
+        "readwrite",
+      );
       await request(transaction.objectStore(PLACES_STORE).clear());
+      await request(transaction.objectStore(RUNS_STORE).clear());
       await request(transaction.objectStore(WORKSPACE_STORE).clear());
       await settled(transaction);
       return ok(undefined);

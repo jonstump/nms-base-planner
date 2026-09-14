@@ -21,7 +21,7 @@
  * plausible number is worse than no number: a player can act on it.
  */
 
-import type { PlaceRecord } from "./schema";
+import { isAtlasPosition, type AtlasPosition, type PlaceRecord } from "./schema";
 
 /**
  * A value that may not have been stored.
@@ -63,6 +63,43 @@ export function storedQuantity(place: PlaceRecord, itemId: string): Stored<strin
 export function storedTick(place: PlaceRecord, partId: string): Stored<boolean> {
   const value = place.ticks?.[partId];
   return typeof value === "boolean" ? present(value) : ABSENT;
+}
+
+/**
+ * Where a place sits on the Atlas, if it sits anywhere.
+ *
+ * Governing: SPEC-0010 REQ "Position Is Optional and Authored", REQ "A
+ * Freighter Is a Route Node Without a Position"
+ *
+ * The single reader of `position`, and the reason the rest of the codebase
+ * never has to know that unpositioned has two spellings on the wire —
+ * absent, and present-but-null. Both are the same state and both arrive
+ * here as `ABSENT`.
+ *
+ * It takes a place, not a kind. A caller cannot ask "is this a freighter?"
+ * through this function, which is deliberate: SPEC-0010 requires the
+ * freighter to work as a consequence of position being optional rather than
+ * as a special case, and a helper that offered the branch would invite it.
+ */
+export function positionOf(place: PlaceRecord): Stored<AtlasPosition> {
+  const value = place.position;
+  return isAtlasPosition(value) ? present(value) : ABSENT;
+}
+
+/**
+ * Which district a place belongs to, if any.
+ *
+ * Governing: SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is
+ * Derived"
+ *
+ * An empty string is not a district. Trimming here rather than at each call
+ * site keeps a stray space from minting a territory nobody asked for.
+ */
+export function districtOf(place: PlaceRecord): Stored<string> {
+  const value = place.district;
+  if (typeof value !== "string") return ABSENT;
+  const trimmed = value.trim();
+  return trimmed === "" ? ABSENT : present(trimmed);
 }
 
 /**
