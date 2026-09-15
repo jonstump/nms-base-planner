@@ -337,6 +337,81 @@ test("a position that is not two integers is malformed, not silently placed", as
   expect(failed.code).toBe("MALFORMED_RECORD");
 });
 
+test("putPlace refuses a position the loader would reject", async ({ page }) => {
+  /*
+   * Governing: SPEC-0010 REQ "Position Is Optional and Authored" — "A
+   * position MUST be two integers in the Atlas's own grid space."
+   *
+   * The test above plants a bad position past the store. This one hands one
+   * to `putPlace`, which is the path the positioning stories will actually
+   * use. `AtlasPosition` types its axes as `number`, so a fractional
+   * position typechecks — dragging a marker produces exactly that — and if
+   * the write accepted it the record would land and then refuse to load.
+   *
+   * The two neighbours are the reason this matters more than one bad record.
+   * A load is all-or-nothing, so an accepted fractional position does not
+   * cost the player one marker; it costs the workspace.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const outcome = await page.evaluate(async (db) => {
+    const before = await window.__store.putPlace(db, {
+      id: "alpha",
+      kind: "base",
+      name: "Alpha",
+      position: { x: 1, y: 1 },
+    });
+    const fractional = await window.__store.putPlace(db, {
+      id: "beta",
+      kind: "base",
+      name: "Beta",
+      position: { x: 1.5, y: 2 },
+    });
+    const after = await window.__store.putPlace(db, {
+      id: "gamma",
+      kind: "base",
+      name: "Gamma",
+      position: { x: 3, y: 3 },
+    });
+    return { before, fractional, after, loaded: await window.__store.load(db) };
+  }, database);
+
+  expect(outcome.before.kind).toBe("ok");
+  expect(outcome.after.kind).toBe("ok");
+
+  expect(outcome.fractional.kind, "a fractional position was written").toBe("failed");
+  if (outcome.fractional.kind === "failed") {
+    expect(outcome.fractional.code).toBe("MALFORMED_RECORD");
+  }
+
+  const loaded = outcome.loaded;
+  expect(loaded.kind, "the refused write still cost the whole workspace").toBe("ok");
+  if (loaded.kind !== "ok") return;
+  expect(loaded.value.places.map((p) => p.id).sort()).toEqual(["alpha", "gamma"]);
+});
+
+test("putPlace refuses a district that is not a string", async ({ page }) => {
+  /* Governing: SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is Derived" */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const written = await page.evaluate(
+    async (db) =>
+      window.__store.putPlace(db, {
+        id: "tagged",
+        kind: "base",
+        name: "Tagged",
+        district: 7 as unknown as string,
+      }),
+    database,
+  );
+
+  expect(written.kind, "a non-string district was written").toBe("failed");
+  if (written.kind !== "failed") return;
+  expect(written.code).toBe("MALFORMED_RECORD");
+});
+
 test("a run round-trips with its stops in order and its methods per leg", async ({
   page,
 }) => {

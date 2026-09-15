@@ -86,6 +86,41 @@ function settled(transaction: IDBTransaction): Promise<void> {
  * literal "failed" — so narrowing on it happened to work and read as though
  * it were designed. One of them changing would have broken it silently.
  */
+/**
+ * A position is two integers or it is nothing, and a district is a string.
+ *
+ * Governing: SPEC-0010 REQ "Position Is Optional and Authored" — "A position
+ * MUST be two integers in the Atlas's own grid space."
+ *
+ * Checked rather than trusted, because a half-written position — one axis, a
+ * float, a string from some future import path — would place the marker
+ * somewhere precise and wrong. Absent and null are both fine: they are the
+ * unpositioned state SPEC-0010 makes first-class.
+ *
+ * Called on the way in as well as on the way out, and that is the point.
+ * `AtlasPosition` types its axes as `number`, so a fractional position
+ * typechecks; if only the read side checked, such a position would write
+ * cleanly and then refuse to load — taking every other place and run in the
+ * workspace with it, since a load is all-or-nothing. Sharing one function is
+ * what keeps the two sides from drifting apart again.
+ */
+function checkPlacement(
+  position: unknown,
+  district: unknown,
+  id: string,
+): StoreResult<void> {
+  if (position !== undefined && position !== null && !isAtlasPosition(position)) {
+    return failure(
+      "MALFORMED_RECORD",
+      `place ${id} has a position that is not two integers`,
+    );
+  }
+  if (district !== undefined && typeof district !== "string") {
+    return failure("MALFORMED_RECORD", `place ${id} has a non-string district`);
+  }
+  return ok(undefined);
+}
+
 function readPlace(value: unknown): StoreResult<PlaceRecord> {
   if (typeof value !== "object" || value === null) {
     return failure("MALFORMED_RECORD", "a stored place is not an object");
@@ -126,24 +161,8 @@ function readPlace(value: unknown): StoreResult<PlaceRecord> {
     );
   }
 
-  /*
-   * A position is two integers or it is nothing.
-   *
-   * Checked rather than trusted, because a half-written position — one
-   * axis, a float, a string from some future import path — would place the
-   * marker somewhere precise and wrong. Absent and null are both fine: they
-   * are the unpositioned state SPEC-0010 makes first-class.
-   */
-  const position = raw["position"];
-  if (position !== undefined && position !== null && !isAtlasPosition(position)) {
-    return failure(
-      "MALFORMED_RECORD",
-      `place ${raw["id"]} has a position that is not two integers`,
-    );
-  }
-  if (raw["district"] !== undefined && typeof raw["district"] !== "string") {
-    return failure("MALFORMED_RECORD", `place ${raw["id"]} has a non-string district`);
-  }
+  const placement = checkPlacement(raw["position"], raw["district"], String(raw["id"]));
+  if (placement.kind !== "ok") return placement;
 
   return ok(raw as unknown as PlaceRecord);
 }
@@ -385,6 +404,9 @@ export class DurableStore {
   ): Promise<StoreResult<PlaceRecord>> {
     const db = this.#db;
     if (!db) return failure("STORAGE_UNAVAILABLE", "the store is not open");
+
+    const placement = checkPlacement(place.position, place.district, place.id);
+    if (placement.kind !== "ok") return placement;
 
     const size = serializedBytes(place);
     if (size > MAX_PLACE_BYTES) {

@@ -16,7 +16,14 @@ export const STORE_CODES = [
   "UNSUPPORTED_VERSION",
   /** The write would exceed the per-place bound, or the origin's quota. */
   "QUOTA_EXCEEDED",
-  /** A single place would exceed the configured bound. Refused before writing. */
+  /**
+   * A single record would exceed the configured bound. Refused before writing.
+   *
+   * Named for the place because that is what the bound was drawn around, but
+   * runs share both the limit and this code: they are the other per-record
+   * write, and adding a code means widening the SPEC-0009 error vocabulary,
+   * which is a spec change rather than a store one.
+   */
   "PLACE_TOO_LARGE",
   /** IndexedDB is absent or blocked — a private window, or a disabled API. */
   "STORAGE_UNAVAILABLE",
