@@ -44,7 +44,8 @@ export const PLACE_KINDS: readonly PlaceKind[] = ["base", "freighter", "settleme
 /**
  * Where a place sits on the Atlas.
  *
- * Governing: SPEC-0010 REQ "Position Is Optional and Authored"
+ * Governing: ADR-0015 (the Atlas is an authored coordinate space), SPEC-0010
+ * REQ "Position Is Optional and Authored"
  *
  * Two integers in the Atlas's own grid space, meaningful only relative to
  * other positions in the same workspace. Deliberately **not** derived from
@@ -110,7 +111,8 @@ export interface RunStop {
 /**
  * A harvest run: an ordered sequence of stops.
  *
- * Governing: SPEC-0010 REQ "A Harvest Run Is Player-Authored", REQ "Seeding
+ * Governing: ADR-0015 (a run is authored, not derived from a plan), SPEC-0010
+ * REQ "A Harvest Run Is Player-Authored", REQ "Seeding
  * Is a One-Time Copy"
  *
  * Belongs to the workspace, never to a plan. `seededFromPlan` is provenance
@@ -149,7 +151,8 @@ export interface PlaceRecord {
   /*
    * Where this place sits on the Atlas, if the player has placed it.
    *
-   * Governing: SPEC-0010 REQ "Position Is Optional and Authored", REQ "A
+   * Governing: ADR-0015 (positions are view data, not domain values),
+   * SPEC-0010 REQ "Position Is Optional and Authored", REQ "A
    * Freighter Is a Route Node Without a Position"
    *
    * Optional and nullable, and unpositioned is a first-class state rather
@@ -171,7 +174,7 @@ export interface PlaceRecord {
   /*
    * The district this place belongs to, if any.
    *
-   * Governing: SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is
+   * Governing: ADR-0015, SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is
    * Derived"
    *
    * A name carried on the place — there is no district record and no stored

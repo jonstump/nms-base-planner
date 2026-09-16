@@ -79,18 +79,11 @@ function settled(transaction: IDBTransaction): Promise<void> {
 }
 
 /**
- * Validate a stored place against the shape this build reads.
- *
- * Returns a StoreResult rather than `PlaceRecord | StoreFailure`. Both of
- * those carry a `kind` field — a place's is its type, a failure's is the
- * literal "failed" — so narrowing on it happened to work and read as though
- * it were designed. One of them changing would have broken it silently.
- */
-/**
  * A position is two integers or it is nothing, and a district is a string.
  *
- * Governing: SPEC-0010 REQ "Position Is Optional and Authored" — "A position
- * MUST be two integers in the Atlas's own grid space."
+ * Governing: ADR-0015 (the Atlas is an authored coordinate space), SPEC-0010
+ * REQ "Position Is Optional and Authored" — "A position MUST be two integers
+ * in the Atlas's own grid space."
  *
  * Checked rather than trusted, because a half-written position — one axis, a
  * float, a string from some future import path — would place the marker
@@ -121,6 +114,14 @@ function checkPlacement(
   return ok(undefined);
 }
 
+/**
+ * Validate a stored place against the shape this build reads.
+ *
+ * Returns a StoreResult rather than `PlaceRecord | StoreFailure`. Both of
+ * those carry a `kind` field — a place's is its type, a failure's is the
+ * literal "failed" — so narrowing on it happened to work and read as though
+ * it were designed. One of them changing would have broken it silently.
+ */
 function readPlace(value: unknown): StoreResult<PlaceRecord> {
   if (typeof value !== "object" || value === null) {
     return failure("MALFORMED_RECORD", "a stored place is not an object");
