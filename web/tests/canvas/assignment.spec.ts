@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { openPlanner, openSurface, chooseTarget } from "../helpers/surfaces";
 
 import { basesFrom, slotFor, UNNAMED_PLACE } from "../../src/canvas/bases";
-import type { PlaceRecord } from "../../src/store";
+import { SCHEMA_VERSION, type PlaceRecord } from "../../src/store";
 import { countCrossings, crossings } from "../helpers/crossings";
 
 /*
@@ -69,7 +69,7 @@ function place(id: string, name?: string): PlaceRecord {
   return {
     id,
     kind: "base",
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     ...(name === undefined ? {} : { name }),
     updatedAt: "2026-01-01T00:00:00.000Z",
     revision: 1,

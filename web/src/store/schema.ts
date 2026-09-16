@@ -18,8 +18,15 @@
  * that adds it later cannot order edits made before it existed.
  */
 
-/** The schema this build understands. */
-export const SCHEMA_VERSION = 1;
+/**
+ * The schema this build understands.
+ *
+ * Version 2 adds `position` and `district` to `PlaceRecord` and introduces
+ * the run record. Per SPEC-0010 REQ "The Schema Change Fails Legibly" that
+ * is a bump, and a workspace written at version 1 loads nothing rather than
+ * loading places with their positions quietly omitted.
+ */
+export const SCHEMA_VERSION = 2;
 
 /**
  * One record type for all three surfaces.
@@ -33,6 +40,98 @@ export const SCHEMA_VERSION = 1;
 export type PlaceKind = "base" | "freighter" | "settlement";
 
 export const PLACE_KINDS: readonly PlaceKind[] = ["base", "freighter", "settlement"];
+
+/**
+ * Where a place sits on the Atlas.
+ *
+ * Governing: ADR-0015 (the Atlas is an authored coordinate space), SPEC-0010
+ * REQ "Position Is Optional and Authored"
+ *
+ * Two integers in the Atlas's own grid space, meaningful only relative to
+ * other positions in the same workspace. Deliberately **not** derived from
+ * `GalacticAddress` or the in-game `Position`: the Atlas is an arrangement
+ * the player authors, and seeding it from the save would make the map a
+ * lossy render of coordinates it cannot faithfully project, while quietly
+ * overwriting whatever the player had arranged.
+ *
+ * Nothing in this package reads a save. That is the point — the constraint
+ * holds because there is no code path that could violate it, not because a
+ * comment asks nicely.
+ */
+export interface AtlasPosition {
+  readonly x: number;
+  readonly y: number;
+}
+
+export function isAtlasPosition(value: unknown): value is AtlasPosition {
+  if (typeof value !== "object" || value === null) return false;
+  const raw = value as Record<string, unknown>;
+  return Number.isInteger(raw["x"]) && Number.isInteger(raw["y"]);
+}
+
+/**
+ * How the player gets from one stop to the next.
+ *
+ * Recorded per leg rather than derived. The design's route bar draws a
+ * method chip mid-leg, and which route a player takes between two bases is
+ * a choice the geometry cannot infer.
+ */
+export type TravelMethod = "teleporter" | "portal" | "starship" | "foot";
+
+export const TRAVEL_METHODS: readonly TravelMethod[] = [
+  "teleporter",
+  "portal",
+  "starship",
+  "foot",
+];
+
+export function isTravelMethod(value: unknown): value is TravelMethod {
+  return (
+    typeof value === "string" && (TRAVEL_METHODS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * One stop in a run.
+ *
+ * `method` is how the player reaches *this* stop from the previous one, so
+ * the first stop carries none. N stops have N-1 legs, and hanging the leg
+ * off its arrival stop keeps that arithmetic out of every consumer.
+ *
+ * `placeId` is the SPEC-0009 place id and nothing else. SPEC-0010 REQ "A
+ * Harvest Run Is Player-Authored" forbids minting a second key for routing,
+ * so a stop whose place has been deleted is a stop pointing at an id that
+ * no longer resolves — retained and unresolved, never dropped.
+ */
+export interface RunStop {
+  readonly placeId: string;
+  readonly method?: TravelMethod;
+}
+
+/**
+ * A harvest run: an ordered sequence of stops.
+ *
+ * Governing: ADR-0015 (a run is authored, not derived from a plan), SPEC-0010
+ * REQ "A Harvest Run Is Player-Authored", REQ "Seeding
+ * Is a One-Time Copy"
+ *
+ * Belongs to the workspace, never to a plan. `seededFromPlan` is provenance
+ * only — a run is never invalidated, reordered, or deleted because the plan
+ * that seeded it changed. Seeding copies once and the copy is the player's.
+ */
+export interface RunRecord {
+  readonly id: string;
+  readonly schemaVersion: number;
+
+  readonly name?: string;
+  readonly stops: readonly RunStop[];
+
+  /** Provenance. Carries no subscription to the named plan. */
+  readonly seededFromPlan?: string;
+
+  readonly updatedAt: string;
+  readonly revision: number;
+}
 
 export interface PlaceRecord {
   /** Generated at creation. Independent of any save file and any account. */
@@ -48,6 +147,45 @@ export interface PlaceRecord {
   readonly ticks?: Readonly<Record<string, boolean>>;
   /** Stocked quantities, keyed by item id. Exact strings, never numbers. */
   readonly stocked?: Readonly<Record<string, string>>;
+
+  /*
+   * Where this place sits on the Atlas, if the player has placed it.
+   *
+   * Governing: ADR-0015 (positions are view data, not domain values),
+   * SPEC-0010 REQ "Position Is Optional and Authored", REQ "A
+   * Freighter Is a Route Node Without a Position"
+   *
+   * Optional and nullable, and unpositioned is a first-class state rather
+   * than a gap: such a place appears in the place list, is selectable as a
+   * run stop, and simply is not drawn. No placeholder coordinate is ever
+   * substituted, because a placeholder is a claim about where something is.
+   *
+   * A field on the place rather than a positions table, so that there is no
+   * second record to keep in step and no join that can half-succeed.
+   *
+   * This is also the whole of the freighter's support. ADR-0006 gives the
+   * freighter no fixed location; it needs no branch here, because "has no
+   * position" is a state every kind can be in. A conditional on `kind` in
+   * any positioning or rendering path would be a defect — read `absence.ts`
+   * `positionOf` instead.
+   */
+  readonly position?: AtlasPosition | null;
+
+  /*
+   * The district this place belongs to, if any.
+   *
+   * Governing: ADR-0015, SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is
+   * Derived"
+   *
+   * A name carried on the place — there is no district record and no stored
+   * rectangle. The dashed territory is the bounding box of the district's
+   * positioned members, computed at render time, which is what makes moving
+   * one member a single store write rather than two.
+   *
+   * Absent means no district. There is no "ungrouped" pseudo-district,
+   * because inventing one would put a record where the spec requires none.
+   */
+  readonly district?: string;
 
   /*
    * Reserved by ADR-0008, which defers multi-device sync and conflict
@@ -83,6 +221,7 @@ export interface WorkspaceRecord {
 export interface Workspace {
   readonly workspace: WorkspaceRecord;
   readonly places: readonly PlaceRecord[];
+  readonly runs: readonly RunRecord[];
 }
 
 export function isPlaceKind(value: unknown): value is PlaceKind {

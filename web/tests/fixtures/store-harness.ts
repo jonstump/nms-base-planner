@@ -11,9 +11,10 @@
 
 import { classify } from "../../src/store/errors";
 import { DurableStore } from "../../src/store";
-import type { PlaceRecord, StoreResult, Workspace } from "../../src/store";
+import type { PlaceRecord, RunRecord, StoreResult, Workspace } from "../../src/store";
 
 type NewPlace = Omit<PlaceRecord, "schemaVersion" | "updatedAt" | "revision">;
+type NewRun = Omit<RunRecord, "schemaVersion" | "updatedAt" | "revision">;
 
 declare global {
   interface Window {
@@ -26,6 +27,8 @@ declare global {
         preferences: Record<string, string | boolean>,
       ) => Promise<StoreResult<void>>;
       deletePlace: (database: string, id: string) => Promise<StoreResult<void>>;
+      putRun: (database: string, run: NewRun) => Promise<StoreResult<RunRecord>>;
+      deleteRun: (database: string, id: string) => Promise<StoreResult<void>>;
       deleteAll: (database: string) => Promise<StoreResult<void>>;
       close: (database: string) => void;
       /** Write a record straight past the store, to plant a bad version. */
@@ -63,6 +66,8 @@ window.__store = {
   putPreferences: async (database, preferences) =>
     get(database).putPreferences(preferences),
   deletePlace: async (database, id) => get(database).deletePlace(id),
+  putRun: async (database, run) => get(database).putRun(run),
+  deleteRun: async (database, id) => get(database).deleteRun(id),
   deleteAll: async (database) => get(database).deleteAll(),
   close: (database) => {
     get(database).close();

@@ -189,6 +189,289 @@ test("a future workspace version loads nothing and names both versions", async (
   expect(failed.message).toContain(String(SCHEMA_VERSION));
 });
 
+test("a workspace at the previous schema version loads nothing", async ({ page }) => {
+  /*
+   * Governing: SPEC-0010 REQ "The Schema Change Fails Legibly"
+   *
+   * The version check read `> SCHEMA_VERSION` while version 1 was the only
+   * version there had ever been, so nothing older could exist and the
+   * asymmetry was invisible. Version 2 adds `position`, and an accepted
+   * version-1 place would load as a place with no position — which is a
+   * real state a player can author, so the guess is indistinguishable from
+   * the truth. This is the test the acceptance criteria asked for by name,
+   * because a bump nobody exercises is a bump nobody can trust.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const failed = await page.evaluate(async (db) => {
+    await window.__store.plant(db, "workspace", "self", {
+      schemaVersion: 1,
+      ownerId: null,
+      updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+    return window.__store.load(db);
+  }, database);
+
+  expect(failed.kind, "an older workspace loaded instead of failing").toBe("failed");
+  if (failed.kind !== "failed") return;
+  expect(failed.code).toBe("UNSUPPORTED_VERSION");
+  expect(failed.message, "the stored version was not named").toContain("1");
+  expect(failed.message, "the expected version was not named").toContain(
+    String(SCHEMA_VERSION),
+  );
+});
+
+test("a place at the previous schema version fails the load", async ({ page }) => {
+  /* The same rule one level down: places are checked, not just the workspace. */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const failed = await page.evaluate(async (db) => {
+    await window.__store.putPlace(db, { id: "current", kind: "base" });
+    await window.__store.plant(db, "places", null, {
+      id: "old",
+      kind: "base",
+      schemaVersion: 1,
+      updatedAt: "2026-08-28T00:00:00.000Z",
+      revision: 1,
+    });
+    return window.__store.load(db);
+  }, database);
+
+  expect(failed.kind).toBe("failed");
+  if (failed.kind !== "failed") return;
+  expect(failed.code).toBe("UNSUPPORTED_VERSION");
+});
+
+/* ----------------------------------------------------------------------
+ * Positions, districts, and runs
+ * ------------------------------------------------------------------- */
+
+test("a place with no position is stored and loaded as a first-class state", async ({
+  page,
+}) => {
+  /*
+   * Governing: SPEC-0010 REQ "Position Is Optional and Authored"
+   *
+   * No placeholder coordinate is substituted on the way in or out. A place
+   * the player has never arranged comes back unpositioned, not at 0,0 —
+   * which would be a claim about where it is.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const loaded = await page.evaluate(async (db) => {
+    await window.__store.putPlace(db, { id: "unplaced", kind: "base", name: "Verdant" });
+    return window.__store.load(db);
+  }, database);
+
+  expect(loaded.kind).toBe("ok");
+  if (loaded.kind !== "ok") return;
+  const place = loaded.value.places.find((candidate) => candidate.id === "unplaced");
+  expect(place, "the unpositioned place was dropped").toBeDefined();
+  expect(place?.position ?? null, "a coordinate was invented").toBeNull();
+});
+
+test("a position round-trips, and a freighter carries one no differently", async ({
+  page,
+}) => {
+  /*
+   * Governing: SPEC-0010 REQ "A Freighter Is a Route Node Without a
+   * Position"
+   *
+   * The freighter is in this test not because it is special but to show it
+   * is not: it takes the same field, through the same path, with no branch
+   * on kind anywhere between the caller and the record.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const loaded = await page.evaluate(async (db) => {
+    await window.__store.putPlace(db, {
+      id: "positioned",
+      kind: "base",
+      position: { x: 3, y: -7 },
+      district: "Farmlands",
+    });
+    await window.__store.putPlace(db, { id: "ship", kind: "freighter", name: "Fleet" });
+    return window.__store.load(db);
+  }, database);
+
+  expect(loaded.kind).toBe("ok");
+  if (loaded.kind !== "ok") return;
+  const positioned = loaded.value.places.find((p) => p.id === "positioned");
+  expect(positioned?.position).toEqual({ x: 3, y: -7 });
+  expect(positioned?.district).toBe("Farmlands");
+
+  const freighter = loaded.value.places.find((p) => p.id === "ship");
+  expect(freighter, "the freighter was dropped for having no position").toBeDefined();
+  expect(freighter?.position ?? null).toBeNull();
+});
+
+test("a position that is not two integers is malformed, not silently placed", async ({
+  page,
+}) => {
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const failed = await page.evaluate(async (db) => {
+    await window.__store.plant(db, "workspace", "self", {
+      schemaVersion: 2,
+      ownerId: null,
+      updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+    await window.__store.plant(db, "places", null, {
+      id: "half",
+      kind: "base",
+      schemaVersion: 2,
+      position: { x: 4 },
+      updatedAt: "2026-08-28T00:00:00.000Z",
+      revision: 1,
+    });
+    return window.__store.load(db);
+  }, database);
+
+  expect(failed.kind, "a half-written position was accepted").toBe("failed");
+  if (failed.kind !== "failed") return;
+  expect(failed.code).toBe("MALFORMED_RECORD");
+});
+
+test("putPlace refuses a position the loader would reject", async ({ page }) => {
+  /*
+   * Governing: SPEC-0010 REQ "Position Is Optional and Authored" — "A
+   * position MUST be two integers in the Atlas's own grid space."
+   *
+   * The test above plants a bad position past the store. This one hands one
+   * to `putPlace`, which is the path the positioning stories will actually
+   * use. `AtlasPosition` types its axes as `number`, so a fractional
+   * position typechecks — dragging a marker produces exactly that — and if
+   * the write accepted it the record would land and then refuse to load.
+   *
+   * The two neighbours are the reason this matters more than one bad record.
+   * A load is all-or-nothing, so an accepted fractional position does not
+   * cost the player one marker; it costs the workspace.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const outcome = await page.evaluate(async (db) => {
+    const before = await window.__store.putPlace(db, {
+      id: "alpha",
+      kind: "base",
+      name: "Alpha",
+      position: { x: 1, y: 1 },
+    });
+    const fractional = await window.__store.putPlace(db, {
+      id: "beta",
+      kind: "base",
+      name: "Beta",
+      position: { x: 1.5, y: 2 },
+    });
+    const after = await window.__store.putPlace(db, {
+      id: "gamma",
+      kind: "base",
+      name: "Gamma",
+      position: { x: 3, y: 3 },
+    });
+    return { before, fractional, after, loaded: await window.__store.load(db) };
+  }, database);
+
+  expect(outcome.before.kind).toBe("ok");
+  expect(outcome.after.kind).toBe("ok");
+
+  expect(outcome.fractional.kind, "a fractional position was written").toBe("failed");
+  if (outcome.fractional.kind === "failed") {
+    expect(outcome.fractional.code).toBe("MALFORMED_RECORD");
+  }
+
+  const loaded = outcome.loaded;
+  expect(loaded.kind, "the refused write still cost the whole workspace").toBe("ok");
+  if (loaded.kind !== "ok") return;
+  expect(loaded.value.places.map((p) => p.id).sort()).toEqual(["alpha", "gamma"]);
+});
+
+test("putPlace refuses a district that is not a string", async ({ page }) => {
+  /* Governing: SPEC-0010 REQ "A District Is a Tag and Its Rectangle Is Derived" */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const written = await page.evaluate(
+    async (db) =>
+      window.__store.putPlace(db, {
+        id: "tagged",
+        kind: "base",
+        name: "Tagged",
+        district: 7 as unknown as string,
+      }),
+    database,
+  );
+
+  expect(written.kind, "a non-string district was written").toBe("failed");
+  if (written.kind !== "failed") return;
+  expect(written.code).toBe("MALFORMED_RECORD");
+});
+
+test("a run round-trips with its stops in order and its methods per leg", async ({
+  page,
+}) => {
+  /* Governing: SPEC-0010 REQ "A Harvest Run Is Player-Authored" */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const loaded = await page.evaluate(async (db) => {
+    await window.__store.putRun(db, {
+      id: "run1",
+      name: "Stasis run",
+      stops: [
+        { placeId: "a" },
+        { placeId: "ship", method: "teleporter" },
+        { placeId: "b", method: "portal" },
+      ],
+    });
+    return window.__store.load(db);
+  }, database);
+
+  expect(loaded.kind).toBe("ok");
+  if (loaded.kind !== "ok") return;
+  expect(loaded.value.runs).toHaveLength(1);
+  const run = loaded.value.runs[0];
+  expect(run?.stops.map((stop) => stop.placeId)).toEqual(["a", "ship", "b"]);
+  expect(run?.stops[0]?.method, "the first stop invented a leg").toBeUndefined();
+  expect(run?.stops[1]?.method).toBe("teleporter");
+});
+
+test("deleting a place leaves a run that stops at it standing", async ({ page }) => {
+  /*
+   * Governing: SPEC-0010 REQ "A Stop Naming a Deleted Place Is Retained and
+   * Unresolved"
+   *
+   * The store half of that requirement: no cascade. Rendering the stop as
+   * unresolved is the surface's job, but it can only do it if the stop is
+   * still here, in position, when it looks.
+   */
+  const database = freshDatabase();
+  await openStore(page, database);
+
+  const loaded = await page.evaluate(async (db) => {
+    await window.__store.putPlace(db, { id: "doomed", kind: "base" });
+    await window.__store.putRun(db, {
+      id: "run1",
+      stops: [{ placeId: "first" }, { placeId: "doomed" }, { placeId: "third" }],
+    });
+    await window.__store.deletePlace(db, "doomed");
+    return window.__store.load(db);
+  }, database);
+
+  expect(loaded.kind).toBe("ok");
+  if (loaded.kind !== "ok") return;
+  expect(loaded.value.runs, "deleting a place deleted the run").toHaveLength(1);
+  expect(
+    loaded.value.runs[0]?.stops.map((stop) => stop.placeId),
+    "the stop was dropped and the sequence renumbered around the gap",
+  ).toEqual(["first", "doomed", "third"]);
+});
+
 test("one unreadable place fails the whole load, not just that record", async ({
   page,
 }) => {
@@ -231,16 +514,25 @@ test("places without a workspace record are a failure, not an empty store", asyn
   const database = freshDatabase();
   await openStore(page, database);
 
-  const failed = await page.evaluate(async (db) => {
-    await window.__store.plant(db, "places", null, {
-      id: "orphan",
-      kind: "base",
-      schemaVersion: 1,
-      updatedAt: "2026-08-28T00:00:00.000Z",
-      revision: 1,
-    });
-    return window.__store.load(db);
-  }, database);
+  /*
+   * The version is passed in rather than closed over: `page.evaluate` runs
+   * its callback in the browser, where a module-scope import does not
+   * exist. Writing `SCHEMA_VERSION` inside the callback typechecks and
+   * throws at runtime.
+   */
+  const failed = await page.evaluate(
+    async ([db, version]) => {
+      await window.__store.plant(db, "places", null, {
+        id: "orphan",
+        kind: "base",
+        schemaVersion: version,
+        updatedAt: "2026-08-28T00:00:00.000Z",
+        revision: 1,
+      });
+      return window.__store.load(db);
+    },
+    [database, SCHEMA_VERSION] as [string, number],
+  );
 
   expect(failed.kind, "places were dropped and the store reported success").toBe(
     "failed",

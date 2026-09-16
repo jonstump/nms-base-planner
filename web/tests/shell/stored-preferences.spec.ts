@@ -11,7 +11,7 @@ import {
   storedQuantity,
   storedTick,
 } from "../../src/store/absence";
-import type { PlaceRecord } from "../../src/store";
+import { DB_VERSION, SCHEMA_VERSION, type PlaceRecord } from "../../src/store";
 
 /*
  * Governing: ADR-0008 (durable user data), SPEC-0009 REQ "View Preferences
@@ -91,15 +91,28 @@ const DATABASE = "nms-planner";
  */
 async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
   await page.evaluate(
-    ([database, records]) =>
+    ([database, records, dbVersion, schemaVersion]) =>
       new Promise<void>((resolve, reject) => {
-        const opening = indexedDB.open(database, 1);
+        /*
+         * Opened at the store's own DB version, not a literal.
+         *
+         * This read `indexedDB.open(database, 1)`. Once the store moved to
+         * DB version 2 for the runs object store, seeding the real database
+         * at 1 throws VersionError as soon as the application has already
+         * opened it — a failure with nothing to do with what the test is
+         * checking. Importing the constant means the next bump does not
+         * re-arm this.
+         */
+        const opening = indexedDB.open(database, dbVersion);
         opening.onupgradeneeded = () => {
           const db = opening.result;
           if (!db.objectStoreNames.contains("workspace"))
             db.createObjectStore("workspace");
           if (!db.objectStoreNames.contains("places"))
             db.createObjectStore("places", { keyPath: "id" });
+          /* The application's load reads all three stores in one transaction. */
+          if (!db.objectStoreNames.contains("runs"))
+            db.createObjectStore("runs", { keyPath: "id" });
         };
         opening.onsuccess = () => {
           const db = opening.result;
@@ -107,7 +120,7 @@ async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
           transaction
             .objectStore("workspace")
             .put(
-              { schemaVersion: 1, ownerId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+              { schemaVersion, ownerId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
               "self",
             );
           for (const record of records) transaction.objectStore("places").put(record);
@@ -124,7 +137,7 @@ async function plant(page: Page, places: PlaceRecord[]): Promise<void> {
           reject(opening.error ?? new Error("plant open failed"));
         };
       }),
-    [DATABASE, places] as const,
+    [DATABASE, places, DB_VERSION, SCHEMA_VERSION] as const,
   );
 }
 
@@ -136,7 +149,7 @@ test("absent and zero are different values", () => {
   const place: PlaceRecord = {
     id: "p1",
     kind: "base",
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     updatedAt: "2026-01-01T00:00:00.000Z",
     revision: 1,
     stocked: { copper: "0" },
@@ -156,7 +169,7 @@ test("an unticked part and a part never seen are different", () => {
   const place: PlaceRecord = {
     id: "p1",
     kind: "base",
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     updatedAt: "2026-01-01T00:00:00.000Z",
     revision: 1,
     ticks: { "part-1": false },
@@ -260,7 +273,7 @@ test("a place with no stocked quantity renders absent, not zero", async ({ page 
     {
       id: "aurora",
       kind: "base",
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       name: "Aurora Flats",
       updatedAt: "2026-01-01T00:00:00.000Z",
       revision: 1,
@@ -305,7 +318,7 @@ test("a stocked zero is shown as zero, because the player entered it", async ({
     {
       id: "ridge",
       kind: "base",
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       name: "Ridge Station",
       updatedAt: "2026-01-01T00:00:00.000Z",
       revision: 1,
@@ -340,7 +353,7 @@ test("a planted place reaches the list, so the empty state is not the only path"
     {
       id: "aurora",
       kind: "base",
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       name: "Aurora Flats",
       updatedAt: "2026-01-01T00:00:00.000Z",
       revision: 1,
