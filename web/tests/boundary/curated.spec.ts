@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { parseCurated } from "../../src/boundary/curated";
+import { CURATED_SCHEMA_VERSION, parseCurated } from "../../src/boundary/curated";
 import type { Curated } from "../../src/boundary/requests";
 
 /*
@@ -103,6 +103,48 @@ test("the classification maps arrive as the engine reads them", () => {
   expect(curated.resourceHotspots?.GAS1).toBe("Gas");
 
   expect(curated.faunaProducts).toContain("FOOD_V_MILK");
+});
+
+test("the shipped file declares the schema this build reads", () => {
+  /*
+   * Governing: ADR-0001 (Tier 2 is hand-maintained)
+   *
+   * The file carries a version and the loader enforces it, the way Tier 1
+   * does in internal/domain/tier1.go and the durable store does in
+   * web/src/store/durable-store.ts. A version written and never read is
+   * worse than none: it looks like a guard while guarding nothing.
+   */
+  const raw: unknown = JSON.parse(readFileSync(TIER2, "utf8"));
+  expect((raw as { schema_version?: unknown }).schema_version).toBe(
+    CURATED_SCHEMA_VERSION,
+  );
+});
+
+test("a file from the wrong side of a schema change is refused, naming both versions", () => {
+  /*
+   * The case a version exists for is not a missing field — that already
+   * fails on its own — but a field whose meaning changed. Seconds becoming
+   * milliseconds reads as a perfectly valid file and sizes every producer
+   * wrongly, and the version is the only thing that can catch it.
+   */
+  const raw: Record<string, unknown> = JSON.parse(readFileSync(TIER2, "utf8")) as Record<
+    string,
+    unknown
+  >;
+
+  for (const wrong of [CURATED_SCHEMA_VERSION + 1, CURATED_SCHEMA_VERSION - 1]) {
+    const outcome = parseCurated(JSON.stringify({ ...raw, schema_version: wrong }));
+    expect(outcome.kind, `schema version ${String(wrong)} was accepted`).toBe("failed");
+    if (outcome.kind !== "failed") continue;
+    expect(outcome.code).toBe("CONSTANTS_INVALID");
+    expect(outcome.message).toContain(String(wrong));
+    expect(outcome.message).toContain(String(CURATED_SCHEMA_VERSION));
+  }
+
+  const missing = { ...raw };
+  delete missing["schema_version"];
+  const outcome = parseCurated(JSON.stringify(missing));
+  expect(outcome.kind, "a file with no schema_version was accepted").toBe("failed");
 });
 
 test("a bad edit is refused here, naming the field", () => {

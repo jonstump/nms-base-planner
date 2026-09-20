@@ -31,6 +31,23 @@ import { asQuantity, isIntegral, partsOf, type Quantity } from "./quantity";
 /** Where scripts/build-wasm.sh installs the curated set. */
 export const DEFAULT_CURATED_PATH = "/tier2.json";
 
+/**
+ * The curated-file schema this build reads.
+ *
+ * Governing: ADR-0001 (Tier 2 is hand-maintained)
+ *
+ * Checked rather than merely declared, and strictly, matching what Tier 1
+ * does in internal/domain/tier1.go and what the durable store does in
+ * web/src/store/durable-store.ts. A field this loader has stopped
+ * understanding fails loudly on its own — "`constants.x` is missing" — but
+ * a field whose *meaning* changed does not: seconds becoming milliseconds
+ * reads as a valid file and sizes every producer wrongly. That is the case
+ * a version is for.
+ *
+ * 1: seven scalars, two classification maps, a verified date per scalar.
+ */
+export const CURATED_SCHEMA_VERSION = 1;
+
 /** The fields of `Curated` that are required scalars, not optional maps. */
 type ScalarField = Exclude<
   keyof Curated,
@@ -68,6 +85,7 @@ interface RawEntry {
 }
 
 interface RawFile {
+  schema_version?: unknown;
   constants?: Record<string, RawEntry | undefined>;
   faunaProducts?: { items?: unknown };
   resourceHotspots?: { categories?: unknown };
@@ -144,6 +162,12 @@ export function parseCurated(text: string): Outcome<Curated> {
   }
 
   if (!isRecord(raw)) return invalid("it is not an object");
+
+  if (raw.schema_version !== CURATED_SCHEMA_VERSION) {
+    return invalid(
+      `it is schema version ${JSON.stringify(raw.schema_version)}, and this build reads ${String(CURATED_SCHEMA_VERSION)}`,
+    );
+  }
 
   const constants = raw.constants;
   if (!isRecord(constants)) return invalid("it carries no `constants` object");

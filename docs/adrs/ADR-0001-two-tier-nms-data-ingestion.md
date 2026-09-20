@@ -35,7 +35,9 @@ Chosen option: **C, direct extraction with a two-tier data model**, because it i
 
 **Tier 1 — extracted.** A Go CLI locates the game's `.pak` archives, unpacks them (they are HGPAK containers — see the note below and SPEC-0003), shells out to MBINCompiler to convert `.MBIN` → `.MXML`, then parses and normalizes the XML in Go into a version-stamped artifact: the recipe graph (products, substances, refinery, nutrient processor), item metadata, the biome→gas mapping from `GcGeneratorUnitComponentData.BiomeGasRewards`, the extractor taxonomy, the base parts catalog, refiner throughput (`RefinerProductsMadeInTime` / `RefinerSubsMadeInTime` and their Survival variants, from `gcgameplayglobals`), the per-part production and consumption rates and storage buffers from `GcBaseLinkGridData`, the C/B/A/S hotspot class strengths and weightings from `REGIONHOTSPOTSTABLE`, and crop yields and growth times. Regenerated per game version; never hand-edited.
 
-**Tier 2 — curated.** A hand-maintained YAML file of the base-economy constants that are genuinely *not* in the game files, plus the ones that are planner policy rather than game data at all. Each entry carries a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
+**Tier 2 — curated.** A hand-maintained file of the base-economy constants that are genuinely *not* in the game files, plus the ones that are planner policy rather than game data at all. Each entry carries a `source` and a `verified` date, feeding the same `unverified` badge convention the tree canvas uses.
+
+This ADR originally specified YAML. It ships as JSON (`data/tier2.json`), for two reasons that are about delivery rather than about the decision: the browser fetches the file directly, so JSON needs no build-time conversion step, and Go has no YAML parser in its standard library, so YAML would add a dependency to a module that never reads this file. What the decision actually asks for — hand-maintained, with a `source` and a `verified` date per entry — is unchanged and present. If the set grows to where per-entry comments matter more than the tooling, YAML plus a conversion step in `build-wasm.sh` is the way back.
 
 The 2026-08-18 confirmation recorded this as **one** entry — biodome crop-slot count — after generator and consumer rates, class scaling, crop yields and growth times all turned out extractable (see the finding below). Building the stage-2 input type against the generated artifact (#39) found **five**:
 
@@ -155,7 +157,7 @@ graph TD
     B -->|"MBINCompiler subprocess<br/>(LGPL-3.0)"| C[".MXML files"]
     C -->|"Go: encoding/xml"| D["Normalizer<br/>(graph build, ID resolution, provenance)"]
     D --> E["Tier 1 artifact<br/>recipe graph + metadata<br/>version-stamped"]
-    F["Tier 2 YAML<br/>economy constants<br/>source + verified per entry"] --> G
+    F["Tier 2 JSON (hand-maintained)<br/>economy constants<br/>source + verified per entry"] --> G
     E --> G["Merged plan dataset<br/>(static asset)"]
     G --> H["Client-side rollup engine"]
     H --> I["Tree canvas"]
