@@ -23,12 +23,12 @@ import { resolveAssignments } from "../state/assignments";
  * SPEC-0006 names as the tempting workaround and closes.
  *
  * `constants` is nullable, and that is the honest shape rather than a
- * convenience. `RollupRequest` requires curated constants; the application
- * has no source for them — they exist only in test fixtures, and the base
- * planner card is not mounted either — so today the shell passes null and
- * this hook holds assignments without dispatching. A fixture supplies real
- * constants and proves the dispatch. One code path, with the missing half
- * stated rather than hidden behind a stub.
+ * convenience. `RollupRequest` requires curated constants, and the shell
+ * fetches them — data/tier2.json, through useCurated — so the null is the
+ * window before they arrive and the state they are left in if the file
+ * cannot be read. Either way the hook holds assignments without
+ * dispatching rather than crossing with a set it invented. One code path,
+ * with the absent case stated rather than hidden behind a stub.
  *
  * Out-of-order replies are dropped by sequence number, the way
  * usePlanResolution and useConfiguredBase both do it: two assignments in
@@ -43,7 +43,7 @@ interface AssignmentClient {
 export interface LeafAssignmentOptions {
   readonly client: AssignmentClient;
   readonly plan: Plan;
-  /** Null until the application has a curated-constants source. */
+  /** Null while the curated set is loading, or if it could not be read. */
   readonly constants: Curated | null;
   /**
    * The ids of the places that exist in the workspace.

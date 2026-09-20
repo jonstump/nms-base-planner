@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "note": "Tier 2 — the curated constant set (ADR-0001). Hand-maintained: unlike tier1.json this file is authored rather than generated, and editing it is the intended way to change it. Every scalar is a decimal string for the same reason node totals are (SPEC-0002 REQ \"Exact Quantity Encoding\").",
+  "verified_meaning": "A constant's `verified` is the date it was confirmed in game, or null for one that has not been. Null is not a placeholder for missing metadata: the engine reads a constant with no verified date as unverified and taints every figure derived from it, which is why nothing here is presented as fact. Filling one in is how a figure stops carrying the unverified badge.",
+  "constants": {
+    "biodomeCropSlots": {
+      "value": "16",
+      "kind": "absent-from-game-data",
+      "source": "docs/design/base-planner/handoff.md records 'dome capacity 16' as illustrative, and the community wiki reports the same. ADR-0001 searched the reality tables and found no field that states it.",
+      "verified": null,
+      "note": "May be geometric — snap points in the scene — and so extractable after all, in which case this entry moves to Tier 1."
+    },
+    "faunaYieldPerCycle": {
+      "value": "1",
+      "kind": "absent-from-game-data",
+      "source": "Not in the reality tables. Fauna products come from creature data the Tier 1 pipeline does not read (ADR-0001 § Tier 2).",
+      "verified": null,
+      "note": "Placeholder, chosen conservatively: one unit per creature per cycle sizes a ranch upward rather than downward, so a plan built on it over-provisions instead of coming up short."
+    },
+    "faunaCycleSeconds": {
+      "value": "1800",
+      "kind": "absent-from-game-data",
+      "source": "As above — creature data this pipeline does not read.",
+      "verified": null,
+      "note": "Placeholder. Thirty minutes is the figure the test fixtures have used; nothing has confirmed it in game."
+    },
+    "stepsPerProcessor": {
+      "value": "1",
+      "kind": "planner-policy",
+      "source": "ADR-0001 § Tier 2 — 'how hard to work one machine', a planner policy rather than missing game data.",
+      "verified": null,
+      "note": "One step per processor: the plan never asks one machine to cover two steps. The unambiguous reading, and changeable here without touching code."
+    },
+    "depotThreshold": {
+      "value": "360",
+      "kind": "planner-policy",
+      "source": "docs/design/base-planner/handoff.md — 'supply depots (720u) when qty > 360'. ADR-0001 § Tier 2 records it as policy: the game has no opinion about when hoarding starts.",
+      "verified": null,
+      "note": "Depot *capacity* is not here. That is U_SILO_S's storage buffer, which tier1.json carries."
+    },
+    "processSeconds": {
+      "value": "30",
+      "kind": "absent-from-game-data",
+      "source": "Economy.Refining states nutrient processor throughput per cycle but not the cycle's duration, so the duration is supplied here.",
+      "verified": null,
+      "note": "Placeholder."
+    },
+    "panelsPerBattery": {
+      "value": "2",
+      "kind": "planner-policy",
+      "source": "docs/design/base-planner/handoff.md — solar 'adds 1 battery per 2 panels for night coverage'. ADR-0001 notes the battery *capacity* is extractable but the ratio is not.",
+      "verified": null,
+      "note": "A choice about how much darkness to plan for, not a game constant."
+    }
+  },
+  "faunaProducts": {
+    "source": "The FOOD_V_* family in tier1.json is what a creature yields when it is fed. The one member excluded is FOOD_V_BUG, whose default_method is 'cook' — it is produced, not harvested.",
+    "note": "Classification, not a scalar: the engine has no verified-date slot for it, so these ids change which producer row a leaf gets rather than whether a figure is verified. An id absent here is sized as a crop or an extractor instead.",
+    "items": [
+      "FOOD_V_BLOB",
+      "FOOD_V_BONE",
+      "FOOD_V_CAT",
+      "FOOD_V_COW",
+      "FOOD_V_CRAB",
+      "FOOD_V_DIPLO",
+      "FOOD_V_EGG",
+      "FOOD_V_FLYER",
+      "FOOD_V_GEK",
+      "FOOD_V_MILK",
+      "FOOD_V_MOLE",
+      "FOOD_V_PCAT",
+      "FOOD_V_REX",
+      "FOOD_V_ROBOT",
+      "FOOD_V_STRIDER"
+    ]
+  },
+  "resourceHotspots": {
+    "source": "The three gas-hotspot resources and the ten planetary minerals a Mineral Extractor draws. Nothing in the searched tables maps an item to a hotspot category — a part declares DependsOnHotspots, the item does not — so this is supplied rather than inferred from the item's name.",
+    "note": "Deliberately partial, and partial is safe: an item with no category here is refused by name (MISSING_CONSTANT, 'no hotspot category is configured for X') rather than sized against a guessed one. Add an id when you have confirmed the resource is hotspot-extractable, not when a plan happens to want it.",
+    "categories": {
+      "GAS1": "Gas",
+      "GAS2": "Gas",
+      "GAS3": "Gas",
+      "YELLOW2": "Mineral",
+      "RED2": "Mineral",
+      "GREEN2": "Mineral",
+      "BLUE2": "Mineral",
+      "COLD1": "Mineral",
+      "HOT1": "Mineral",
+      "DUSTY1": "Mineral",
+      "LUSH1": "Mineral",
+      "TOXIC1": "Mineral",
+      "RADIO1": "Mineral"
+    }
+  }
+}
