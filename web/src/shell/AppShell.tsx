@@ -52,6 +52,7 @@ import { DataCustody } from "./DataCustody";
 import { StoredPlaces } from "./StoredPlaces";
 import { TargetSearch } from "./TargetSearch";
 import { useCatalogue, type CatalogueState } from "./useCatalogue";
+import { constantsOf, useCurated } from "./useCurated";
 import { SURFACES } from "./surfaces";
 import { ViewPreferences } from "./ViewPreferences";
 
@@ -319,6 +320,18 @@ function Chrome({
   const catalogue = useCatalogue(client);
 
   /*
+   * The Tier 2 curated constants, which stage 2 cannot run without.
+   *
+   * Governing: ADR-0001 (Tier 2 is hand-maintained), SPEC-0005 REQ "Module
+   * Loading"
+   *
+   * Fetched here rather than inside the assignment hook: the card surface
+   * needs the same set, and two fetches of one file is two places for it to
+   * disagree with itself.
+   */
+  const curated = useCurated();
+
+  /*
    * The announcement is keyed to the result token, which changes exactly when
    * a crossing produces a new answer — not on render, not on a preference
    * change, not on a re-render caused by a parent.
@@ -364,16 +377,16 @@ function Chrome({
   const placeIds = useMemo(() => bases.map((base) => base.id), [bases]);
 
   /*
-   * `constants: null` is not a stub. `RollupRequest` requires curated
-   * constants and the application has no source for them — they exist only
-   * in test fixtures, and the base planner card that would own them is not
-   * mounted either. So assignments are held and rendered here, and the
-   * stage-2 dispatch this hook performs is exercised where constants exist.
+   * Null while the curated set is loading, or if it failed — not as a
+   * standing state. `RollupRequest` requires curated constants, so until
+   * they arrive this hook holds assignments without dispatching, which is
+   * the behaviour it was built with and the reason it takes them nullable.
+   * What has changed is that the null is now temporary.
    */
   const { assignments, assign } = useLeafAssignment({
     client,
     plan,
-    constants: null,
+    constants: constantsOf(curated),
     placeIds,
   });
 
@@ -524,6 +537,23 @@ function Chrome({
             <section className="panel" aria-label="Figures">
               <Figures resolution={resolution} />
             </section>
+
+            {/*
+              Reported where the plan is, and only when it has failed.
+              A curated set that is merely still loading is not worth a
+              badge: the figures it feeds already say "pending" for
+              themselves. A curated set that failed is different — the tree
+              resolves and nothing downstream of it can be sized, which
+              looks like the planner working and quietly doing less.
+            */}
+            {curated.status === "failed" && (
+              <p className="label">
+                <StatusBadge
+                  status="danger"
+                  detail={`${failureSummary(curated.outcome)} — producer figures are unavailable`}
+                />
+              </p>
+            )}
 
             {/*
               The canvas sits beside the figure list rather than replacing

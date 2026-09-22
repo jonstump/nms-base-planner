@@ -175,6 +175,20 @@ test("the shell's tab order follows visual layout", async ({ page }) => {
    * later fix that breaks it. This asserts the rule where it applies and says
    * where it does not.
    */
+  /*
+   * Wait for the target control before tabbing.
+   *
+   * The planner surface renders its controls in two stages: until the
+   * catalogue arrives, TargetSearch is a pending badge with no combobox in
+   * it. Tabbing before then walks a two-control form, which trivially
+   * satisfies the reading-order loop below and then fails the length
+   * assertion — under load, reliably. The order this asserts is the order
+   * of the finished surface, so that is what it has to wait for.
+   */
+  await expect(page.getByRole("combobox", { name: "Target" })).toBeVisible({
+    timeout: 30_000,
+  });
+
   const order = await tabOrder(page);
   expect(order.length).toBeGreaterThan(2);
 

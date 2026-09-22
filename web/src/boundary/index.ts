@@ -11,6 +11,7 @@
 
 export { BoundaryClient, type Readiness } from "./client";
 export { matches, type CatalogueItem } from "./catalogue";
+export { DEFAULT_CURATED_PATH, fetchCurated, parseCurated } from "./curated";
 export {
   BoundaryModule,
   DEFAULT_PATHS,

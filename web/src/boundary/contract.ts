@@ -60,10 +60,24 @@ export type ModuleErrorCode = (typeof ERROR_CODES)[number];
  * case comes back as the module's own INVALID_ARTIFACT, because by then the
  * module is running and has an opinion. These are the cases where it is not.
  */
+/*
+ * The curated set gets its own two codes rather than borrowing the Tier 1
+ * artifact's, because the two artifacts fail differently and a shell that
+ * could not tell them apart would say the wrong thing. Tier 1 failing means
+ * there is no graph at all; Tier 2 failing means the graph resolves and the
+ * producer rollup cannot run. And Tier 2 is validated *here* — it is
+ * hand-maintained, so a bad edit is the expected failure, and the module
+ * never sees the file to have an INVALID_ARTIFACT opinion about it.
+ *
+ * Governing: ADR-0001 (Tier 2 curated constants), SPEC-0005 REQ "Module
+ * Loading"
+ */
 export const CLIENT_CODES = [
   "MODULE_LOAD_FAILED",
   "ARTIFACT_FETCH_FAILED",
   "MALFORMED_ENVELOPE",
+  "CONSTANTS_FETCH_FAILED",
+  "CONSTANTS_INVALID",
 ] as const;
 
 export type ClientErrorCode = (typeof CLIENT_CODES)[number];
